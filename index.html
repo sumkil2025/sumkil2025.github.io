@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>숨길의료기 | 창원·진해 양압기 건강보험 대여 · 수면무호흡 CPAP</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<meta property="og:title" content="숨길의료기 | 창원·진해 양압기 건강보험 대여">
+<meta property="og:description" content="수면무호흡(코골이) 양압기를 건강보험 급여로 대여·관리합니다. 상담 055-552-9993.">
+<meta property="og:image" content="cpap-hero.jpg">
+<meta name="description" content="창원 진해 양압기 치료서비스 제공업소 숨길의료기. 수면무호흡(코골이) 양압기(CPAP)를 건강보험 급여로 대여하고 설치·교육·사후관리까지 도와드립니다. 상담 055-552-9993.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root{
+    --green:#7cb518; --green-d:#5f8f0e; --leaf:#3f6b1e; --lime:#a5ce4e;
+    --tint:#f3f8e8; --tint-2:#f8fbf1; --ink:#2b3320; --muted:#5d6553; --line:#e7eedb;
+    --white:#fff; --radius:14px; --shadow:0 6px 24px rgba(63,107,30,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:"Pretendard",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    color:var(--ink);line-height:1.65;background:var(--white);-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  img{max-width:100%;display:block}
+  .wrap{width:100%;max-width:1080px;margin:0 auto;padding:0 20px}
+  section{padding:62px 0}
+  h2{font-size:26px;color:var(--leaf);font-weight:700;line-height:1.3;letter-spacing:-.02em}
+  h2 .sub{display:block;font-size:13px;color:var(--green);font-weight:700;margin-bottom:8px;letter-spacing:.06em}
+  h3{font-size:18px;color:var(--leaf);font-weight:700;margin-bottom:6px}
+  p{color:var(--muted)}
+  .center{text-align:center}
+  .center h2{margin-bottom:10px}
+  .center>p{max-width:640px;margin:0 auto}
+
+  header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.93);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;color:var(--leaf);font-size:20px;letter-spacing:-.02em}
+  .logo small{display:block;font-size:10px;color:var(--green);font-weight:600;letter-spacing:.04em;margin-top:1px}
+  .logo-img{height:42px;width:auto;display:block}
+  .logo span{white-space:nowrap}
+  .menu{display:flex;gap:24px;font-size:15px;font-weight:600;color:#41502f}
+  .menu a:hover{color:var(--green)}
+  .nav-cta{display:flex;align-items:center;gap:8px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:10px;
+    font-weight:700;font-size:15px;padding:11px 18px;border:0;cursor:pointer;transition:.15s;white-space:nowrap}
+  .btn-call{background:var(--green);color:#fff}
+  .btn-call:hover{background:var(--green-d)}
+  .btn-sub{background:var(--leaf);color:#fff}
+  .btn-sub:hover{background:#335617}
+  .btn-ghost{background:#fff;color:var(--leaf);border:1px solid var(--line)}
+  .btn-lg{padding:15px 24px;font-size:16px}
+  .hamb{display:none;background:none;border:0;font-size:26px;color:var(--leaf);cursor:pointer}
+
+  .hero{background:linear-gradient(180deg,var(--tint) 0%,#fff 100%);padding:52px 0 60px}
+  .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
+  .slogan{font-size:14px;color:var(--green-d);font-weight:700;letter-spacing:.02em;margin-bottom:10px}
+  .slogan b{color:var(--leaf)}
+  .badge{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid #d4e6b0;color:var(--green-d);
+    font-weight:700;font-size:13px;padding:7px 14px;border-radius:999px;margin-bottom:16px}
+  .hero h1{font-size:38px;line-height:1.25;color:var(--leaf);font-weight:800;letter-spacing:-.03em}
+  .hero h1 em{color:var(--green);font-style:normal}
+  .hero p.lead{font-size:17px;margin:16px 0 24px;color:#414b38}
+  .hero-cta{display:flex;gap:10px;flex-wrap:wrap}
+  .hero-points{display:flex;gap:16px;margin-top:22px;flex-wrap:wrap}
+  .hero-points span{font-size:14px;color:#414b38;font-weight:600;display:inline-flex;gap:6px;align-items:center}
+  .hero-points b{color:var(--green-d)}
+  .hero-card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:26px}
+  .hero-card h3{font-size:16px}
+  .pricetag{display:flex;align-items:baseline;gap:8px;margin:14px 0 4px}
+  .pricetag .won{font-size:40px;font-weight:800;color:var(--leaf);letter-spacing:-.03em}
+  .pricetag .per{color:var(--muted);font-weight:600}
+  .hero-card .note{font-size:13px;color:var(--muted);margin-top:10px;padding-top:14px;border-top:1px dashed var(--line)}
+
+  .grid{display:grid;gap:18px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+  .card .ico{width:46px;height:46px;border-radius:11px;background:var(--tint);color:var(--green-d);
+    display:grid;place-items:center;font-size:22px;margin-bottom:14px}
+  .card.illust{padding:0;overflow:hidden}
+  .card.illust>img{width:100%;height:188px;object-fit:cover;object-position:center 36%;display:block}
+  .card.illust .ill-body{padding:18px 24px 24px}
+  .card.illust .ill-body h3{margin-bottom:6px}
+  #product .card.illust>img{height:152px;object-position:center}
+  .card p{font-size:15px}
+
+  .alt{background:var(--tint-2)}
+  .ptable{background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .ptable .row{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:0}
+  .ptable .row>div{padding:16px 18px;border-bottom:1px solid var(--line)}
+  .ptable .head>div{background:var(--leaf);color:#fff;font-weight:700;font-size:14px;border-bottom:0}
+  .ptable .row>div:first-child{font-weight:600;color:var(--leaf)}
+  .ptable .hi{color:var(--green-d)!important;font-weight:800}
+  .ptable .row:last-child>div{border-bottom:0}
+  .small{font-size:13px;color:var(--muted);margin-top:10px}
+
+  .calc{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin-top:18px}
+  .calc h3{margin-bottom:14px}
+  .seg{display:inline-flex;background:var(--tint);border-radius:11px;padding:4px;gap:4px;margin-bottom:18px;flex-wrap:wrap}
+  .seg button{border:0;background:transparent;padding:10px 16px;border-radius:8px;font-weight:700;
+    color:var(--muted);cursor:pointer;font-size:14px;font-family:inherit}
+  .seg button.on{background:#fff;color:var(--leaf);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .calc-out{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .calc-out .big{font-size:34px;font-weight:800;color:var(--green-d);letter-spacing:-.03em}
+  .calc-desc{font-size:14px;color:var(--muted);margin-top:8px}
+
+  .steps{counter-reset:s;display:grid;gap:14px}
+  .step{display:grid;grid-template-columns:48px 1fr;gap:16px;align-items:start;
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px}
+  .step .num{counter-increment:s;width:40px;height:40px;border-radius:50%;background:var(--green);color:#fff;
+    font-weight:800;display:grid;place-items:center;font-size:17px}
+  .step .num::before{content:counter(s)}
+  .step h3{font-size:16px;margin-bottom:3px}
+  .step p{font-size:14px}
+  .aftercare{margin-top:30px;background:var(--tint);border:1px solid var(--line);border-radius:var(--radius);padding:30px 28px}
+  .aftercare>h3{text-align:center;font-size:19px;margin-bottom:6px}
+  .aftercare .ac-sub{text-align:center;font-size:14px;max-width:600px;margin:0 auto 22px}
+  .ac-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .ac-grid>div{background:#fff;border:1px solid var(--line);border-radius:11px;padding:20px}
+  .ac-grid svg{color:var(--green-d);margin-bottom:10px}
+  .ac-grid b{display:block;color:var(--leaf);margin-bottom:5px;font-size:15px}
+  .ac-grid p{font-size:14px}
+  @media(max-width:860px){.ac-grid{grid-template-columns:1fr}}
+
+  .pbanner{width:100%;height:300px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--line);margin-bottom:26px}
+
+  .faq details{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+  .faq summary{padding:18px 20px;font-weight:700;color:var(--leaf);cursor:pointer;list-style:none;
+    display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:15px}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::after{content:"+";font-size:22px;color:var(--green);font-weight:400}
+  .faq details[open] summary::after{content:"\2212"}
+  .faq .ans{padding:0 20px 18px;color:var(--muted);font-size:15px}
+  .mtable{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:22px}
+  .mtable th,.mtable td{padding:13px 16px;text-align:left;border-bottom:1px solid var(--line);font-size:14px}
+  .mtable th{background:var(--tint);color:var(--leaf);font-weight:700}
+  .mtable td:first-child{font-weight:600;color:var(--leaf)}
+  .mtable tr:last-child td{border-bottom:0}
+
+  .contact{background:var(--leaf);color:#fff}
+  .contact h2{color:#fff}
+  .contact h2 .sub{color:#c7e29a}
+  .contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:26px}
+  .ci{display:flex;gap:13px;align-items:flex-start;margin-bottom:16px}
+  .ci .ico{color:#c7e29a;width:26px;flex:none;margin-top:1px;display:flex;align-items:flex-start}
+  .ci b{display:block;font-size:15px}
+  .ci a,.ci span{color:#dce9c6;font-size:14px}
+  .ci a:hover{color:#fff;text-decoration:underline}
+  .map-ph{background:#365a19;border:1px dashed #5a7d33;border-radius:var(--radius);
+    min-height:230px;display:grid;place-items:center;color:#c7e29a;font-size:14px;text-align:center;padding:20px}
+  .contact .hero-cta{margin-top:8px}
+
+  footer{background:#27431a;color:#aebf97;font-size:13px;padding:34px 0}
+  footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  footer b{color:#dce9c6}
+  .disc{font-size:12px;color:#8a9b72;margin-top:14px;line-height:1.6;max-width:680px}
+  .ph{background:#fff5cc;color:#7a5a00;padding:0 5px;border-radius:4px;font-weight:600}
+  .contact .ph{background:#3c6420;color:#ffe08a}
+
+  @media (max-width:860px){
+    .menu,.nav-cta .btn-ghost,.logo small{display:none}
+    .hamb{display:block}
+    .logo-img{height:36px}
+    .hero-grid{grid-template-columns:1fr;gap:28px}
+    .hero h1{font-size:30px}
+    .g3,.g2,.contact-grid{grid-template-columns:1fr}
+    .pbanner{height:220px}
+    section{padding:48px 0}
+    h2{font-size:23px}
+    .menu.open{display:flex;position:absolute;top:64px;left:0;right:0;flex-direction:column;
+      background:#fff;border-bottom:1px solid var(--line);padding:14px 20px;gap:4px}
+    .menu.open a{padding:11px 0;border-bottom:1px solid var(--tint-2)}
+  }
+  @media (max-width:520px){
+    .nav-cta .btn-call{font-size:0;gap:0;padding:11px 14px}
+    .nav-cta .btn-call i{font-size:18px}
+    .ptable .row{grid-template-columns:1fr}
+    .ptable .head{display:none}
+    .ptable .row>div{border-bottom:1px solid var(--line)}
+    .ptable .row>div::before{content:attr(data-l);display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:2px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a href="#top" class="logo">
+      <img src="logo.png" alt="숨길의료기 로고" class="logo-img">
+      <span>숨길의료기<small>AIRWAY · 숨 쉬는 길을 열다</small></span>
+    </a>
+    <nav class="menu" id="menu">
+      <a href="#about">양압기 치료</a>
+      <a href="#price">건강보험·요금</a>
+      <a href="#process">이용 절차</a>
+      <a href="#product">제품</a>
+      <a href="#faq">자주 묻는 질문</a>
+      <a href="#contact">상담·오시는 길</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="#contact" class="btn btn-ghost">오시는 길</a>
+      <a href="tel:0555529993" class="btn btn-call"><i>📞</i>055-552-9993</a>
+      <button class="hamb" id="hamb" aria-label="메뉴 열기">☰</button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="slogan">AIRWAY — <b>숨 쉬는 길을 열다</b></p>
+        <span class="badge">🌿 창원·진해 양압기 치료서비스 제공업소</span>
+        <h1>수면무호흡, <em>양압기</em>를<br>건강보험으로 대여하세요</h1>
+        <p class="lead">수면호흡기·양압기 전문. 검사부터 처방·설치·교육·사후관리까지<br>숨길의료기가 끝까지 함께합니다.</p>
+        <div class="hero-cta">
+          <a href="tel:0555529993" class="btn btn-call btn-lg"><i>📞</i>전화 상담 055-552-9993</a>
+          <a href="#contact" class="btn btn-sub btn-lg"><i>📍</i>오시는 길</a>
+        </div>
+        <div class="hero-points">
+          <span>✔ 건강보험 급여 적용</span>
+          <span>✔ 순응 후 본인부담 <b>월 17,800원</b></span>
+          <span>✔ 방문 설치·교육</span>
+        </div>
+      </div>
+      <div class="hero-card">
+        <h3>한눈에 보는 본인부담금</h3>
+        <div class="pricetag"><span class="won">17,800<span style="font-size:20px">원</span></span><span class="per">/ 월 (순응 통과 후)</span></div>
+        <p style="font-size:14px">자동형 양압기 기준금액 89,000원 중 <b style="color:var(--green-d)">20%</b>만 부담<br>(나머지 80%는 건강보험공단 부담)</p>
+        <div class="note">순응 기간(처방 후 90일) 중에는 50%인 <b>월 44,500원</b> · 마스크 연 19,000원</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="wrap">
+      <div class="center">
+        <h2><span class="sub">WHAT IS CPAP</span>양압기 치료란 무엇인가요?</h2>
+        <p>수면무호흡증은 잠자는 동안 기도가 좁아지거나 막혀 호흡이 멈추는 질환입니다. 호흡이 <b style="color:var(--leaf)">10초 이상 멈추거나 시간당 5회 이상</b> 반복되면 혈중 산소가 떨어져 치료가 필요합니다. 양압기(CPAP)는 일정한 압력의 공기를 불어넣어 기도를 열어주는 가장 표준적인 치료 방법입니다.</p>
+      </div>
+      <div class="grid g3" style="margin-top:34px">
+        <div class="card illust">
+          <img src="need.jpg" alt="피곤하고 졸린 모습" loading="lazy">
+          <div class="ill-body">
+            <h3>이런 분께 필요해요</h3>
+            <p>심한 코골이, 수면 중 숨 멈춤, 아침 두통, 주간 졸림·집중력 저하, 고혈압을 동반한 분.</p>
+          </div>
+        </div>
+        <div class="card illust">
+          <img src="how.jpg" alt="양압기 마스크로 공기가 기도로 흐르는 모습" loading="lazy">
+          <div class="ill-body">
+            <h3>양압기 작동 원리</h3>
+            <p>마스크를 통해 적정 압력의 공기를 공급해 좁아진 기도를 넓혀 줍니다. 자동형은 호흡에 맞춰 압력을 스스로 조절합니다.</p>
+          </div>
+        </div>
+        <div class="card illust">
+          <img src="effect.jpg" alt="편안히 잠든 모습" loading="lazy">
+          <div class="ill-body">
+            <h3>기대 효과</h3>
+            <p>코골이·무호흡 감소, 깊은 수면 회복, 주간 졸림 개선. 꾸준히 사용할수록 효과가 안정적으로 나타납니다.</p>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px;border-left:4px solid var(--green);border-radius:0 var(--radius) var(--radius) 0">
+        <h3>방치하면 위험합니다</h3>
+        <p>수면무호흡을 치료하지 않으면 <b style="color:var(--leaf)">고혈압·심근경색·부정맥·협심증, 뇌졸중, 당뇨</b>로 이어질 수 있습니다. 특히 중증 수면무호흡 환자는 심혈관 질환 사망 위험이 크게 높아진다고 보고됩니다. 원인은 비만·편도비대, 작은 턱·좁은 기도, 구강호흡 등 다양하며, 수면다원검사(PSG)로 정확히 진단하고 꾸준히 치료하는 것이 중요합니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="price" class="alt">
+    <div class="wrap">
+      <div class="center">
+        <h2><span class="sub">건강보험 급여</span>본인부담금은 얼마인가요?</h2>
+        <p>2024.11.1. 보건복지부 고시 기준입니다. 건강보험 급여대상자로 등록되면 기준금액의 일부만 부담합니다.</p>
+      </div>
+
+      <div class="ptable" style="margin-top:30px">
+        <div class="row head"><div>구분</div><div>월 기준금액</div><div>본인부담금</div></div>
+        <div class="row"><div data-l="구분">자동형 양압기 · 순응 기간</div><div data-l="기준금액">89,000원</div><div data-l="본인부담" class="hi">44,500원 (50%)</div></div>
+        <div class="row"><div data-l="구분">자동형 양압기 · 순응 통과 후</div><div data-l="기준금액">89,000원</div><div data-l="본인부담" class="hi">17,800원 (20%)</div></div>
+        <div class="row"><div data-l="구분">마스크 (소모품·연 1회)</div><div data-l="기준금액">95,000원 / 년</div><div data-l="본인부담" class="hi">19,000원 (20%)</div></div>
+      </div>
+      <p class="small">※ 월 중도 임대·재처방 시 대여료는 일할 계산됩니다. 마스크는 1년 주기로 건강보험이 적용됩니다.</p>
+
+      <div class="calc">
+        <h3>본인부담금 간편 안내</h3>
+        <div class="seg" id="seg">
+          <button class="on" data-v="adapt">순응 기간 (50%)</button>
+          <button data-v="pass">순응 통과 후 (20%)</button>
+        </div>
+        <div class="calc-out"><span class="big" id="calcWon">44,500원</span><span style="color:var(--muted)">/ 월</span></div>
+        <p class="calc-desc" id="calcDesc">처방 후 90일 순응 기간 동안의 월 본인부담금입니다. 마스크는 연 19,000원이 별도로 적용됩니다.</p>
+      </div>
+
+      <div class="card" style="margin-top:18px;border-left:4px solid var(--green);border-radius:0 var(--radius) var(--radius) 0">
+        <h3>‘순응’이란?</h3>
+        <p>양압기를 꾸준히 잘 사용하고 있는지 확인하는 건강보험 기준입니다. <b style="color:var(--leaf)">처방일부터 90일 중 연속된 30일 동안 하루 4시간 이상 사용한 날이 21일 이상</b>이면 순응에 성공해, 이후 12개월간 본인부담 20%로 계속 치료받을 수 있습니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="process">
+    <div class="wrap">
+      <div class="center">
+        <h2><span class="sub">HOW IT WORKS</span>이용 절차</h2>
+        <p>검사부터 사후관리까지, 복잡한 행정은 숨길의료기가 안내해 드립니다.</p>
+      </div>
+      <div class="steps" style="margin-top:32px">
+        <div class="step"><div class="num"></div><div><h3>수면다원검사 (PSG)</h3><p>연계 이비인후과 수면클리닉에서 수면검사를 받아 수면무호흡을 진단합니다.</p></div></div>
+        <div class="step"><div class="num"></div><div><h3>양압기 처방전 발급</h3><p>검사 결과에 따라 담당 의사가 양압기 처방전을 발급합니다.</p></div></div>
+        <div class="step"><div class="num"></div><div><h3>건강보험 급여대상자 등록</h3><p>국민건강보험공단에 급여대상자로 등록해 보험 적용을 받습니다.</p></div></div>
+        <div class="step"><div class="num"></div><div><h3>계약 및 양압기 설치·교육</h3><p>표준계약 후 가정에 양압기를 설치하고, 마스크 착용·세척·관리 방법을 교육합니다.</p></div></div>
+        <div class="step"><div class="num"></div><div><h3>순응 기간 모니터링</h3><p>사용 시간과 상태를 함께 점검하며 마스크·압력 적응을 돕습니다.</p></div></div>
+        <div class="step"><div class="num"></div><div><h3>순응 통과 후 지속 관리</h3><p>12개월 처방으로 전환되며, 정기적으로 사용 현황을 확인하고 소모품을 관리합니다.</p></div></div>
+      </div>
+
+      <div class="aftercare">
+        <h3>빌려드리고 끝이 아닙니다 — 끝까지 책임관리</h3>
+        <p class="ac-sub">2026년 강화된 건강보험 관리 기준에 맞춰, 숨길의료기는 정기 점검과 상담으로 치료가 끝날 때까지 함께합니다.</p>
+        <div class="ac-grid">
+          <div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m8.5 15.5 2 2 4-4"/></svg>
+            <b>매월 정기 점검</b><p>압력 설정값·사용 시간·알림 작동을 매월 확인하고 환자관리카드에 기록합니다.</p>
+          </div>
+          <div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M3 10.8 12 3l9 7.8"/><path d="M5 9.6V21h14V9.6"/><path d="M9.5 21v-6h5v6"/></svg>
+            <b>반기 방문 점검</b><p>6개월마다 직접 방문해 기기 위생·소모품·성능 상태를 꼼꼼히 점검합니다.</p>
+          </div>
+          <div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="2.5" y="13" width="4" height="6" rx="1.6"/><rect x="17.5" y="13" width="4" height="6" rx="1.6"/><path d="M20 19a4 4 0 0 1-4 3.2h-2.2"/></svg>
+            <b>상담 콜센터 운영</b><p>전화·문자·대면으로 언제든 사용 중 궁금증과 문제를 상담해 드립니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="product" class="alt">
+    <div class="wrap">
+      <div class="center">
+        <h2><span class="sub">DEVICE</span>취급 제품</h2>
+        <p>독일 로벤스타인(Löwenstein)의 프리미엄 자동형 양압기 <b style="color:var(--leaf)">프리즈마 스마트 맥스</b>를 제공합니다.</p>
+      </div>
+      <img class="pbanner" src="cpap-hero.jpg" alt="로벤스타인 프리즈마 양압기를 사용하며 편안히 잠든 모습" loading="lazy" style="margin-top:30px">
+      <div class="grid g3">
+        <div class="card illust"><img src="apap.jpg" alt="자동 압력 조절" loading="lazy"><div class="ill-body"><h3>자동 압력 조절 (APAP)</h3><p style="font-size:14px">호흡 상태에 맞춰 압력을 자동으로 조절해 더 편안한 수면을 돕습니다.</p></div></div>
+        <div class="card illust"><img src="soft.jpg" alt="편안한 압력" loading="lazy"><div class="ill-body"><h3>편안한 압력 (Soft Start)</h3><p style="font-size:14px">잠들 때는 낮은 압력에서 시작해 서서히 올라가고, 숨을 내쉴 때 압력을 낮춰 답답함을 줄입니다.</p></div></div>
+        <div class="card illust"><img src="quiet.jpg" alt="저소음 설계" loading="lazy"><div class="ill-body"><h3>저소음 설계</h3><p style="font-size:14px">작동 소음이 작아 본인과 옆에서 주무시는 분의 수면을 방해하지 않습니다.</p></div></div>
+        <div class="card illust"><img src="humid.jpg" alt="가습 기능" loading="lazy"><div class="ill-body"><h3>가습 기능</h3><p style="font-size:14px">따뜻한 습기를 더해 코·목 건조와 자극을 완화해 더 편안하게 사용할 수 있습니다.</p></div></div>
+        <div class="card illust"><img src="data.jpg" alt="자세한 사용 데이터" loading="lazy"><div class="ill-body"><h3>자세한 사용 데이터</h3><p style="font-size:14px">사용 시간·무호흡 지수(AHI)를 기록하고 원격(prisma CLOUD)으로도 확인해 순응 관리에 활용합니다.</p></div></div>
+        <div class="card illust"><img src="safe.jpg" alt="안심 품질" loading="lazy"><div class="ill-body"><h3>안심 품질</h3><p style="font-size:14px">독일 로벤스타인 기술, 2년 무상보증, 모터까지 세척 가능한 위생 설계로 오래 안심하고 쓸 수 있습니다.</p></div></div>
+      </div>
+      <p class="small">※ 마스크는 얼굴형·호흡 습관에 맞춰 나잘·풀페이스·필로우(코베개) 중 선택할 수 있습니다.</p>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <div class="center">
+        <h2><span class="sub">FAQ & CARE</span>자가관리 & 자주 묻는 질문</h2>
+        <p>오래, 편하게 쓰시려면 정기적인 세척과 소모품 교체가 중요합니다.</p>
+      </div>
+      <table class="mtable" style="margin-top:30px">
+        <tr><th>소모품</th><th>세척·교체 주기</th><th>관리 방법</th></tr>
+        <tr><td>마스크 실리콘</td><td>매일</td><td>중성세제로 세척 후 자연 건조</td></tr>
+        <tr><td>호스(튜브)</td><td>일주일에 한 번</td><td>흐르는 물로 세척 후 건조 (연 1회 교체)</td></tr>
+        <tr><td>울트라파인 필터</td><td>일주일에 한 번 세척</td><td>1년에 한 번 교체</td></tr>
+        <tr><td>블랙폼 필터</td><td>약 1.5개월</td><td>새 필터로 교체</td></tr>
+      </table>
+      <div class="faq">
+        <details open><summary>양압기를 쓰면 입이 마르고 코가 건조해요</summary><div class="ans">가습 기능을 활용하고, 입이 벌어진다면 입벌림 방지 테이프나 턱 밴드를 사용해 보세요. 증상이 지속되면 담당 의사 상담 후 압력 조절이 필요할 수 있습니다.</div></details>
+        <details><summary>마스크에서 바람이 새요</summary><div class="ans">마스크를 다시 제대로 착용해 주세요. 이마 헤드기어는 손가락 두 개가 들어갈 정도, 아래쪽은 딱 맞게 조절합니다. 그래도 새면 마스크 크기·종류 점검이 필요합니다.</div></details>
+        <details><summary>압력을 제가 직접 바꿔도 되나요?</summary><div class="ans">안 됩니다. 압력은 의사 처방값으로 설정되어 있으며, 임의로 변경하면 건강보험 혜택이 적용되지 않습니다. 변경이 필요하면 병원에 내원해 주세요.</div></details>
+        <details><summary>해외에 나가면 어떻게 되나요?</summary><div class="ans">해외 체류 기간에는 건강보험 급여가 인정되지 않아 본인부담 100%가 발생합니다. 출국 예정 시 미리 담당자에게 알려 주세요.</div></details>
+        <details><summary>배가 더부룩하고 가스가 차요</summary><div class="ans">수면 중 공기를 삼켜(공기연하) 생길 수 있습니다. 압력이 높을 때 잘 나타나므로 담당 의사와 압력 조절을 상담하고, 옆으로 누워 자는 자세가 도움이 됩니다.</div></details>
+        <details><summary>호스 안에 물이 차요</summary><div class="ans">겨울철 방 안과 호스의 온도 차로 생기는 결로 현상입니다. 호스를 이불 안쪽으로 넣거나 실내 온도를 약간 높이고, 열선 호스·호스 커버를 사용하면 줄어듭니다.</div></details>
+        <details><summary>순응에 실패하면 어떻게 되나요?</summary><div class="ans">순응 기준(90일 중 연속 30일·하루 4시간 이상·21일 이상)을 충족하지 못하면 급여가 해지될 수 있습니다. 사용에 어려움이 있으면 언제든 연락 주세요. 적응을 도와드립니다.</div></details>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" class="contact">
+    <div class="wrap">
+      <div class="center">
+        <h2><span class="sub">CONTACT</span>상담 및 오시는 길</h2>
+        <p style="color:#dce9c6">전화 또는 이메일로 편하게 문의해 주세요. 친절히 안내해 드리겠습니다.</p>
+      </div>
+      <div class="contact-grid">
+        <div>
+          <div class="ci"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><div><b>전화 상담</b><a href="tel:0555529993">055-552-9993</a></div></div>
+          <div class="ci"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg></div><div><b>팩스</b><span>055-552-9994</span></div></div>
+          <div class="ci"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></div><div><b>이메일</b><a href="mailto:sumkil2025@gmail.com">sumkil2025@gmail.com</a></div></div>
+          <div class="ci"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div><b>오시는 길</b><span>경남 창원시 진해구 진해대로 999, 205호 (2층)</span></div></div>
+          <div class="ci"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></div><div><b>상담·영업 시간</b><span>평일 09:00 – 18:00 (점심 12:00 – 14:00)<br>토요일 09:00 – 13:00 · 일요일·공휴일 휴무</span></div></div>
+          <div class="hero-cta">
+            <a href="tel:0555529993" class="btn btn-call btn-lg"><i>📞</i>전화하기</a>
+            <a href="mailto:sumkil2025@gmail.com" class="btn btn-sub btn-lg" style="background:#2f5217"><i>✉️</i>이메일 문의</a>
+          </div>
+        </div>
+        <div class="map-ph">🗺️ 카카오맵 자리<br>진해대로 999 (2층, 상쾌한이비인후과 건물)<br><span class="ph">장소 등록 후 지도 임베드</span></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <b>주식회사 숨길 · 숨길의료기</b><br>
+      국민건강보험공단 등록 양압기 치료서비스 제공업소(준요양기관)<br>
+      대표 문은실 · 사업자등록번호 552-86-03462 · 경남 창원시 진해구 진해대로 999, 205호<br>
+      T. 055-552-9993 · F. 055-552-9994 · sumkil2025@gmail.com
+      <p class="disc">본 사이트의 의료 정보는 일반적인 안내이며, 진단과 처방은 반드시 의료기관 상담이 필요합니다. 치료 효과는 개인에 따라 다를 수 있습니다.</p>
+    </div>
+    <div style="text-align:right">AIRWAY<br>숨 쉬는 길을 열다<br>© 2026 숨길의료기</div>
+  </div>
+</footer>
+
+<script>
+  var hamb=document.getElementById('hamb'),menu=document.getElementById('menu');
+  hamb.addEventListener('click',function(){menu.classList.toggle('open')});
+  menu.addEventListener('click',function(e){if(e.target.tagName==='A')menu.classList.remove('open')});
+
+  var seg=document.getElementById('seg'),won=document.getElementById('calcWon'),desc=document.getElementById('calcDesc');
+  var data={adapt:{won:'44,500원',d:'처방 후 90일 순응 기간 동안의 월 본인부담금입니다. 마스크는 연 19,000원이 별도로 적용됩니다.'},
+            pass:{won:'17,800원',d:'순응 통과 후 12개월간 적용되는 월 본인부담금입니다. 매월 평균 2시간 이상 사용해야 급여가 유지됩니다.'}};
+  seg.addEventListener('click',function(e){
+    if(e.target.tagName!=='BUTTON')return;
+    seg.querySelectorAll('button').forEach(function(b){b.classList.remove('on')});
+    e.target.classList.add('on');
+    var v=data[e.target.dataset.v];won.textContent=v.won;desc.textContent=v.d;
+  });
+</script>
+</body>
+</html>
