@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>양압기 본인부담금 일할 계산기 | 숨길의료기</title>
+<style>
+  :root{
+    --navy:#3f6b1e; --blue:#6fa81e; --pink:#5f8f0e; --bg:#f3f8e8;
+    --card:#ffffff; --line:#e7eedb; --ink:#2b3320; --muted:#5d6553;
+    --green:#3f6b1e; --amber:#b5651d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.5;padding:16px}
+  .wrap{max-width:560px;margin:0 auto}
+  header{text-align:center;margin:6px 0 18px}
+  header h1{font-size:1.25rem;margin:0 0 4px}
+  header .sub{color:var(--muted);font-size:.85rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+        padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,30,60,.05)}
+  .label{font-weight:700;font-size:.9rem;margin-bottom:8px;display:block}
+  .hint{color:var(--muted);font-size:.78rem;margin-top:6px}
+  .seg{display:flex;gap:8px;flex-wrap:wrap}
+  .seg button{flex:1;min-width:72px;padding:11px 8px;border:1.5px solid var(--line);background:#fff;
+       border-radius:10px;font-size:.92rem;cursor:pointer;color:var(--ink);transition:.12s}
+  .seg button.on{border-color:var(--blue);background:var(--blue);color:#fff;font-weight:700}
+  .seg.days button{min-width:0;flex:1 1 22%;padding:10px 4px}
+  input[type=number],input[type=date]{width:100%;padding:11px 12px;border:1.5px solid var(--line);
+       border-radius:10px;font-size:1rem;font-family:inherit}
+  .row{display:flex;gap:10px;align-items:flex-end}
+  .row>div{flex:1}
+  /* 날짜 자동계산 박스 */
+  .datebox{margin-top:12px;border:1.5px dashed var(--blue);background:#eef5e0;
+       border-radius:12px;padding:12px 12px 14px}
+  .datebox-h{font-weight:700;font-size:.86rem;color:var(--navy);margin-bottom:10px}
+  .datebox-h span{display:block;font-weight:400;color:var(--muted);font-size:.74rem;margin-top:3px}
+  .dlabel{display:block;font-size:.76rem;color:var(--blue);font-weight:700;margin-bottom:4px}
+  .row .tilde{flex:0 0 14px;text-align:center;color:var(--muted);font-weight:700;padding-bottom:11px}
+  .datebox input[type=date]{border-color:var(--blue);background:#fff}
+  .dresult{margin-top:10px;text-align:center;font-size:.86rem;font-weight:700;color:var(--navy);
+       background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px}
+  .reset{width:100%;margin-top:16px;padding:12px;border:1.5px solid var(--line);background:#fff;
+       border-radius:10px;font-size:.92rem;font-weight:700;color:var(--muted);cursor:pointer;transition:.12s}
+  .reset:hover{border-color:var(--pink);color:var(--pink)}
+  .field{margin-bottom:14px}
+  .field:last-child{margin-bottom:0}
+  /* result */
+  .result{background:linear-gradient(135deg,#3f6b1e,#6fa81e);color:#fff;border:none}
+  .result .base{display:flex;justify-content:space-between;align-items:baseline;
+       padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.25);margin-bottom:12px}
+  .result .base b{font-size:1.5rem}
+  .out2{display:flex;gap:12px}
+  .out2 .box{flex:1;background:rgba(255,255,255,.12);border-radius:10px;padding:12px;text-align:center}
+  .out2 .box .t{font-size:.78rem;opacity:.85}
+  .out2 .box .v{font-size:1.25rem;font-weight:800;margin-top:4px}
+  .out2 .box .s{font-size:.72rem;opacity:.8;margin-top:2px}
+  .stagepill{display:inline-block;font-size:.74rem;background:rgba(255,255,255,.2);
+       padding:2px 9px;border-radius:20px;margin-left:6px;vertical-align:middle}
+  .warn{background:#fff7e6;border:1px solid #ffd591;color:#8a5a00;font-size:.8rem;
+       border-radius:10px;padding:10px 12px;margin-top:12px;display:none}
+  footer{text-align:center;color:var(--muted);font-size:.74rem;margin-top:6px;line-height:1.7}
+  .both{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+  .both table{width:100%;border-collapse:collapse;font-size:.82rem}
+  .both th,.both td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--line)}
+  .both th:first-child,.both td:first-child{text-align:left;color:var(--muted)}
+  .both th{font-size:.74rem;color:var(--muted);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>양압기 본인부담금 일할 계산기</h1>
+    <div class="sub">숨길의료기 · 건강보험 양압기 대여료 일할(중도) 정산</div>
+  </header>
+
+  <div class="card">
+    <div class="field">
+      <span class="label">① 양압기 종류</span>
+      <div class="seg" id="device">
+        <button data-v="76000">수동형 (76,000원)</button>
+        <button data-v="89000" class="on">자동형 (89,000원)</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="label">② 순응 상태</span>
+      <div class="seg" id="stage">
+        <button data-v="0.5" class="on">순응 중 (본인 50%)</button>
+        <button data-v="0.2">순응통과 후 (본인 20%)</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="label">③ 해당 월의 총 일수</span>
+      <div class="seg days" id="ndays">
+        <button data-v="31" class="on">31일</button>
+        <button data-v="30">30일</button>
+        <button data-v="29">29일(윤2월)</button>
+        <button data-v="28">28일(2월)</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="label">④ 실제 사용일수</span>
+      <input type="number" id="usedays" min="1" max="31" value="15" inputmode="numeric">
+
+      <div class="datebox">
+        <div class="datebox-h">📅 날짜로 자동 계산 <span>시작일·종료일을 누르면 사용일수가 자동 입력됩니다 (양 끝 포함)</span></div>
+        <div class="row">
+          <div>
+            <label class="dlabel" for="d1">시작일</label>
+            <input type="date" id="d1">
+          </div>
+          <div class="tilde">~</div>
+          <div>
+            <label class="dlabel" for="d2">종료일</label>
+            <input type="date" id="d2">
+          </div>
+        </div>
+        <div class="dresult" id="dresult">날짜를 선택하세요</div>
+      </div>
+    </div>
+
+    <button type="button" id="resetBtn" class="reset">↺ 초기화</button>
+  </div>
+
+  <div class="card result">
+    <div class="base">
+      <span>기준금액 (일할)<span class="stagepill" id="pill">사용 15일 / 31일</span></span>
+      <b id="baseOut">36,770원</b>
+    </div>
+    <div class="out2">
+      <div class="box">
+        <div class="t">본인부담금 <span id="rateLbl">50%</span></div>
+        <div class="v" id="boninOut">18,390원</div>
+        <div class="s">현금영수증 발행</div>
+      </div>
+      <div class="box">
+        <div class="t">공단부담금 <span id="grateLbl">50%</span></div>
+        <div class="v" id="gongdanOut">18,380원</div>
+        <div class="s">세금계산서 발행</div>
+      </div>
+    </div>
+    <div class="warn" id="warn"></div>
+
+    <div class="both">
+      <table>
+        <thead><tr><th>구분</th><th>본인부담금</th><th>공단부담금</th></tr></thead>
+        <tbody>
+          <tr><td>순응 중 (50/50)</td><td id="b50"></td><td id="g50"></td></tr>
+          <tr><td>순응통과 후 (20/80)</td><td id="b20"></td><td id="g80"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    계산식: 기준금액 = 내림<sub>10원</sub>(월기준액 ÷ 월일수 × 사용일수) · 본인부담금 = 올림<sub>10원</sub>(기준금액 × 부담률) · 공단부담금 = 기준금액 − 본인부담금<br>
+    ※ 한 환자가 같은 달에 순응종료·재처방으로 기간이 나뉘면 각 기간을 따로 계산해 합산하세요.<br>
+    ※ 공식 인쇄표와 ±10원 차이가 날 수 있으며(원본 엑셀 소수점 처리), 실제 청구는 공단 고시·심사 기준을 따릅니다.
+  </footer>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const state={B:89000,rate:0.5,N:31,d:15};
+const won=n=>n.toLocaleString('ko-KR')+'원';
+
+// 핵심 계산 (PDF 표와 동일 모델)
+function floor10(x){return Math.floor(x/10)*10;}
+function ceil10(x){return Math.ceil(x/10 - 1e-9)*10;}
+function baseAmt(B,d,N){ if(d>=N) return B; return floor10(B/N*d); }
+function bonin(B,d,N,rate){ if(d>=N) return Math.round(B*rate); return ceil10(baseAmt(B,d,N)*rate); }
+function gongdan(B,d,N,rate){ return baseAmt(B,d,N)-bonin(B,d,N,rate); }
+
+function segHandler(id,key,cast){
+  document.querySelectorAll('#'+id+' button').forEach(b=>{
+    b.onclick=()=>{
+      document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      state[key]=cast(b.dataset.v);
+      if(id==='ndays'){ $('#usedays').max=state.N; }
+      render();
+    };
+  });
+}
+segHandler('device','B',Number);
+segHandler('stage','rate',Number);
+segHandler('ndays','N',Number);
+
+$('#usedays').oninput=e=>{ state.d=parseInt(e.target.value)||0; render(); };
+
+function datesToDays(){
+  const a=$('#d1').value, b=$('#d2').value;
+  const box=$('#dresult');
+  if(!a||!b){ box.textContent='날짜를 선택하세요'; box.style.color=''; return; }
+  const t1=new Date(a), t2=new Date(b);
+  const diff=Math.round((t2-t1)/86400000)+1; // 양 끝 포함
+  if(diff<=0){ box.textContent='종료일이 시작일보다 빠릅니다'; box.style.color='#c0392b'; return; }
+  state.d=diff; $('#usedays').value=diff;
+  // 시작일이 속한 달의 일수로 N 자동 추천
+  const y=t1.getFullYear(), m=t1.getMonth();
+  const dim=new Date(y,m+1,0).getDate();
+  state.N=dim;
+  document.querySelectorAll('#ndays button').forEach(x=>
+    x.classList.toggle('on', Number(x.dataset.v)===dim));
+  $('#usedays').max=dim;
+  box.style.color='';
+  box.textContent=`사용일수 ${diff}일  ·  ${m+1}월(${dim}일) 기준 적용`;
+  render();
+}
+$('#d1').onchange=()=>{
+  const a=$('#d1').value;
+  if(a){ // 시작일이 속한 달의 말일을 종료일로 자동 입력
+    const t1=new Date(a), y=t1.getFullYear(), m=t1.getMonth();
+    const last=new Date(y,m+1,0);
+    const z=n=>String(n).padStart(2,'0');
+    $('#d2').value=`${last.getFullYear()}-${z(last.getMonth()+1)}-${z(last.getDate())}`;
+  }
+  datesToDays();
+};
+$('#d2').onchange=datesToDays;
+
+function render(){
+  const {B,rate,N}=state;
+  let d=state.d;
+  const warn=$('#warn');
+  if(!d||d<1){ warn.style.display='block'; warn.textContent='사용일수를 1일 이상 입력하세요.'; return; }
+  if(d>N){ warn.style.display='block'; warn.textContent=`사용일수(${d}일)가 해당 월 일수(${N}일)보다 많습니다. 값을 확인하세요.`; }
+  else warn.style.display='none';
+
+  const base=baseAmt(B,d,N);
+  const bn=bonin(B,d,N,rate);
+  const gd=gongdan(B,d,N,rate);
+
+  $('#pill').textContent=`사용 ${d}일 / ${N}일`;
+  $('#baseOut').textContent=won(base);
+  $('#rateLbl').textContent=(rate*100)+'%';
+  $('#grateLbl').textContent=(rate===0.5?50:80)+'%';
+  $('#boninOut').textContent=won(bn);
+  $('#gongdanOut').textContent=won(gd);
+
+  // 양쪽 단계 모두 표시
+  $('#b50').textContent=won(bonin(B,d,N,0.5));
+  $('#g50').textContent=won(gongdan(B,d,N,0.5));
+  $('#b20').textContent=won(bonin(B,d,N,0.2));
+  $('#g80').textContent=won(gongdan(B,d,N,0.2));
+}
+// 초기화 버튼: 기본값(자동형·순응 중·31일·15일)으로 복원
+function setSeg(id,val){
+  document.querySelectorAll('#'+id+' button').forEach(b=>
+    b.classList.toggle('on', Number(b.dataset.v)===val));
+}
+$('#resetBtn').onclick=()=>{
+  state.B=89000; state.rate=0.5; state.N=31; state.d=15;
+  setSeg('device',89000); setSeg('stage',0.5); setSeg('ndays',31);
+  $('#usedays').value=15; $('#usedays').max=31;
+  $('#d1').value=''; $('#d2').value='';
+  $('#dresult').textContent='날짜를 선택하세요'; $('#dresult').style.color='';
+  render();
+};
+
+render();
+
+// --- 자체 검증 (콘솔): PDF 표 일부와 대조 ---
+(function selfTest(){
+  const cases=[
+    [76000,15,31, 36770,18390,7360],
+    [76000,1,31,  2450,1230,490],
+    [76000,30,31, 73540,36770,14710],
+    [89000,30,31, 86120,43060,17230],
+    [89000,1,31,  2870,1440,580],
+    [76000,28,28, 76000,38000,15200],
+  ];
+  let ok=0;
+  cases.forEach(([B,d,N,eb,e5,e2])=>{
+    const b=baseAmt(B,d,N), p5=bonin(B,d,N,.5), p2=bonin(B,d,N,.2);
+    const pass=(b===eb&&p5===e5&&p2===e2);
+    if(pass)ok++; else console.warn('FAIL',{B,d,N},'got',b,p5,p2,'exp',eb,e5,e2);
+  });
+  console.log(`self-test: ${ok}/${cases.length} pass`);
+})();
+</script>
+</body>
+</html>
