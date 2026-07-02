@@ -27,6 +27,7 @@
        border-radius:10px;font-size:.92rem;cursor:pointer;color:var(--ink);transition:.12s}
   .seg button.on{border-color:var(--blue);background:var(--blue);color:#fff;font-weight:700}
   .seg.days button{min-width:0;flex:1 1 22%;padding:10px 4px}
+  .seg.sm button{font-size:.86rem;padding:9px 6px}
   input[type=number],input[type=date]{width:100%;padding:11px 12px;border:1.5px solid var(--line);
        border-radius:10px;font-size:1rem;font-family:inherit}
   .row{display:flex;gap:10px;align-items:flex-end}
@@ -41,11 +42,19 @@
   .datebox input[type=date]{border-color:var(--blue);background:#fff}
   .dresult{margin-top:10px;text-align:center;font-size:.86rem;font-weight:700;color:var(--navy);
        background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px}
-  .reset{width:100%;margin-top:16px;padding:12px;border:1.5px solid var(--line);background:#fff;
-       border-radius:10px;font-size:.92rem;font-weight:700;color:var(--muted);cursor:pointer;transition:.12s}
-  .reset:hover{border-color:var(--pink);color:var(--pink)}
+  .actions{display:flex;gap:8px;margin-top:16px}
+  .btn{flex:1;padding:12px;border:1.5px solid var(--line);background:#fff;
+       border-radius:10px;font-size:.9rem;font-weight:700;color:var(--muted);cursor:pointer;transition:.12s}
+  .btn:hover{border-color:var(--pink);color:var(--pink)}
+  .btn.primary{border-color:var(--blue);background:var(--blue);color:#fff}
+  .btn.primary:hover{opacity:.9;color:#fff}
   .field{margin-bottom:14px}
   .field:last-child{margin-bottom:0}
+  .hidden{display:none!important}
+  /* period block */
+  .pblock{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:#f8fbf1}
+  .pblock .ph{font-weight:800;color:var(--navy);font-size:.9rem;margin-bottom:10px}
+  .pblock .ph small{font-weight:400;color:var(--muted)}
   /* result */
   .result{background:linear-gradient(135deg,#3f6b1e,#6fa81e);color:#fff;border:none}
   .result .base{display:flex;justify-content:space-between;align-items:baseline;
@@ -56,6 +65,17 @@
   .out2 .box .t{font-size:.78rem;opacity:.85}
   .out2 .box .v{font-size:1.25rem;font-weight:800;margin-top:4px}
   .out2 .box .s{font-size:.72rem;opacity:.8;margin-top:2px}
+  /* 본인부담금(환자 수납액) 강조 */
+  .out2 .box.hl{background:#ffd95e;color:#2b3320;box-shadow:0 2px 10px rgba(0,0,0,.18);
+       border:2px solid #ffc82e;position:relative;transform:scale(1.03)}
+  .out2 .box.hl .t{opacity:1;font-weight:800}
+  .out2 .box.hl .v{font-size:1.5rem;color:#b3261e}
+  .out2 .box.hl .s{opacity:.9;font-weight:700}
+  .out2 .box.hl .badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+       background:#5f8f0e;color:#fff;font-size:.68rem;font-weight:800;padding:2px 10px;
+       border-radius:20px;white-space:nowrap;letter-spacing:.02em}
+  .hl-amount{color:#ffd95e;font-weight:800}
+  .both td.hl-cell{color:#b3261e;font-weight:800;background:#fff6d8}
   .stagepill{display:inline-block;font-size:.74rem;background:rgba(255,255,255,.2);
        padding:2px 9px;border-radius:20px;margin-left:6px;vertical-align:middle}
   .warn{background:#fff7e6;border:1px solid #ffd591;color:#8a5a00;font-size:.8rem;
@@ -66,6 +86,20 @@
   .both th,.both td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--line)}
   .both th:first-child,.both td:first-child{text-align:left;color:var(--muted)}
   .both th{font-size:.74rem;color:var(--muted);font-weight:600}
+  /* 재처방 합산 표 */
+  .sumtable{width:100%;border-collapse:collapse;font-size:.9rem;color:#fff}
+  .sumtable th,.sumtable td{padding:9px 6px;text-align:right;border-bottom:1px solid rgba(255,255,255,.22)}
+  .sumtable th:first-child,.sumtable td:first-child{text-align:left}
+  .sumtable thead th{font-size:.76rem;opacity:.85;font-weight:600}
+  .sumtable .total td{font-weight:800;font-size:1.05rem;border-bottom:none}
+  .sumtable .total{background:rgba(255,255,255,.12)}
+  @media print{
+    body{background:#fff;padding:0}
+    .noprint{display:none!important}
+    .card{box-shadow:none;break-inside:avoid}
+    .result{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    header{margin-bottom:10px}
+  }
 </style>
 </head>
 <body>
@@ -85,11 +119,12 @@
     </div>
 
     <div class="field">
-      <span class="label">② 순응 상태</span>
-      <div class="seg" id="stage">
-        <button data-v="0.5" class="on">순응 중 (본인 50%)</button>
-        <button data-v="0.2">순응통과 후 (본인 20%)</button>
+      <span class="label">② 계산 방식</span>
+      <div class="seg" id="mode">
+        <button data-v="single" class="on">단일 계산</button>
+        <button data-v="split">재처방 2구간 합산</button>
       </div>
+      <div class="hint">한 달 안에서 순응종료·재처방으로 부담률이 바뀌면 "2구간 합산"을 쓰세요.</div>
     </div>
 
     <div class="field">
@@ -102,187 +137,313 @@
       </div>
     </div>
 
-    <div class="field">
-      <span class="label">④ 실제 사용일수</span>
-      <input type="number" id="usedays" min="1" max="31" value="15" inputmode="numeric">
-
-      <div class="datebox">
-        <div class="datebox-h">📅 날짜로 자동 계산 <span>시작일·종료일을 누르면 사용일수가 자동 입력됩니다 (양 끝 포함)</span></div>
-        <div class="row">
-          <div>
-            <label class="dlabel" for="d1">시작일</label>
-            <input type="date" id="d1">
-          </div>
-          <div class="tilde">~</div>
-          <div>
-            <label class="dlabel" for="d2">종료일</label>
-            <input type="date" id="d2">
-          </div>
+    <!-- ===== 단일 계산 입력 ===== -->
+    <div id="singleBlock">
+      <div class="field">
+        <span class="label">④ 순응 상태</span>
+        <div class="seg" id="stage">
+          <button data-v="0.5" class="on">순응 중 (본인 50%)</button>
+          <button data-v="0.2">순응통과 후 (본인 20%)</button>
         </div>
-        <div class="dresult" id="dresult">날짜를 선택하세요</div>
+      </div>
+      <div class="field">
+        <span class="label">⑤ 실제 사용일수</span>
+        <input type="number" id="usedays" min="1" max="31" value="15" inputmode="numeric">
+        <div class="datebox">
+          <div class="datebox-h">📅 날짜로 자동 계산 <span>시작일을 누르면 종료일이 그 달 말일로 자동 입력됩니다 (양 끝 포함)</span></div>
+          <div class="row">
+            <div><label class="dlabel" for="d1">시작일</label><input type="date" id="d1"></div>
+            <div class="tilde">~</div>
+            <div><label class="dlabel" for="d2">종료일</label><input type="date" id="d2"></div>
+          </div>
+          <div class="dresult" id="dresult">날짜를 선택하세요</div>
+        </div>
       </div>
     </div>
 
-    <button type="button" id="resetBtn" class="reset">↺ 초기화</button>
+    <!-- ===== 재처방 2구간 입력 ===== -->
+    <div id="splitBlock" class="hidden">
+      <div class="pblock">
+        <div class="ph">구간 1 <small>(보통 순응 기간)</small></div>
+        <div class="field">
+          <div class="seg sm" id="stage1">
+            <button data-v="0.5" class="on">순응 중 50%</button>
+            <button data-v="0.2">순응통과 후 20%</button>
+          </div>
+        </div>
+        <label class="dlabel" style="color:var(--muted)">사용일수</label>
+        <input type="number" id="p1days" min="1" max="31" value="15" inputmode="numeric">
+        <div class="row" style="margin-top:8px">
+          <div><label class="dlabel" for="p1d1">시작일</label><input type="date" id="p1d1"></div>
+          <div class="tilde">~</div>
+          <div><label class="dlabel" for="p1d2">종료일</label><input type="date" id="p1d2"></div>
+        </div>
+      </div>
+      <div class="pblock">
+        <div class="ph">구간 2 <small>(보통 재처방 기간)</small></div>
+        <div class="field">
+          <div class="seg sm" id="stage2">
+            <button data-v="0.5">순응 중 50%</button>
+            <button data-v="0.2" class="on">순응통과 후 20%</button>
+          </div>
+        </div>
+        <label class="dlabel" style="color:var(--muted)">사용일수</label>
+        <input type="number" id="p2days" min="1" max="31" value="16" inputmode="numeric">
+        <div class="row" style="margin-top:8px">
+          <div><label class="dlabel" for="p2d1">시작일</label><input type="date" id="p2d1"></div>
+          <div class="tilde">~</div>
+          <div><label class="dlabel" for="p2d2">종료일</label><input type="date" id="p2d2"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions noprint">
+      <button type="button" id="resetBtn" class="btn">↺ 초기화</button>
+      <button type="button" id="copyBtn" class="btn">📋 복사</button>
+      <button type="button" id="printBtn" class="btn primary">🖨️ 인쇄</button>
+    </div>
   </div>
 
-  <div class="card result">
+  <!-- ===== 단일 결과 ===== -->
+  <div class="card result" id="resSingle">
     <div class="base">
       <span>기준금액 (일할)<span class="stagepill" id="pill">사용 15일 / 31일</span></span>
-      <b id="baseOut">36,770원</b>
+      <b id="baseOut">—</b>
     </div>
     <div class="out2">
-      <div class="box">
+      <div class="box hl">
+        <span class="badge">💰 환자 수납액</span>
         <div class="t">본인부담금 <span id="rateLbl">50%</span></div>
-        <div class="v" id="boninOut">18,390원</div>
+        <div class="v" id="boninOut">—</div>
         <div class="s">현금영수증 발행</div>
       </div>
       <div class="box">
         <div class="t">공단부담금 <span id="grateLbl">50%</span></div>
-        <div class="v" id="gongdanOut">18,380원</div>
+        <div class="v" id="gongdanOut">—</div>
         <div class="s">세금계산서 발행</div>
       </div>
     </div>
     <div class="warn" id="warn"></div>
-
     <div class="both">
       <table>
-        <thead><tr><th>구분</th><th>본인부담금</th><th>공단부담금</th></tr></thead>
+        <thead><tr><th>구분</th><th class="hl-amount">💰 본인부담금</th><th>공단부담금</th></tr></thead>
         <tbody>
-          <tr><td>순응 중 (50/50)</td><td id="b50"></td><td id="g50"></td></tr>
-          <tr><td>순응통과 후 (20/80)</td><td id="b20"></td><td id="g80"></td></tr>
+          <tr><td>순응 중 (50/50)</td><td id="b50" class="hl-cell"></td><td id="g50"></td></tr>
+          <tr><td>순응통과 후 (20/80)</td><td id="b20" class="hl-cell"></td><td id="g80"></td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
+  <!-- ===== 재처방 합산 결과 ===== -->
+  <div class="card result hidden" id="resSplit">
+    <table class="sumtable">
+      <thead>
+        <tr><th>구간</th><th>기준금액</th><th class="hl-amount">💰 본인부담금</th><th>공단부담금</th></tr>
+      </thead>
+      <tbody>
+        <tr><td id="s1lbl">구간1</td><td id="s1base">—</td><td id="s1bonin" class="hl-amount">—</td><td id="s1gong">—</td></tr>
+        <tr><td id="s2lbl">구간2</td><td id="s2base">—</td><td id="s2bonin" class="hl-amount">—</td><td id="s2gong">—</td></tr>
+        <tr class="total"><td>합계</td><td id="stBase">—</td><td id="stBonin" class="hl-amount" style="font-size:1.15rem">—</td><td id="stGong">—</td></tr>
+      </tbody>
+    </table>
+    <div class="warn" id="warn2"></div>
+    <div style="font-size:.74rem;opacity:.85;margin-top:10px">본인부담금 → 현금영수증 발행 · 공단부담금 → 세금계산서 발행</div>
+  </div>
+
   <footer>
     계산식: 기준금액 = 내림<sub>10원</sub>(월기준액 ÷ 월일수 × 사용일수) · 본인부담금 = 올림<sub>10원</sub>(기준금액 × 부담률) · 공단부담금 = 기준금액 − 본인부담금<br>
-    ※ 한 환자가 같은 달에 순응종료·재처방으로 기간이 나뉘면 각 기간을 따로 계산해 합산하세요.<br>
+    ※ 2구간 합산은 각 구간을 따로 계산해 더합니다(반올림 때문에 두 기준금액 합이 한 달 만액과 몇 원 다를 수 있음).<br>
     ※ 공식 인쇄표와 ±10원 차이가 날 수 있으며(원본 엑셀 소수점 처리), 실제 청구는 공단 고시·심사 기준을 따릅니다.
   </footer>
 
-  <div style="text-align:center;margin:18px 0 28px">
+  <div class="noprint" style="text-align:center;margin:18px 0 28px">
     <a href="./" style="display:inline-block;padding:12px 26px;border:1.5px solid var(--blue);color:var(--navy);background:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:.92rem">← 숨길의료기 홈으로</a>
   </div>
 </div>
 
 <script>
 const $=s=>document.querySelector(s);
-const state={B:89000,rate:0.5,N:31,d:15};
 const won=n=>n.toLocaleString('ko-KR')+'원';
+const state={B:89000, mode:'single', N:31, rate:0.5, d:15,
+             r1:0.5, d1:15, r2:0.2, d2:16};
 
-// 핵심 계산 (PDF 표와 동일 모델)
+// ===== 핵심 계산 (PDF 표와 동일 모델) =====
 function floor10(x){return Math.floor(x/10)*10;}
 function ceil10(x){return Math.ceil(x/10 - 1e-9)*10;}
 function baseAmt(B,d,N){ if(d>=N) return B; return floor10(B/N*d); }
 function bonin(B,d,N,rate){ if(d>=N) return Math.round(B*rate); return ceil10(baseAmt(B,d,N)*rate); }
 function gongdan(B,d,N,rate){ return baseAmt(B,d,N)-bonin(B,d,N,rate); }
 
+// ===== 세그먼트 버튼 =====
 function segHandler(id,key,cast){
   document.querySelectorAll('#'+id+' button').forEach(b=>{
     b.onclick=()=>{
       document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.remove('on'));
       b.classList.add('on');
       state[key]=cast(b.dataset.v);
-      if(id==='ndays'){ $('#usedays').max=state.N; }
+      if(id==='ndays'){ ['usedays','p1days','p2days'].forEach(i=>$('#'+i).max=state.N); }
+      if(id==='mode') switchMode();
       render();
     };
   });
 }
 segHandler('device','B',Number);
-segHandler('stage','rate',Number);
+segHandler('mode','mode',String);
 segHandler('ndays','N',Number);
+segHandler('stage','rate',Number);
+segHandler('stage1','r1',Number);
+segHandler('stage2','r2',Number);
 
 $('#usedays').oninput=e=>{ state.d=parseInt(e.target.value)||0; render(); };
+$('#p1days').oninput=e=>{ state.d1=parseInt(e.target.value)||0; render(); };
+$('#p2days').oninput=e=>{ state.d2=parseInt(e.target.value)||0; render(); };
 
-function datesToDays(){
-  const a=$('#d1').value, b=$('#d2').value;
-  const box=$('#dresult');
-  if(!a||!b){ box.textContent='날짜를 선택하세요'; box.style.color=''; return; }
+function switchMode(){
+  const split=state.mode==='split';
+  $('#singleBlock').classList.toggle('hidden',split);
+  $('#splitBlock').classList.toggle('hidden',!split);
+  $('#resSingle').classList.toggle('hidden',split);
+  $('#resSplit').classList.toggle('hidden',!split);
+}
+
+// ===== 날짜 → 일수 (양 끝 포함) =====
+function daysBetween(a,b){
+  if(!a||!b) return null;
   const t1=new Date(a), t2=new Date(b);
-  const diff=Math.round((t2-t1)/86400000)+1; // 양 끝 포함
-  if(diff<=0){ box.textContent='종료일이 시작일보다 빠릅니다'; box.style.color='#c0392b'; return; }
-  state.d=diff; $('#usedays').value=diff;
-  // 시작일이 속한 달의 일수로 N 자동 추천
-  const y=t1.getFullYear(), m=t1.getMonth();
-  const dim=new Date(y,m+1,0).getDate();
+  return Math.round((t2-t1)/86400000)+1;
+}
+function lastDayStr(a){
+  const t=new Date(a), last=new Date(t.getFullYear(), t.getMonth()+1, 0);
+  const z=n=>String(n).padStart(2,'0');
+  return `${last.getFullYear()}-${z(last.getMonth()+1)}-${z(last.getDate())}`;
+}
+function applyMonthDays(a){ // 시작일이 속한 달의 일수를 N으로
+  const t=new Date(a), dim=new Date(t.getFullYear(), t.getMonth()+1, 0).getDate();
   state.N=dim;
-  document.querySelectorAll('#ndays button').forEach(x=>
-    x.classList.toggle('on', Number(x.dataset.v)===dim));
-  $('#usedays').max=dim;
-  box.style.color='';
-  box.textContent=`사용일수 ${diff}일  ·  ${m+1}월(${dim}일) 기준 적용`;
+  document.querySelectorAll('#ndays button').forEach(x=>x.classList.toggle('on',Number(x.dataset.v)===dim));
+  ['usedays','p1days','p2days'].forEach(i=>$('#'+i).max=dim);
+}
+
+// 단일 날짜
+$('#d1').onchange=()=>{ const a=$('#d1').value; if(a) $('#d2').value=lastDayStr(a); singleDates(); };
+$('#d2').onchange=singleDates;
+function singleDates(){
+  const a=$('#d1').value,b=$('#d2').value,box=$('#dresult');
+  if(!a||!b){ box.textContent='날짜를 선택하세요'; box.style.color=''; return; }
+  const diff=daysBetween(a,b);
+  if(diff<=0){ box.textContent='종료일이 시작일보다 빠릅니다'; box.style.color='#c0392b'; return; }
+  state.d=diff; $('#usedays').value=diff; applyMonthDays(a); box.style.color='';
+  const mm=new Date(a).getMonth()+1;
+  box.textContent=`사용일수 ${diff}일  ·  ${mm}월(${state.N}일) 기준 적용`;
   render();
 }
-$('#d1').onchange=()=>{
-  const a=$('#d1').value;
-  if(a){ // 시작일이 속한 달의 말일을 종료일로 자동 입력
-    const t1=new Date(a), y=t1.getFullYear(), m=t1.getMonth();
-    const last=new Date(y,m+1,0);
-    const z=n=>String(n).padStart(2,'0');
-    $('#d2').value=`${last.getFullYear()}-${z(last.getMonth()+1)}-${z(last.getDate())}`;
+
+// 구간 날짜
+function periodDates(dn,daysId,d1id,d2id){
+  const a=$('#'+d1id).value,b=$('#'+d2id).value;
+  const diff=daysBetween(a,b);
+  if(diff&&diff>0){ state[dn]=diff; $('#'+daysId).value=diff; if(a) applyMonthDays(a); }
+  render();
+}
+$('#p1d1').onchange=()=>periodDates('d1','p1days','p1d1','p1d2');
+$('#p1d2').onchange=()=>{
+  const b=$('#p1d2').value;
+  if(b){ // 구간1 종료 다음날 ~ 그 달 말일을 구간2로 자동 세팅
+    const t=new Date(b), next=new Date(t.getFullYear(), t.getMonth(), t.getDate()+1);
+    if(next.getMonth()===t.getMonth()){ // 다음날이 같은 달일 때만
+      const z=n=>String(n).padStart(2,'0');
+      $('#p2d1').value=`${next.getFullYear()}-${z(next.getMonth()+1)}-${z(next.getDate())}`;
+      $('#p2d2').value=lastDayStr(b);
+      periodDates('d2','p2days','p2d1','p2d2');
+    }
   }
-  datesToDays();
+  periodDates('d1','p1days','p1d1','p1d2');
 };
-$('#d2').onchange=datesToDays;
+$('#p2d1').onchange=()=>periodDates('d2','p2days','p2d1','p2d2');
+$('#p2d2').onchange=()=>periodDates('d2','p2days','p2d1','p2d2');
 
-function render(){
-  const {B,rate,N}=state;
-  let d=state.d;
-  const warn=$('#warn');
+// ===== 렌더링 =====
+function render(){ state.mode==='split' ? renderSplit() : renderSingle(); }
+
+function renderSingle(){
+  const {B,rate,N}=state, d=state.d, warn=$('#warn');
   if(!d||d<1){ warn.style.display='block'; warn.textContent='사용일수를 1일 이상 입력하세요.'; return; }
-  if(d>N){ warn.style.display='block'; warn.textContent=`사용일수(${d}일)가 해당 월 일수(${N}일)보다 많습니다. 값을 확인하세요.`; }
+  if(d>N){ warn.style.display='block'; warn.textContent=`사용일수(${d}일)가 해당 월 일수(${N}일)보다 많습니다.`; }
   else warn.style.display='none';
-
-  const base=baseAmt(B,d,N);
-  const bn=bonin(B,d,N,rate);
-  const gd=gongdan(B,d,N,rate);
-
   $('#pill').textContent=`사용 ${d}일 / ${N}일`;
-  $('#baseOut').textContent=won(base);
-  $('#rateLbl').textContent=(rate*100)+'%';
+  $('#baseOut').textContent=won(baseAmt(B,d,N));
+  $('#rateLbl').textContent=(rate===0.5?50:20)+'%';
   $('#grateLbl').textContent=(rate===0.5?50:80)+'%';
-  $('#boninOut').textContent=won(bn);
-  $('#gongdanOut').textContent=won(gd);
+  $('#boninOut').textContent=won(bonin(B,d,N,rate));
+  $('#gongdanOut').textContent=won(gongdan(B,d,N,rate));
+  $('#b50').textContent=won(bonin(B,d,N,0.5)); $('#g50').textContent=won(gongdan(B,d,N,0.5));
+  $('#b20').textContent=won(bonin(B,d,N,0.2)); $('#g80').textContent=won(gongdan(B,d,N,0.2));
+}
 
-  // 양쪽 단계 모두 표시
-  $('#b50').textContent=won(bonin(B,d,N,0.5));
-  $('#g50').textContent=won(gongdan(B,d,N,0.5));
-  $('#b20').textContent=won(bonin(B,d,N,0.2));
-  $('#g80').textContent=won(gongdan(B,d,N,0.2));
+function renderSplit(){
+  const {B,N,r1,d1,r2,d2}=state, warn=$('#warn2');
+  const tot=d1+d2;
+  if(d1<1||d2<1){ warn.style.display='block'; warn.textContent='두 구간 모두 사용일수를 입력하세요.'; }
+  else if(tot>N){ warn.style.display='block'; warn.textContent=`두 구간 합(${tot}일)이 해당 월 일수(${N}일)를 초과합니다. 확인하세요.`; }
+  else warn.style.display='none';
+  const b1=baseAmt(B,d1,N), p1=bonin(B,d1,N,r1), g1=b1-p1;
+  const b2=baseAmt(B,d2,N), p2=bonin(B,d2,N,r2), g2=b2-p2;
+  const pct=r=>r===0.5?'50%':'20%';
+  $('#s1lbl').textContent=`구간1 · ${d1}일 · 본인 ${pct(r1)}`;
+  $('#s2lbl').textContent=`구간2 · ${d2}일 · 본인 ${pct(r2)}`;
+  $('#s1base').textContent=won(b1); $('#s1bonin').textContent=won(p1); $('#s1gong').textContent=won(g1);
+  $('#s2base').textContent=won(b2); $('#s2bonin').textContent=won(p2); $('#s2gong').textContent=won(g2);
+  $('#stBase').textContent=won(b1+b2); $('#stBonin').textContent=won(p1+p2); $('#stGong').textContent=won(g1+g2);
 }
-// 초기화 버튼: 기본값(자동형·순응 중·31일·15일)으로 복원
-function setSeg(id,val){
-  document.querySelectorAll('#'+id+' button').forEach(b=>
-    b.classList.toggle('on', Number(b.dataset.v)===val));
-}
+
+// ===== 초기화 / 복사 / 인쇄 =====
+function setSeg(id,val){ document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',Number(b.dataset.v)===val)); }
 $('#resetBtn').onclick=()=>{
-  state.B=89000; state.rate=0.5; state.N=31; state.d=15;
-  setSeg('device',89000); setSeg('stage',0.5); setSeg('ndays',31);
-  $('#usedays').value=15; $('#usedays').max=31;
-  $('#d1').value=''; $('#d2').value='';
+  Object.assign(state,{B:89000,mode:'single',N:31,rate:0.5,d:15,r1:0.5,d1:15,r2:0.2,d2:16});
+  setSeg('device',89000); setSeg('ndays',31); setSeg('stage',0.5); setSeg('stage1',0.5); setSeg('stage2',0.2);
+  document.querySelectorAll('#mode button').forEach(b=>b.classList.toggle('on',b.dataset.v==='single'));
+  $('#usedays').value=15; $('#p1days').value=15; $('#p2days').value=16;
+  ['usedays','p1days','p2days'].forEach(i=>$('#'+i).max=31);
+  ['d1','d2','p1d1','p1d2','p2d1','p2d2'].forEach(i=>$('#'+i).value='');
   $('#dresult').textContent='날짜를 선택하세요'; $('#dresult').style.color='';
-  render();
+  switchMode(); render();
 };
 
-render();
+$('#copyBtn').onclick=async()=>{
+  const {B,N}=state, dev=B===89000?'자동형(89,000원)':'수동형(76,000원)';
+  const pct=r=>r===0.5?'50%':'20%';
+  let txt;
+  if(state.mode==='split'){
+    const b1=baseAmt(B,state.d1,N),p1=bonin(B,state.d1,N,state.r1),g1=b1-p1;
+    const b2=baseAmt(B,state.d2,N),p2=bonin(B,state.d2,N,state.r2),g2=b2-p2;
+    txt=`[양압기 본인부담금 정산 · 재처방 합산]\n양압기: ${dev} / 해당월 ${N}일\n`
+      +`구간1: ${state.d1}일, 본인 ${pct(state.r1)} → 본인 ${won(p1)} / 공단 ${won(g1)}\n`
+      +`구간2: ${state.d2}일, 본인 ${pct(state.r2)} → 본인 ${won(p2)} / 공단 ${won(g2)}\n`
+      +`합계: 본인부담금(현금영수증) ${won(p1+p2)} / 공단부담금(세금계산서) ${won(g1+g2)}`;
+  }else{
+    const {rate,d}=state;
+    txt=`[양압기 본인부담금 정산]\n양압기: ${dev} / 해당월 ${N}일 / 사용 ${d}일 / 본인 ${pct(rate)}\n`
+      +`기준금액: ${won(baseAmt(B,d,N))}\n`
+      +`본인부담금(현금영수증): ${won(bonin(B,d,N,rate))}\n`
+      +`공단부담금(세금계산서): ${won(gongdan(B,d,N,rate))}`;
+  }
+  try{ await navigator.clipboard.writeText(txt); flash('#copyBtn','✅ 복사됨'); }
+  catch(e){ prompt('복사할 내용:',txt); }
+};
+function flash(sel,msg){ const el=$(sel),o=el.textContent; el.textContent=msg; setTimeout(()=>el.textContent=o,1400); }
+$('#printBtn').onclick=()=>window.print();
 
-// --- 자체 검증 (콘솔): PDF 표 일부와 대조 ---
+switchMode(); render();
+
+// ===== 자체 검증 (콘솔) =====
 (function selfTest(){
-  const cases=[
-    [76000,15,31, 36770,18390,7360],
-    [76000,1,31,  2450,1230,490],
-    [76000,30,31, 73540,36770,14710],
-    [89000,30,31, 86120,43060,17230],
-    [89000,1,31,  2870,1440,580],
-    [76000,28,28, 76000,38000,15200],
-  ];
+  const cases=[[76000,15,31,36770,18390,7360],[76000,1,31,2450,1230,490],[76000,30,31,73540,36770,14710],
+    [89000,30,31,86120,43060,17230],[89000,1,31,2870,1440,580],[76000,28,28,76000,38000,15200]];
   let ok=0;
   cases.forEach(([B,d,N,eb,e5,e2])=>{
-    const b=baseAmt(B,d,N), p5=bonin(B,d,N,.5), p2=bonin(B,d,N,.2);
-    const pass=(b===eb&&p5===e5&&p2===e2);
-    if(pass)ok++; else console.warn('FAIL',{B,d,N},'got',b,p5,p2,'exp',eb,e5,e2);
+    const b=baseAmt(B,d,N),p5=bonin(B,d,N,.5),p2=bonin(B,d,N,.2);
+    if(b===eb&&p5===e5&&p2===e2) ok++; else console.warn('FAIL',{B,d,N},b,p5,p2,'exp',eb,e5,e2);
   });
   console.log(`self-test: ${ok}/${cases.length} pass`);
 })();
