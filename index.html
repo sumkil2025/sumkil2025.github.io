@@ -144,7 +144,7 @@
   .ci a,.ci span{color:#dce9c6;font-size:14px}
   .ci a:hover{color:#fff;text-decoration:underline}
   .mapbox{display:flex;flex-direction:column;gap:12px}
-  .mapbox iframe{width:100%;height:430px;border:0;border-radius:var(--radius);background:#fff}
+  .mapbox iframe,#navermap{width:100%;height:430px;border:0;border-radius:var(--radius);background:#e8eee0}
   .btn-naver{background:#03c75a;color:#fff}
   .btn-naver:hover{filter:brightness(.93)}
   .contact .hero-cta{margin-top:8px}
@@ -381,7 +381,7 @@
           </div>
         </div>
         <div class="mapbox">
-          <iframe src="https://m.place.naver.com/place/2069027175/home" title="숨길의료기 네이버 플레이스" loading="lazy"></iframe>
+          <div id="navermap" title="숨길의료기 네이버 지도"></div>
           <a href="https://naver.me/x0O0qDBq" target="_blank" rel="noopener" class="btn btn-naver"><i>🗺️</i>네이버 지도에서 크게 보기</a>
         </div>
       </div>
@@ -416,6 +416,24 @@
     seg.querySelectorAll('button').forEach(function(b){b.classList.remove('on')});
     e.target.classList.add('on');
     var v=data[e.target.dataset.v];won.textContent=v.won;desc.textContent=v.d;
+  });
+</script>
+<script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=yyyvds7i1g" defer></script>
+<script>
+  window.addEventListener('load',function(){
+    var box=document.getElementById('navermap');
+    function fallback(){
+      box.outerHTML='<iframe id="navermap" src="https://m.place.naver.com/place/2069027175/home" title="숨길의료기 네이버 플레이스" loading="lazy"></iframe>';
+    }
+    if(!(window.naver&&naver.maps&&naver.maps.Map)){fallback();return;}
+    try{
+      var pos=new naver.maps.LatLng(35.1402642,128.7078138);
+      var map=new naver.maps.Map('navermap',{center:pos,zoom:16,scrollWheel:false,mapDataControl:false});
+      var mk=new naver.maps.Marker({position:pos,map:map,title:'숨길의료기'});
+      var iw=new naver.maps.InfoWindow({content:'<div style="padding:9px 13px;font-size:13px;line-height:1.5;font-family:inherit"><b>숨길의료기</b><br>진해대로 999, 하이존빌딩 2층</div>',borderWidth:1,borderColor:'#c8d6b0'});
+      iw.open(map,mk);
+      mk.addListener('click',function(){iw.getMap()?iw.close():iw.open(map,mk);});
+    }catch(e){fallback();}
   });
 </script>
 </body>
