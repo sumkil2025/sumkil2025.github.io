@@ -143,8 +143,10 @@
   .ci b{display:block;font-size:15px}
   .ci a,.ci span{color:#dce9c6;font-size:14px}
   .ci a:hover{color:#fff;text-decoration:underline}
-  .map-ph{background:#365a19;border:1px dashed #5a7d33;border-radius:var(--radius);
-    min-height:230px;display:grid;place-items:center;color:#c7e29a;font-size:14px;text-align:center;padding:20px}
+  .mapbox{display:flex;flex-direction:column;gap:12px}
+  .mapbox iframe{width:100%;height:430px;border:0;border-radius:var(--radius);background:#fff}
+  .btn-naver{background:#03c75a;color:#fff}
+  .btn-naver:hover{filter:brightness(.93)}
   .contact .hero-cta{margin-top:8px}
 
   footer{background:#27431a;color:#aebf97;font-size:13px;padding:34px 0}
@@ -378,7 +380,10 @@
             <a href="https://qr.kakao.com/talk/U_BXxzOXkX.QuWAB4ykOak4y9Zk-" target="_blank" rel="noopener" class="btn btn-kakao btn-lg"><i>💬</i>카카오톡 상담</a>
           </div>
         </div>
-        <div class="map-ph">🗺️ 카카오맵 자리<br>진해대로 999 (2층, 상쾌한이비인후과 건물)<br><span class="ph">장소 등록 후 지도 임베드</span></div>
+        <div class="mapbox">
+          <iframe src="https://m.place.naver.com/place/2069027175/home" title="숨길의료기 네이버 플레이스" loading="lazy"></iframe>
+          <a href="https://naver.me/x0O0qDBq" target="_blank" rel="noopener" class="btn btn-naver"><i>🗺️</i>네이버 지도에서 크게 보기</a>
+        </div>
       </div>
     </div>
   </section>
