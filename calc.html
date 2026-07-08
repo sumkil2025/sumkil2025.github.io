@@ -76,6 +76,11 @@
        border-radius:20px;white-space:nowrap;letter-spacing:.02em}
   .hl-amount{color:#ffd95e;font-weight:800}
   .both td.hl-cell{color:#b3261e;font-weight:800;background:#fff6d8}
+  /* 마스크 */
+  .maskfield{margin-top:14px;border-top:1px dashed var(--line);padding-top:14px}
+  .maskfield .seg button.on{border-color:var(--green);background:var(--green)}
+  .masknote{background:rgba(255,255,255,.16);border:1px dashed rgba(255,217,94,.7);color:#ffd95e;
+       font-size:.8rem;font-weight:700;border-radius:10px;padding:9px 12px;margin-top:12px;text-align:center}
   .stagepill{display:inline-block;font-size:.74rem;background:rgba(255,255,255,.2);
        padding:2px 9px;border-radius:20px;margin-left:6px;vertical-align:middle}
   .warn{background:#fff7e6;border:1px solid #ffd591;color:#8a5a00;font-size:.8rem;
@@ -197,6 +202,16 @@
       </div>
     </div>
 
+    <div class="field maskfield">
+      <span class="label">😷 마스크(기본형) 추가
+        <span style="font-weight:400;color:var(--muted);font-size:.78rem">연 1회(년도 기준) · 기준 95,000원</span>
+      </span>
+      <div class="seg" id="mask">
+        <button data-v="0" class="on">미포함</button>
+        <button data-v="1">포함 · 본인 +19,000원</button>
+      </div>
+    </div>
+
     <div class="actions noprint">
       <button type="button" id="resetBtn" class="btn">↺ 초기화</button>
       <button type="button" id="copyBtn" class="btn">📋 복사</button>
@@ -223,6 +238,7 @@
         <div class="s">세금계산서 발행</div>
       </div>
     </div>
+    <div class="masknote hidden" id="maskNote">😷 마스크(기본형) 포함 · 기준 95,000원 = 본인 19,000원 + 공단 76,000원</div>
     <div class="warn" id="warn"></div>
     <div class="both">
       <table>
@@ -244,6 +260,7 @@
       <tbody>
         <tr><td id="s1lbl">구간1</td><td id="s1base">—</td><td id="s1bonin" class="hl-amount">—</td><td id="s1gong">—</td></tr>
         <tr><td id="s2lbl">구간2</td><td id="s2base">—</td><td id="s2bonin" class="hl-amount">—</td><td id="s2gong">—</td></tr>
+        <tr id="maskRow" class="hidden"><td>😷 마스크(기본형)</td><td>95,000원</td><td class="hl-amount">19,000원</td><td>76,000원</td></tr>
         <tr class="total"><td>합계</td><td id="stBase">—</td><td id="stBonin" class="hl-amount" style="font-size:1.15rem">—</td><td id="stGong">—</td></tr>
       </tbody>
     </table>
@@ -254,6 +271,7 @@
   <footer>
     계산식: 기준금액 = 내림<sub>10원</sub>(월기준액 ÷ 월일수 × 사용일수) · 본인부담금 = 올림<sub>10원</sub>(기준금액 × 부담률) · 공단부담금 = 기준금액 − 본인부담금<br>
     ※ 2구간 합산은 각 구간을 따로 계산해 더합니다(반올림 때문에 두 기준금액 합이 한 달 만액과 몇 원 다를 수 있음).<br>
+    ※ 마스크(기본형)는 연 1회(년도 기준) 지원: 기준 95,000원 = 본인 19,000원(20%) + 공단 76,000원(80%). 일할 계산 없이 정액입니다.<br>
     ※ 공식 인쇄표와 ±10원 차이가 날 수 있으며(원본 엑셀 소수점 처리), 실제 청구는 공단 고시·심사 기준을 따릅니다.
   </footer>
 
@@ -266,7 +284,9 @@
 const $=s=>document.querySelector(s);
 const won=n=>n.toLocaleString('ko-KR')+'원';
 const state={B:89000, mode:'single', N:31, rate:0.5, d:15,
-             r1:0.5, d1:15, r2:0.2, d2:16};
+             r1:0.5, d1:15, r2:0.2, d2:16, mask:0};
+// 마스크(기본형): 연 1회, 기준 95,000 = 본인 19,000(20%) + 공단 76,000(80%)
+const MASK_BASE=95000, MASK_BONIN=19000, MASK_GONG=76000;
 
 // ===== 핵심 계산 (PDF 표와 동일 모델) =====
 function floor10(x){return Math.floor(x/10)*10;}
@@ -294,6 +314,7 @@ segHandler('ndays','N',Number);
 segHandler('stage','rate',Number);
 segHandler('stage1','r1',Number);
 segHandler('stage2','r2',Number);
+segHandler('mask','mask',Number);
 
 $('#usedays').oninput=e=>{ state.d=parseInt(e.target.value)||0; render(); };
 $('#p1days').oninput=e=>{ state.d1=parseInt(e.target.value)||0; render(); };
@@ -367,18 +388,20 @@ $('#p2d2').onchange=()=>periodDates('d2','p2days','p2d1','p2d2');
 function render(){ state.mode==='split' ? renderSplit() : renderSingle(); }
 
 function renderSingle(){
-  const {B,rate,N}=state, d=state.d, warn=$('#warn');
+  const {B,rate,N,mask}=state, d=state.d, warn=$('#warn');
   if(!d||d<1){ warn.style.display='block'; warn.textContent='사용일수를 1일 이상 입력하세요.'; return; }
   if(d>N){ warn.style.display='block'; warn.textContent=`사용일수(${d}일)가 해당 월 일수(${N}일)보다 많습니다.`; }
   else warn.style.display='none';
-  $('#pill').textContent=`사용 ${d}일 / ${N}일`;
-  $('#baseOut').textContent=won(baseAmt(B,d,N));
+  const mB=mask?MASK_BASE:0, mP=mask?MASK_BONIN:0, mG=mask?MASK_GONG:0;
+  $('#pill').textContent=`사용 ${d}일 / ${N}일`+(mask?' + 마스크':'');
+  $('#baseOut').textContent=won(baseAmt(B,d,N)+mB);
   $('#rateLbl').textContent=(rate===0.5?50:20)+'%';
   $('#grateLbl').textContent=(rate===0.5?50:80)+'%';
-  $('#boninOut').textContent=won(bonin(B,d,N,rate));
-  $('#gongdanOut').textContent=won(gongdan(B,d,N,rate));
-  $('#b50').textContent=won(bonin(B,d,N,0.5)); $('#g50').textContent=won(gongdan(B,d,N,0.5));
-  $('#b20').textContent=won(bonin(B,d,N,0.2)); $('#g80').textContent=won(gongdan(B,d,N,0.2));
+  $('#boninOut').textContent=won(bonin(B,d,N,rate)+mP);
+  $('#gongdanOut').textContent=won(gongdan(B,d,N,rate)+mG);
+  $('#maskNote').classList.toggle('hidden',!mask);
+  $('#b50').textContent=won(bonin(B,d,N,0.5)+mP); $('#g50').textContent=won(gongdan(B,d,N,0.5)+mG);
+  $('#b20').textContent=won(bonin(B,d,N,0.2)+mP); $('#g80').textContent=won(gongdan(B,d,N,0.2)+mG);
 }
 
 function renderSplit(){
@@ -389,19 +412,21 @@ function renderSplit(){
   else warn.style.display='none';
   const b1=baseAmt(B,d1,N), p1=bonin(B,d1,N,r1), g1=b1-p1;
   const b2=baseAmt(B,d2,N), p2=bonin(B,d2,N,r2), g2=b2-p2;
+  const mask=state.mask, mB=mask?MASK_BASE:0, mP=mask?MASK_BONIN:0, mG=mask?MASK_GONG:0;
   const pct=r=>r===0.5?'50%':'20%';
   $('#s1lbl').textContent=`구간1 · ${d1}일 · 본인 ${pct(r1)}`;
   $('#s2lbl').textContent=`구간2 · ${d2}일 · 본인 ${pct(r2)}`;
   $('#s1base').textContent=won(b1); $('#s1bonin').textContent=won(p1); $('#s1gong').textContent=won(g1);
   $('#s2base').textContent=won(b2); $('#s2bonin').textContent=won(p2); $('#s2gong').textContent=won(g2);
-  $('#stBase').textContent=won(b1+b2); $('#stBonin').textContent=won(p1+p2); $('#stGong').textContent=won(g1+g2);
+  $('#maskRow').classList.toggle('hidden',!mask);
+  $('#stBase').textContent=won(b1+b2+mB); $('#stBonin').textContent=won(p1+p2+mP); $('#stGong').textContent=won(g1+g2+mG);
 }
 
 // ===== 초기화 / 복사 / 인쇄 =====
 function setSeg(id,val){ document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',Number(b.dataset.v)===val)); }
 $('#resetBtn').onclick=()=>{
-  Object.assign(state,{B:89000,mode:'single',N:31,rate:0.5,d:15,r1:0.5,d1:15,r2:0.2,d2:16});
-  setSeg('device',89000); setSeg('ndays',31); setSeg('stage',0.5); setSeg('stage1',0.5); setSeg('stage2',0.2);
+  Object.assign(state,{B:89000,mode:'single',N:31,rate:0.5,d:15,r1:0.5,d1:15,r2:0.2,d2:16,mask:0});
+  setSeg('device',89000); setSeg('ndays',31); setSeg('stage',0.5); setSeg('stage1',0.5); setSeg('stage2',0.2); setSeg('mask',0);
   document.querySelectorAll('#mode button').forEach(b=>b.classList.toggle('on',b.dataset.v==='single'));
   $('#usedays').value=15; $('#p1days').value=15; $('#p2days').value=16;
   ['usedays','p1days','p2days'].forEach(i=>$('#'+i).max=31);
@@ -411,7 +436,9 @@ $('#resetBtn').onclick=()=>{
 };
 
 $('#copyBtn').onclick=async()=>{
-  const {B,N}=state, dev=B===89000?'자동형(89,000원)':'수동형(76,000원)';
+  const {B,N,mask}=state, dev=B===89000?'자동형(89,000원)':'수동형(76,000원)';
+  const mB=mask?MASK_BASE:0, mP=mask?MASK_BONIN:0, mG=mask?MASK_GONG:0;
+  const maskLine=mask?`마스크(기본형): 기준 ${won(MASK_BASE)} → 본인 ${won(MASK_BONIN)} / 공단 ${won(MASK_GONG)}\n`:'';
   const pct=r=>r===0.5?'50%':'20%';
   let txt;
   if(state.mode==='split'){
@@ -420,13 +447,15 @@ $('#copyBtn').onclick=async()=>{
     txt=`[양압기 본인부담금 정산 · 재처방 합산]\n양압기: ${dev} / 해당월 ${N}일\n`
       +`구간1: ${state.d1}일, 본인 ${pct(state.r1)} → 본인 ${won(p1)} / 공단 ${won(g1)}\n`
       +`구간2: ${state.d2}일, 본인 ${pct(state.r2)} → 본인 ${won(p2)} / 공단 ${won(g2)}\n`
-      +`합계: 본인부담금(현금영수증) ${won(p1+p2)} / 공단부담금(세금계산서) ${won(g1+g2)}`;
+      +maskLine
+      +`합계: 본인부담금(현금영수증) ${won(p1+p2+mP)} / 공단부담금(세금계산서) ${won(g1+g2+mG)}`;
   }else{
     const {rate,d}=state;
     txt=`[양압기 본인부담금 정산]\n양압기: ${dev} / 해당월 ${N}일 / 사용 ${d}일 / 본인 ${pct(rate)}\n`
-      +`기준금액: ${won(baseAmt(B,d,N))}\n`
-      +`본인부담금(현금영수증): ${won(bonin(B,d,N,rate))}\n`
-      +`공단부담금(세금계산서): ${won(gongdan(B,d,N,rate))}`;
+      +maskLine
+      +`기준금액: ${won(baseAmt(B,d,N)+mB)}\n`
+      +`본인부담금(현금영수증): ${won(bonin(B,d,N,rate)+mP)}\n`
+      +`공단부담금(세금계산서): ${won(gongdan(B,d,N,rate)+mG)}`;
   }
   try{ await navigator.clipboard.writeText(txt); flash('#copyBtn','✅ 복사됨'); }
   catch(e){ prompt('복사할 내용:',txt); }
