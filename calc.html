@@ -121,6 +121,7 @@
       <div class="seg" id="device">
         <button data-v="76000">수동형 (76,000원)</button>
         <button data-v="89000" class="on">자동형 (89,000원)</button>
+        <button data-v="126000">이중형 BiPAP (126,000원)</button>
       </div>
     </div>
 
@@ -419,7 +420,7 @@ $('#resetBtn').onclick=()=>{
 };
 
 $('#copyBtn').onclick=async()=>{
-  const {B,N,mask}=state, dev=B===89000?'자동형(89,000원)':'수동형(76,000원)';
+  const {B,N,mask}=state, dev=({76000:'수동형(76,000원)',89000:'자동형(89,000원)',126000:'이중형 BiPAP(126,000원)'})[B]||B+'원';
   const mB=mask?MASK_BASE:0, mP=mask?MASK_BONIN:0, mG=mask?MASK_GONG:0;
   const maskLine=mask?`마스크(기본형): 기준 ${won(MASK_BASE)} → 본인 ${won(MASK_BONIN)} / 공단 ${won(MASK_GONG)}\n`:'';
   const pct=r=>r===0.5?'50%':'20%';
@@ -452,7 +453,7 @@ switchMode(); render();
 // ===== 자체 검증 (콘솔) =====
 (function selfTest(){
   const cases=[[76000,15,31,36770,18390,7360],[76000,1,31,2450,1230,490],[76000,30,31,73540,36770,14710],
-    [89000,30,31,86120,43060,17230],[89000,1,31,2870,1440,580],[76000,28,28,76000,38000,15200]];
+    [89000,30,31,86120,43060,17230],[89000,1,31,2870,1440,580],[76000,28,28,76000,38000,15200],[126000,31,31,126000,63000,25200]];
   let ok=0;
   cases.forEach(([B,d,N,eb,e5,e2])=>{
     const b=baseAmt(B,d,N),p5=bonin(B,d,N,.5),p2=bonin(B,d,N,.2);
