@@ -33,7 +33,7 @@
   .row{display:flex;gap:10px;align-items:flex-end}
   .row>div{flex:1}
   /* 날짜 자동계산 박스 */
-  .datebox{margin-top:12px;border:1.5px dashed var(--blue);background:#eef5e0;
+  .datebox{margin-top:12px;border:1.5px dashed var(--blue);background:#f3f8ff;
        border-radius:12px;padding:12px 12px 14px}
   .datebox-h{font-weight:700;font-size:.86rem;color:var(--navy);margin-bottom:10px}
   .datebox-h span{display:block;font-weight:400;color:var(--muted);font-size:.74rem;margin-top:3px}
@@ -52,7 +52,7 @@
   .field:last-child{margin-bottom:0}
   .hidden{display:none!important}
   /* period block */
-  .pblock{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:#f8fbf1}
+  .pblock{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:#fafbff}
   .pblock .ph{font-weight:800;color:var(--navy);font-size:.9rem;margin-bottom:10px}
   .pblock .ph small{font-weight:400;color:var(--muted)}
   /* result */
@@ -65,14 +65,15 @@
   .out2 .box .t{font-size:.78rem;opacity:.85}
   .out2 .box .v{font-size:1.25rem;font-weight:800;margin-top:4px}
   .out2 .box .s{font-size:.72rem;opacity:.8;margin-top:2px}
+  .out2 .box .brk{font-size:.7rem;font-weight:700;margin-top:3px;opacity:.95;line-height:1.45}
   /* 본인부담금(환자 수납액) 강조 */
-  .out2 .box.hl{background:#ffd95e;color:#2b3320;box-shadow:0 2px 10px rgba(0,0,0,.18);
+  .out2 .box.hl{background:#ffd95e;color:#1c2333;box-shadow:0 2px 10px rgba(0,0,0,.18);
        border:2px solid #ffc82e;position:relative;transform:scale(1.03)}
   .out2 .box.hl .t{opacity:1;font-weight:800}
   .out2 .box.hl .v{font-size:1.5rem;color:#b3261e}
   .out2 .box.hl .s{opacity:.9;font-weight:700}
   .out2 .box.hl .badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);
-       background:#5f8f0e;color:#fff;font-size:.68rem;font-weight:800;padding:2px 10px;
+       background:#e6447e;color:#fff;font-size:.68rem;font-weight:800;padding:2px 10px;
        border-radius:20px;white-space:nowrap;letter-spacing:.02em}
   .hl-amount{color:#ffd95e;font-weight:800}
   .both td.hl-cell{color:#b3261e;font-weight:800;background:#fff6d8}
@@ -221,34 +222,18 @@
 
   <!-- ===== 단일 결과 ===== -->
   <div class="card result" id="resSingle">
-    <div class="base">
-      <span>기준금액 (일할)<span class="stagepill" id="pill">사용 15일 / 31일</span></span>
-      <b id="baseOut">—</b>
-    </div>
-    <div class="out2">
-      <div class="box hl">
-        <span class="badge">💰 환자 수납액</span>
-        <div class="t">본인부담금 <span id="rateLbl">50%</span></div>
-        <div class="v" id="boninOut">—</div>
-        <div class="s">현금영수증 발행</div>
-      </div>
-      <div class="box">
-        <div class="t">공단부담금 <span id="grateLbl">50%</span></div>
-        <div class="v" id="gongdanOut">—</div>
-        <div class="s">세금계산서 발행</div>
-      </div>
-    </div>
-    <div class="masknote hidden" id="maskNote">😷 마스크(기본형) 포함 · 기준 95,000원 = 본인 19,000원 + 공단 76,000원</div>
+    <table class="sumtable">
+      <thead>
+        <tr><th>구분</th><th>기준금액</th><th class="hl-amount">💰 본인부담금</th><th>공단부담금</th></tr>
+      </thead>
+      <tbody>
+        <tr id="maskRowS" class="hidden"><td>😷 마스크(기본형) 20%</td><td>95,000원</td><td>19,000원</td><td>76,000원</td></tr>
+        <tr><td id="rentLbl">임대료</td><td id="rentBase">—</td><td id="rentBonin">—</td><td id="rentGong">—</td></tr>
+        <tr class="total"><td>합계</td><td id="sgBase">—</td><td id="sgBonin" class="hl-amount" style="font-size:1.15rem">—</td><td id="sgGong">—</td></tr>
+      </tbody>
+    </table>
     <div class="warn" id="warn"></div>
-    <div class="both">
-      <table>
-        <thead><tr><th>구분</th><th class="hl-amount">💰 본인부담금</th><th>공단부담금</th></tr></thead>
-        <tbody>
-          <tr><td>순응 중 (50/50)</td><td id="b50" class="hl-cell"></td><td id="g50"></td></tr>
-          <tr><td>순응통과 후 (20/80)</td><td id="b20" class="hl-cell"></td><td id="g80"></td></tr>
-        </tbody>
-      </table>
-    </div>
+    <div style="font-size:.74rem;opacity:.85;margin-top:10px">본인부담금 → 현금영수증 발행 · 공단부담금 → 세금계산서 발행</div>
   </div>
 
   <!-- ===== 재처방 합산 결과 ===== -->
@@ -258,9 +243,9 @@
         <tr><th>구간</th><th>기준금액</th><th class="hl-amount">💰 본인부담금</th><th>공단부담금</th></tr>
       </thead>
       <tbody>
-        <tr><td id="s1lbl">구간1</td><td id="s1base">—</td><td id="s1bonin" class="hl-amount">—</td><td id="s1gong">—</td></tr>
-        <tr><td id="s2lbl">구간2</td><td id="s2base">—</td><td id="s2bonin" class="hl-amount">—</td><td id="s2gong">—</td></tr>
-        <tr id="maskRow" class="hidden"><td>😷 마스크(기본형)</td><td>95,000원</td><td class="hl-amount">19,000원</td><td>76,000원</td></tr>
+        <tr id="maskRow" class="hidden"><td>😷 마스크(기본형) 20%</td><td>95,000원</td><td>19,000원</td><td>76,000원</td></tr>
+        <tr><td id="s1lbl">구간1</td><td id="s1base">—</td><td id="s1bonin">—</td><td id="s1gong">—</td></tr>
+        <tr><td id="s2lbl">구간2</td><td id="s2base">—</td><td id="s2bonin">—</td><td id="s2gong">—</td></tr>
         <tr class="total"><td>합계</td><td id="stBase">—</td><td id="stBonin" class="hl-amount" style="font-size:1.15rem">—</td><td id="stGong">—</td></tr>
       </tbody>
     </table>
@@ -393,15 +378,13 @@ function renderSingle(){
   if(d>N){ warn.style.display='block'; warn.textContent=`사용일수(${d}일)가 해당 월 일수(${N}일)보다 많습니다.`; }
   else warn.style.display='none';
   const mB=mask?MASK_BASE:0, mP=mask?MASK_BONIN:0, mG=mask?MASK_GONG:0;
-  $('#pill').textContent=`사용 ${d}일 / ${N}일`+(mask?' + 마스크':'');
-  $('#baseOut').textContent=won(baseAmt(B,d,N)+mB);
-  $('#rateLbl').textContent=(rate===0.5?50:20)+'%';
-  $('#grateLbl').textContent=(rate===0.5?50:80)+'%';
-  $('#boninOut').textContent=won(bonin(B,d,N,rate)+mP);
-  $('#gongdanOut').textContent=won(gongdan(B,d,N,rate)+mG);
-  $('#maskNote').classList.toggle('hidden',!mask);
-  $('#b50').textContent=won(bonin(B,d,N,0.5)+mP); $('#g50').textContent=won(gongdan(B,d,N,0.5)+mG);
-  $('#b20').textContent=won(bonin(B,d,N,0.2)+mP); $('#g80').textContent=won(gongdan(B,d,N,0.2)+mG);
+  const base=baseAmt(B,d,N), rb=bonin(B,d,N,rate), rg=gongdan(B,d,N,rate);  // 임대료(일할)만
+  const rPct=(rate===0.5?50:20);
+  const stageName=(rate===0.5?'순응 중':'순응통과 후');
+  $('#maskRowS').classList.toggle('hidden',!mask);
+  $('#rentLbl').textContent=`임대료 · ${d}일/${N}일 · ${stageName} ${rPct}%`;
+  $('#rentBase').textContent=won(base); $('#rentBonin').textContent=won(rb); $('#rentGong').textContent=won(rg);
+  $('#sgBase').textContent=won(base+mB); $('#sgBonin').textContent=won(rb+mP); $('#sgGong').textContent=won(rg+mG);
 }
 
 function renderSplit(){
@@ -451,11 +434,12 @@ $('#copyBtn').onclick=async()=>{
       +`합계: 본인부담금(현금영수증) ${won(p1+p2+mP)} / 공단부담금(세금계산서) ${won(g1+g2+mG)}`;
   }else{
     const {rate,d}=state;
+    const rb=bonin(B,d,N,rate), rg=gongdan(B,d,N,rate);
     txt=`[양압기 본인부담금 정산]\n양압기: ${dev} / 해당월 ${N}일 / 사용 ${d}일 / 본인 ${pct(rate)}\n`
-      +maskLine
       +`기준금액: ${won(baseAmt(B,d,N)+mB)}\n`
-      +`본인부담금(현금영수증): ${won(bonin(B,d,N,rate)+mP)}\n`
-      +`공단부담금(세금계산서): ${won(gongdan(B,d,N,rate)+mG)}`;
+      +(mask?`임대료 본인부담(${pct(rate)}): ${won(rb)}\n마스크 본인부담(20%): ${won(MASK_BONIN)}\n`:'')
+      +`본인부담금 합계(현금영수증): ${won(rb+mP)}\n`
+      +`공단부담금 합계(세금계산서): ${won(rg+mG)}`;
   }
   try{ await navigator.clipboard.writeText(txt); flash('#copyBtn','✅ 복사됨'); }
   catch(e){ prompt('복사할 내용:',txt); }
