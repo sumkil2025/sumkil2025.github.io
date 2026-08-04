@@ -80,6 +80,19 @@
   /* 마스크 */
   .maskfield{margin-top:14px;border-top:1px dashed var(--line);padding-top:14px}
   .maskfield .seg button.on{border-color:var(--green);background:var(--green)}
+  /* 해외 출국 */
+  .abroadfield{margin-top:14px;border-top:1px dashed var(--line);padding-top:14px}
+  .abroadfield .seg button.on{border-color:var(--amber);background:var(--amber)}
+  .tripbox{margin-top:12px;border:1.5px dashed var(--amber);background:#fdf6ee;border-radius:12px;padding:12px}
+  .triprow{display:flex;gap:8px;align-items:flex-end;margin-bottom:10px}
+  .triprow>div{flex:1}
+  .triprow .tilde{flex:0 0 14px;text-align:center;color:var(--muted);font-weight:700;padding-bottom:11px}
+  .triprow .del{flex:0 0 38px;height:46px;border:1.5px solid var(--line);background:#fff;border-radius:10px;
+       color:#b3261e;font-weight:800;font-size:1.05rem;cursor:pointer}
+  .tripbox .dlabel{color:var(--amber)}
+  .tripbox input[type=date]{border-color:var(--amber);background:#fff}
+  .addtrip{width:100%;padding:10px;border:1.5px dashed var(--amber);background:#fff;border-radius:10px;
+       color:var(--amber);font-weight:700;font-size:.88rem;cursor:pointer;margin-bottom:10px}
   .masknote{background:rgba(255,255,255,.16);border:1px dashed rgba(255,217,94,.7);color:#ffd95e;
        font-size:.8rem;font-weight:700;border-radius:10px;padding:9px 12px;margin-top:12px;text-align:center}
   .stagepill{display:inline-block;font-size:.74rem;background:rgba(255,255,255,.2);
@@ -214,6 +227,28 @@
       </div>
     </div>
 
+    <div class="field abroadfield">
+      <span class="label">✈️ 해외 출국 있음
+        <span style="font-weight:400;color:var(--muted);font-size:.78rem">출국심사일 다음날~입국심사일 전날 = 전액(100%) 본인부담</span>
+      </span>
+      <div class="seg" id="abroad">
+        <button data-v="0" class="on">없음</button>
+        <button data-v="1">있음 · 해외일 100%</button>
+      </div>
+      <div class="tripbox hidden" id="tripBox">
+        <div id="tripList"></div>
+        <button type="button" class="addtrip" id="addTrip">+ 여행 추가 (최대 5회)</button>
+        <div class="row" id="abroadManualRow">
+          <div>
+            <label class="dlabel" for="abroadManual" style="color:var(--muted)">해외일수 직접 입력 (날짜 없이 계산할 때)</label>
+            <input type="number" id="abroadManual" min="0" max="31" value="0" inputmode="numeric">
+          </div>
+        </div>
+        <div class="dresult" id="tripSummary" style="margin-top:10px">여행 날짜를 입력하거나 해외일수를 직접 입력하세요</div>
+        <div class="hint">출국심사일·입국심사일 당일은 급여 적용(공항 심사 시각 기준). 해외 사용 미신고 시 공단에서 환수될 수 있습니다.</div>
+      </div>
+    </div>
+
     <div class="actions noprint">
       <button type="button" id="resetBtn" class="btn">↺ 초기화</button>
       <button type="button" id="copyBtn" class="btn">📋 복사</button>
@@ -230,6 +265,7 @@
       <tbody>
         <tr id="maskRowS" class="hidden"><td>😷 마스크(기본형) 20%</td><td>95,000원</td><td>19,000원</td><td>76,000원</td></tr>
         <tr><td id="rentLbl">임대료</td><td id="rentBase">—</td><td id="rentBonin">—</td><td id="rentGong">—</td></tr>
+        <tr id="abroadRowS" class="hidden"><td id="abLblS">✈️ 해외 100%</td><td id="abBaseS">—</td><td id="abBoninS">—</td><td>0원</td></tr>
         <tr class="total"><td>합계</td><td id="sgBase">—</td><td id="sgBonin" class="hl-amount" style="font-size:1.15rem">—</td><td id="sgGong">—</td></tr>
       </tbody>
     </table>
@@ -247,6 +283,7 @@
         <tr id="maskRow" class="hidden"><td>😷 마스크(기본형) 20%</td><td>95,000원</td><td>19,000원</td><td>76,000원</td></tr>
         <tr><td id="s1lbl">구간1</td><td id="s1base">—</td><td id="s1bonin">—</td><td id="s1gong">—</td></tr>
         <tr><td id="s2lbl">구간2</td><td id="s2base">—</td><td id="s2bonin">—</td><td id="s2gong">—</td></tr>
+        <tr id="abroadRow" class="hidden"><td id="abLbl2">✈️ 해외 100%</td><td id="abBase2">—</td><td id="abBonin2">—</td><td>0원</td></tr>
         <tr class="total"><td>합계</td><td id="stBase">—</td><td id="stBonin" class="hl-amount" style="font-size:1.15rem">—</td><td id="stGong">—</td></tr>
       </tbody>
     </table>
@@ -257,6 +294,7 @@
   <footer>
     계산식: 기준금액 = 내림<sub>10원</sub>(월기준액 ÷ 월일수 × 사용일수) · 본인부담금 = 올림<sub>10원</sub>(기준금액 × 부담률) · 공단부담금 = 기준금액 − 본인부담금<br>
     ※ 2구간 합산은 각 구간을 따로 계산해 더합니다(반올림 때문에 두 기준금액 합이 한 달 만액과 몇 원 다를 수 있음).<br>
+    ※ 해외 체류(출국심사일 다음날~입국심사일 전날, 공항 심사 시각 기준)는 급여 정지되어 전액 본인부담입니다.<br>
     ※ 마스크(기본형)는 연 1회(년도 기준) 지원: 기준 95,000원 = 본인 19,000원(20%) + 공단 76,000원(80%). 일할 계산 없이 정액입니다.<br>
     ※ 공식 인쇄표와 ±10원 차이가 날 수 있으며(원본 엑셀 소수점 처리), 실제 청구는 공단 고시·심사 기준을 따릅니다.
   </footer>
@@ -270,7 +308,8 @@
 const $=s=>document.querySelector(s);
 const won=n=>n.toLocaleString('ko-KR')+'원';
 const state={B:89000, mode:'single', N:31, rate:0.5, d:15,
-             r1:0.5, d1:15, r2:0.2, d2:16, mask:0};
+             r1:0.5, d1:15, r2:0.2, d2:16, mask:0,
+             abroad:0, trips:[{dep:'',arr:''}], abroadManual:0};
 // 마스크(기본형): 연 1회, 기준 95,000 = 본인 19,000(20%) + 공단 76,000(80%)
 const MASK_BASE=95000, MASK_BONIN=19000, MASK_GONG=76000;
 
@@ -290,7 +329,8 @@ function segHandler(id,key,cast){
       state[key]=cast(b.dataset.v);
       if(id==='ndays'){ ['usedays','p1days','p2days'].forEach(i=>$('#'+i).max=state.N); }
       if(id==='mode') switchMode();
-      render();
+      if(id==='abroad') $('#tripBox').classList.toggle('hidden',!state.abroad);
+      updateAbroad();
     };
   });
 }
@@ -301,6 +341,7 @@ segHandler('stage','rate',Number);
 segHandler('stage1','r1',Number);
 segHandler('stage2','r2',Number);
 segHandler('mask','mask',Number);
+segHandler('abroad','abroad',Number);
 
 $('#usedays').oninput=e=>{ state.d=parseInt(e.target.value)||0; render(); };
 $('#p1days').oninput=e=>{ state.d1=parseInt(e.target.value)||0; render(); };
@@ -343,7 +384,7 @@ function singleDates(){
   state.d=diff; $('#usedays').value=diff; applyMonthDays(a); box.style.color='';
   const mm=new Date(a).getMonth()+1;
   box.textContent=`사용일수 ${diff}일  ·  ${mm}월(${state.N}일) 기준 적용`;
-  render();
+  updateAbroad();
 }
 
 // 구간 날짜
@@ -351,7 +392,7 @@ function periodDates(dn,daysId,d1id,d2id){
   const a=$('#'+d1id).value,b=$('#'+d2id).value;
   const diff=daysBetween(a,b);
   if(diff&&diff>0){ state[dn]=diff; $('#'+daysId).value=diff; if(a) applyMonthDays(a); }
-  render();
+  updateAbroad();
 }
 $('#p1d1').onchange=()=>periodDates('d1','p1days','p1d1','p1d2');
 $('#p1d2').onchange=()=>{
@@ -370,47 +411,172 @@ $('#p1d2').onchange=()=>{
 $('#p2d1').onchange=()=>periodDates('d2','p2days','p2d1','p2d2');
 $('#p2d2').onchange=()=>periodDates('d2','p2days','p2d1','p2d2');
 
+// ===== 해외 출국 (출국심사일 다음날 ~ 입국심사일 전날 = 100% 본인부담) =====
+const DAY=86400000;
+function toT(s){ return s?Date.parse(s):null; }
+function abroadIntervals(){
+  const iv=[];
+  for(const t of state.trips){
+    const a=toT(t.dep), b=toT(t.arr);
+    if(a==null||b==null||b<a) continue;
+    const s=a+DAY, e=b-DAY;         // 심사일 당일은 급여 적용
+    if(e>=s) iv.push([s,e]);
+  }
+  iv.sort((x,y)=>x[0]-y[0]);
+  const m=[];
+  for(const [s,e] of iv){
+    if(m.length&&s<=m[m.length-1][1]+DAY) m[m.length-1][1]=Math.max(m[m.length-1][1],e);
+    else m.push([s,e]);
+  }
+  return m;
+}
+function overlapDays(m,rs,re){
+  if(rs==null||re==null) return null;
+  let n=0;
+  for(const [s,e] of m){
+    const a=Math.max(s,rs), b=Math.min(e,re);
+    if(b>=a) n+=Math.round((b-a)/DAY)+1;
+  }
+  return n;
+}
+function abroadForSingle(){
+  if(!state.abroad) return 0;
+  const n=overlapDays(abroadIntervals(), toT($('#d1').value), toT($('#d2').value));
+  return (n!=null)?n:(state.abroadManual||0);
+}
+function abroadForSplit(){
+  if(!state.abroad) return [0,0];
+  const m=abroadIntervals();
+  const n1=overlapDays(m, toT($('#p1d1').value), toT($('#p1d2').value));
+  const n2=overlapDays(m, toT($('#p2d1').value), toT($('#p2d2').value));
+  return [n1||0, n2||0];
+}
+function renderTrips(){
+  const list=$('#tripList'); list.innerHTML='';
+  state.trips.forEach((t,i)=>{
+    const row=document.createElement('div'); row.className='triprow';
+    row.innerHTML='<div><label class="dlabel">출국심사일</label><input type="date" class="tdep"></div>'
+      +'<div class="tilde">~</div>'
+      +'<div><label class="dlabel">입국심사일</label><input type="date" class="tarr"></div>'
+      +'<button type="button" class="del" title="여행 삭제">×</button>';
+    row.querySelector('.tdep').value=t.dep;
+    row.querySelector('.tarr').value=t.arr;
+    row.querySelector('.tdep').onchange=e=>{ state.trips[i].dep=e.target.value; updateAbroad(); };
+    row.querySelector('.tarr').onchange=e=>{ state.trips[i].arr=e.target.value; updateAbroad(); };
+    row.querySelector('.del').onclick=()=>{
+      state.trips.splice(i,1);
+      if(!state.trips.length) state.trips.push({dep:'',arr:''});
+      renderTrips(); updateAbroad();
+    };
+    list.appendChild(row);
+  });
+}
+$('#addTrip').onclick=()=>{
+  if(state.trips.length>=5) return;
+  state.trips.push({dep:'',arr:''});
+  renderTrips();
+};
+$('#abroadManual').oninput=e=>{ state.abroadManual=parseInt(e.target.value)||0; render(); };
+function updateAbroad(){
+  if(state.abroad){
+    const box=$('#tripSummary');
+    $('#abroadManualRow').classList.toggle('hidden', state.mode!=='single');
+    let err='';
+    for(const t of state.trips){
+      if(t.dep&&t.arr&&Date.parse(t.arr)<Date.parse(t.dep)){ err='입국심사일이 출국심사일보다 빠른 여행이 있습니다'; break; }
+    }
+    const m=abroadIntervals();
+    if(err){ box.textContent=err; box.style.color='#c0392b'; }
+    else{
+      box.style.color='';
+      if(state.mode==='single'){
+        const n=overlapDays(m, toT($('#d1').value), toT($('#d2').value));
+        if(n!=null){ state.abroadManual=n; $('#abroadManual').value=n;
+          box.textContent=`해외일 ${n}일 자동 계산 (사용기간과 교차)`; }
+        else if(m.length) box.textContent='위 ⑤의 시작일·종료일을 입력하면 자동 계산됩니다 (지금은 직접 입력값 사용)';
+        else box.textContent='여행 날짜를 입력하거나 해외일수를 직접 입력하세요';
+      }else{
+        const n1=overlapDays(m, toT($('#p1d1').value), toT($('#p1d2').value));
+        const n2=overlapDays(m, toT($('#p2d1').value), toT($('#p2d2').value));
+        if(n1!=null&&n2!=null) box.textContent=`해외일 자동 계산: 구간1 ${n1}일 · 구간2 ${n2}일`;
+        else box.textContent='각 구간의 시작일·종료일을 입력해야 해외일이 자동 계산됩니다';
+      }
+    }
+  }
+  render();
+}
+
 // ===== 렌더링 =====
 function render(){ state.mode==='split' ? renderSplit() : renderSingle(); }
 
-function renderSingle(){
-  const {B,rate,N,mask}=state, d=state.d, warn=$('#warn');
-  if(!d||d<1){ warn.style.display='block'; warn.textContent='사용일수를 1일 이상 입력하세요.'; return; }
-  if(d>N){ warn.style.display='block'; warn.textContent=`사용일수(${d}일)가 해당 월 일수(${N}일)보다 많습니다.`; }
-  else warn.style.display='none';
+function calcSingle(){
+  const {B,rate,N,mask}=state, d=state.d;
   const mB=mask?MASK_BASE:0, mP=mask?MASK_BONIN:0, mG=mask?MASK_GONG:0;
-  const base=baseAmt(B,d,N), rb=bonin(B,d,N,rate), rg=gongdan(B,d,N,rate);  // 임대료(일할)만
+  const rawA=abroadForSingle();
+  const A=Math.max(0,Math.min(rawA,d)), di=d-A;
+  const base=di>0?baseAmt(B,di,N):0;
+  const rb=di>0?bonin(B,di,N,rate):0, rg=base-rb;
+  const ab=A>0?baseAmt(B,A,N):0;
+  return {d,di,A,rawA,base,rb,rg,ab,mB,mP,mG,
+          totB:base+ab+mB, totP:rb+ab+mP, totG:rg+mG};
+}
+function renderSingle(){
+  const {rate,N,mask}=state, d=state.d, warn=$('#warn');
+  if(!d||d<1){ warn.style.display='block'; warn.textContent='사용일수를 1일 이상 입력하세요.'; return; }
+  const c=calcSingle();
+  if(d>N){ warn.style.display='block'; warn.textContent=`사용일수(${d}일)가 해당 월 일수(${N}일)보다 많습니다.`; }
+  else if(c.rawA>d){ warn.style.display='block'; warn.textContent=`해외일수(${c.rawA}일)가 사용일수(${d}일)보다 많아 ${c.A}일만 반영했습니다.`; }
+  else warn.style.display='none';
   const rPct=(rate===0.5?50:20);
   const stageName=(rate===0.5?'순응 중':'순응통과 후');
   $('#maskRowS').classList.toggle('hidden',!mask);
-  $('#rentLbl').textContent=`임대료 · ${d}일/${N}일 · ${stageName} ${rPct}%`;
-  $('#rentBase').textContent=won(base); $('#rentBonin').textContent=won(rb); $('#rentGong').textContent=won(rg);
-  $('#sgBase').textContent=won(base+mB); $('#sgBonin').textContent=won(rb+mP); $('#sgGong').textContent=won(rg+mG);
+  $('#abroadRowS').classList.toggle('hidden',c.A<1);
+  $('#abLblS').textContent=`✈️ 해외 ${c.A}일 · 100%`;
+  $('#abBaseS').textContent=won(c.ab); $('#abBoninS').textContent=won(c.ab);
+  $('#rentLbl').textContent=`임대료 · 급여 ${c.di}일/${N}일 · ${stageName} ${rPct}%`;
+  $('#rentBase').textContent=won(c.base); $('#rentBonin').textContent=won(c.rb); $('#rentGong').textContent=won(c.rg);
+  $('#sgBase').textContent=won(c.totB); $('#sgBonin').textContent=won(c.totP); $('#sgGong').textContent=won(c.totG);
 }
 
+function calcSplit(){
+  const {B,N,r1,d1,r2,d2,mask}=state;
+  const mB=mask?MASK_BASE:0, mP=mask?MASK_BONIN:0, mG=mask?MASK_GONG:0;
+  const [ra1,ra2]=abroadForSplit();
+  const A1=Math.max(0,Math.min(ra1,d1)), A2=Math.max(0,Math.min(ra2,d2));
+  const di1=d1-A1, di2=d2-A2, At=A1+A2;
+  const b1=di1>0?baseAmt(B,di1,N):0, p1=di1>0?bonin(B,di1,N,r1):0, g1=b1-p1;
+  const b2=di2>0?baseAmt(B,di2,N):0, p2=di2>0?bonin(B,di2,N,r2):0, g2=b2-p2;
+  const ab=At>0?baseAmt(B,At,N):0;
+  return {A1,A2,At,di1,di2,b1,p1,g1,b2,p2,g2,ab,mB,mP,mG,
+          totB:b1+b2+ab+mB, totP:p1+p2+ab+mP, totG:g1+g2+mG};
+}
 function renderSplit(){
-  const {B,N,r1,d1,r2,d2}=state, warn=$('#warn2');
+  const {N,r1,d1,r2,d2,mask}=state, warn=$('#warn2');
   const tot=d1+d2;
   if(d1<1||d2<1){ warn.style.display='block'; warn.textContent='두 구간 모두 사용일수를 입력하세요.'; }
   else if(tot>N){ warn.style.display='block'; warn.textContent=`두 구간 합(${tot}일)이 해당 월 일수(${N}일)를 초과합니다. 확인하세요.`; }
   else warn.style.display='none';
-  const b1=baseAmt(B,d1,N), p1=bonin(B,d1,N,r1), g1=b1-p1;
-  const b2=baseAmt(B,d2,N), p2=bonin(B,d2,N,r2), g2=b2-p2;
-  const mask=state.mask, mB=mask?MASK_BASE:0, mP=mask?MASK_BONIN:0, mG=mask?MASK_GONG:0;
+  const c=calcSplit();
   const pct=r=>r===0.5?'50%':'20%';
-  $('#s1lbl').textContent=`구간1 · ${d1}일 · 본인 ${pct(r1)}`;
-  $('#s2lbl').textContent=`구간2 · ${d2}일 · 본인 ${pct(r2)}`;
-  $('#s1base').textContent=won(b1); $('#s1bonin').textContent=won(p1); $('#s1gong').textContent=won(g1);
-  $('#s2base').textContent=won(b2); $('#s2bonin').textContent=won(p2); $('#s2gong').textContent=won(g2);
+  $('#s1lbl').textContent=`구간1 · 급여 ${c.di1}일 · 본인 ${pct(r1)}`;
+  $('#s2lbl').textContent=`구간2 · 급여 ${c.di2}일 · 본인 ${pct(r2)}`;
+  $('#s1base').textContent=won(c.b1); $('#s1bonin').textContent=won(c.p1); $('#s1gong').textContent=won(c.g1);
+  $('#s2base').textContent=won(c.b2); $('#s2bonin').textContent=won(c.p2); $('#s2gong').textContent=won(c.g2);
   $('#maskRow').classList.toggle('hidden',!mask);
-  $('#stBase').textContent=won(b1+b2+mB); $('#stBonin').textContent=won(p1+p2+mP); $('#stGong').textContent=won(g1+g2+mG);
+  $('#abroadRow').classList.toggle('hidden',c.At<1);
+  $('#abLbl2').textContent=`✈️ 해외 ${c.At}일 · 100%`;
+  $('#abBase2').textContent=won(c.ab); $('#abBonin2').textContent=won(c.ab);
+  $('#stBase').textContent=won(c.totB); $('#stBonin').textContent=won(c.totP); $('#stGong').textContent=won(c.totG);
 }
 
 // ===== 초기화 / 복사 / 인쇄 =====
 function setSeg(id,val){ document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',Number(b.dataset.v)===val)); }
 $('#resetBtn').onclick=()=>{
-  Object.assign(state,{B:89000,mode:'single',N:31,rate:0.5,d:15,r1:0.5,d1:15,r2:0.2,d2:16,mask:0});
-  setSeg('device',89000); setSeg('ndays',31); setSeg('stage',0.5); setSeg('stage1',0.5); setSeg('stage2',0.2); setSeg('mask',0);
+  Object.assign(state,{B:89000,mode:'single',N:31,rate:0.5,d:15,r1:0.5,d1:15,r2:0.2,d2:16,mask:0,abroad:0,abroadManual:0});
+  state.trips=[{dep:'',arr:''}];
+  setSeg('device',89000); setSeg('ndays',31); setSeg('stage',0.5); setSeg('stage1',0.5); setSeg('stage2',0.2); setSeg('mask',0); setSeg('abroad',0);
+  $('#tripBox').classList.add('hidden'); $('#abroadManual').value=0; renderTrips();
+  $('#tripSummary').textContent='여행 날짜를 입력하거나 해외일수를 직접 입력하세요'; $('#tripSummary').style.color='';
   document.querySelectorAll('#mode button').forEach(b=>b.classList.toggle('on',b.dataset.v==='single'));
   $('#usedays').value=15; $('#p1days').value=15; $('#p2days').value=16;
   ['usedays','p1days','p2days'].forEach(i=>$('#'+i).max=31);
@@ -421,26 +587,26 @@ $('#resetBtn').onclick=()=>{
 
 $('#copyBtn').onclick=async()=>{
   const {B,N,mask}=state, dev=({76000:'수동형(76,000원)',89000:'자동형(89,000원)',126000:'이중형 BiPAP(126,000원)'})[B]||B+'원';
-  const mB=mask?MASK_BASE:0, mP=mask?MASK_BONIN:0, mG=mask?MASK_GONG:0;
-  const maskLine=mask?`마스크(기본형): 기준 ${won(MASK_BASE)} → 본인 ${won(MASK_BONIN)} / 공단 ${won(MASK_GONG)}\n`:'';
+  const maskLine=mask?`마스크(기본형) 20%: 본인 ${won(MASK_BONIN)} / 공단 ${won(MASK_GONG)}\n`:'';
   const pct=r=>r===0.5?'50%':'20%';
   let txt;
   if(state.mode==='split'){
-    const b1=baseAmt(B,state.d1,N),p1=bonin(B,state.d1,N,state.r1),g1=b1-p1;
-    const b2=baseAmt(B,state.d2,N),p2=bonin(B,state.d2,N,state.r2),g2=b2-p2;
+    const c=calcSplit();
     txt=`[양압기 본인부담금 정산 · 재처방 합산]\n양압기: ${dev} / 해당월 ${N}일\n`
-      +`구간1: ${state.d1}일, 본인 ${pct(state.r1)} → 본인 ${won(p1)} / 공단 ${won(g1)}\n`
-      +`구간2: ${state.d2}일, 본인 ${pct(state.r2)} → 본인 ${won(p2)} / 공단 ${won(g2)}\n`
+      +`구간1: 급여 ${c.di1}일, 본인 ${pct(state.r1)} → 본인 ${won(c.p1)} / 공단 ${won(c.g1)}\n`
+      +`구간2: 급여 ${c.di2}일, 본인 ${pct(state.r2)} → 본인 ${won(c.p2)} / 공단 ${won(c.g2)}\n`
+      +(c.At?`해외 체류 ${c.At}일(전액 100%): ${won(c.ab)}\n`:'')
       +maskLine
-      +`합계: 본인부담금(현금영수증) ${won(p1+p2+mP)} / 공단부담금(세금계산서) ${won(g1+g2+mG)}`;
+      +`합계: 본인부담금(현금영수증) ${won(c.totP)} / 공단부담금(세금계산서) ${won(c.totG)}`;
   }else{
-    const {rate,d}=state;
-    const rb=bonin(B,d,N,rate), rg=gongdan(B,d,N,rate);
-    txt=`[양압기 본인부담금 정산]\n양압기: ${dev} / 해당월 ${N}일 / 사용 ${d}일 / 본인 ${pct(rate)}\n`
-      +`기준금액: ${won(baseAmt(B,d,N)+mB)}\n`
-      +(mask?`임대료 본인부담(${pct(rate)}): ${won(rb)}\n마스크 본인부담(20%): ${won(MASK_BONIN)}\n`:'')
-      +`본인부담금 합계(현금영수증): ${won(rb+mP)}\n`
-      +`공단부담금 합계(세금계산서): ${won(rg+mG)}`;
+    const {rate}=state, c=calcSingle();
+    txt=`[양압기 본인부담금 정산]\n양압기: ${dev} / 해당월 ${N}일 / 사용 ${c.d}일 / 본인 ${pct(rate)}\n`
+      +`기준금액 합계: ${won(c.totB)}\n`
+      +`임대료 본인부담(급여 ${c.di}일, ${pct(rate)}): ${won(c.rb)}\n`
+      +(c.A?`해외 체류 ${c.A}일(전액 100%): ${won(c.ab)}\n`:'')
+      +(mask?`마스크 본인부담(20%): ${won(MASK_BONIN)}\n`:'')
+      +`본인부담금 합계(현금영수증): ${won(c.totP)}\n`
+      +`공단부담금 합계(세금계산서): ${won(c.totG)}`;
   }
   try{ await navigator.clipboard.writeText(txt); flash('#copyBtn','✅ 복사됨'); }
   catch(e){ prompt('복사할 내용:',txt); }
@@ -448,7 +614,7 @@ $('#copyBtn').onclick=async()=>{
 function flash(sel,msg){ const el=$(sel),o=el.textContent; el.textContent=msg; setTimeout(()=>el.textContent=o,1400); }
 $('#printBtn').onclick=()=>window.print();
 
-switchMode(); render();
+renderTrips(); switchMode(); render();
 
 // ===== 자체 검증 (콘솔) =====
 (function selfTest(){
@@ -460,6 +626,14 @@ switchMode(); render();
     if(b===eb&&p5===e5&&p2===e2) ok++; else console.warn('FAIL',{B,d,N},b,p5,p2,'exp',eb,e5,e2);
   });
   console.log(`self-test: ${ok}/${cases.length} pass`);
+})();
+(function abroadTest(){
+  // 여행 7/10~7/15 → 해외 7/11~7/14(4일), 7/20~7/22 → 7/21(1일)
+  const save=state.trips;
+  state.trips=[{dep:'2026-07-10',arr:'2026-07-15'},{dep:'2026-07-20',arr:'2026-07-22'}];
+  const n=overlapDays(abroadIntervals(), Date.parse('2026-07-01'), Date.parse('2026-07-31'));
+  state.trips=save;
+  console.log('abroad-test:', n===5?'pass':'FAIL got '+n);
 })();
 </script>
 </body>
