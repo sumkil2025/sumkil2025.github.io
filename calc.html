@@ -465,7 +465,7 @@ function renderTrips(){
     row.querySelector('.tarr').onchange=e=>{ state.trips[i].arr=e.target.value; updateAbroad(); };
     row.querySelector('.del').onclick=()=>{
       state.trips.splice(i,1);
-      if(!state.trips.length) state.trips.push({dep:'',arr:''});
+      if(!state.trips.length) state.trips.push({dep:PM.mid,arr:PM.mid});
       renderTrips(); updateAbroad();
     };
     list.appendChild(row);
@@ -473,7 +473,7 @@ function renderTrips(){
 }
 $('#addTrip').onclick=()=>{
   if(state.trips.length>=5) return;
-  state.trips.push({dep:'',arr:''});
+  state.trips.push({dep:PM.mid,arr:PM.mid});   // 전달로 캘린더 앵커(당일치기=해외 0일)
   renderTrips();
 };
 $('#abroadManual').oninput=e=>{ state.abroadManual=parseInt(e.target.value)||0; render(); };
@@ -582,6 +582,7 @@ $('#resetBtn').onclick=()=>{
   ['usedays','p1days','p2days'].forEach(i=>$('#'+i).max=31);
   ['d1','d2','p1d1','p1d2','p2d1','p2d2'].forEach(i=>$('#'+i).value='');
   $('#dresult').textContent='날짜를 선택하세요'; $('#dresult').style.color='';
+  initDefaults(); renderTrips();
   switchMode(); render();
 };
 
@@ -614,7 +615,19 @@ $('#copyBtn').onclick=async()=>{
 function flash(sel,msg){ const el=$(sel),o=el.textContent; el.textContent=msg; setTimeout(()=>el.textContent=o,1400); }
 $('#printBtn').onclick=()=>window.print();
 
-renderTrips(); switchMode(); render();
+// ===== 전달(청구 대상 월) 기본값 — 매달 초 전달 청구 워크플로 =====
+const PM=(()=>{ const now=new Date(), y=now.getFullYear(), m=now.getMonth();
+  const z=n=>String(n).padStart(2,'0');
+  const fmt=t=>`${t.getFullYear()}-${z(t.getMonth()+1)}-${z(t.getDate())}`;
+  return {first:fmt(new Date(y,m-1,1)), mid:fmt(new Date(y,m-1,15)), last:fmt(new Date(y,m,0))};
+})();
+function initDefaults(){
+  state.trips=[{dep:PM.mid,arr:PM.mid}];
+  const set=(id,v)=>{ const el=$('#'+id); el.value=v; el.dispatchEvent(new Event('change')); };
+  set('p1d1',PM.first); set('p1d2',PM.mid);   // 구간2는 기존 로직으로 16일~말일 자동
+  set('d1',PM.first);                          // 종료일은 기존 로직으로 전달 말일 자동
+}
+initDefaults(); renderTrips(); switchMode(); render();
 
 // ===== 자체 검증 (콘솔) =====
 (function selfTest(){
