@@ -162,8 +162,8 @@
       <div class="field">
         <span class="label">④ 순응 상태</span>
         <div class="seg" id="stage">
-          <button data-v="0.5" class="on">순응 중 (본인 50%)</button>
-          <button data-v="0.2">순응통과 후 (본인 20%)</button>
+          <button data-v="0.5">순응 중 (본인 50%)</button>
+          <button data-v="0.2" class="on">순응통과 후 (본인 20%)</button>
         </div>
       </div>
       <div class="field">
@@ -307,7 +307,7 @@
 <script>
 const $=s=>document.querySelector(s);
 const won=n=>n.toLocaleString('ko-KR')+'원';
-const state={B:89000, mode:'single', N:31, rate:0.5, d:15,
+const state={B:89000, mode:'single', N:31, rate:0.2, d:15,
              r1:0.5, d1:15, r2:0.2, d2:16, mask:0,
              abroad:0, trips:[{dep:'',arr:''}], abroadManual:0};
 // 마스크(기본형): 연 1회, 기준 95,000 = 본인 19,000(20%) + 공단 76,000(80%)
@@ -572,9 +572,9 @@ function renderSplit(){
 // ===== 초기화 / 복사 / 인쇄 =====
 function setSeg(id,val){ document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',Number(b.dataset.v)===val)); }
 $('#resetBtn').onclick=()=>{
-  Object.assign(state,{B:89000,mode:'single',N:31,rate:0.5,d:15,r1:0.5,d1:15,r2:0.2,d2:16,mask:0,abroad:0,abroadManual:0});
+  Object.assign(state,{B:89000,mode:'single',N:31,rate:0.2,d:15,r1:0.5,d1:15,r2:0.2,d2:16,mask:0,abroad:0,abroadManual:0});
   state.trips=[{dep:'',arr:''}];
-  setSeg('device',89000); setSeg('ndays',31); setSeg('stage',0.5); setSeg('stage1',0.5); setSeg('stage2',0.2); setSeg('mask',0); setSeg('abroad',0);
+  setSeg('device',89000); setSeg('ndays',31); setSeg('stage',0.2); setSeg('stage1',0.5); setSeg('stage2',0.2); setSeg('mask',0); setSeg('abroad',0);
   $('#tripBox').classList.add('hidden'); $('#abroadManual').value=0; renderTrips();
   $('#tripSummary').textContent='여행 날짜를 입력하거나 해외일수를 직접 입력하세요'; $('#tripSummary').style.color='';
   document.querySelectorAll('#mode button').forEach(b=>b.classList.toggle('on',b.dataset.v==='single'));
