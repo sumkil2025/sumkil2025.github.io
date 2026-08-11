@@ -185,6 +185,20 @@
   .setrow input,.setrow select{flex:1;min-width:0}
   .dropzone{border:2px dashed var(--blue);background:#f3f8ff;border-radius:12px;padding:26px;text-align:center;color:var(--blue);font-weight:700;cursor:pointer}
   .dropzone.drag{background:#e3efff}
+  /* 가져오기 안내 목록 */
+  .filelist{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:5px 16px;
+    margin-top:10px;text-align:left;font-weight:400}
+  .filelist div{font-size:.78rem;color:var(--muted);line-height:1.45;padding:3px 0}
+  .filelist b{display:inline-block;background:#fff;border:1px solid #cfe0f7;color:var(--navy);
+    border-radius:6px;padding:1px 7px;margin-right:6px;font-size:.76rem}
+  .filelist span{display:block;padding-left:2px}
+  .filelist em{font-style:normal;color:var(--pink);font-weight:700}
+  .helptbl{width:100%;border-collapse:collapse;font-size:.83rem}
+  .helptbl th{background:#f6f8fd;color:var(--muted);font-size:.76rem;text-align:left;padding:7px 8px;border-bottom:2px solid var(--line)}
+  .helptbl td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.55}
+  .helptbl td b{color:var(--navy)}
+  .helpstep{background:#f3f8ff;border:1px solid #cfe0f7;border-radius:10px;padding:12px 14px;margin-bottom:14px;
+    font-size:.84rem;line-height:1.9}
   footer{max-width:1280px;margin:0 auto;padding:6px 18px 26px;color:var(--muted);font-size:.72rem;line-height:1.7}
   @media print{ header.app,.toolbar,.noprint{display:none!important} body{background:#fff} .card{box-shadow:none;border:none} }
 </style>
@@ -273,9 +287,17 @@
       <button class="btn sm" id="btnIdMatchXls">📤 ID_match.xlsx 내보내기</button>
       <button class="btn primary sm" id="btnAddPat">+ 환자 추가</button>
     </div>
-    <div class="dropzone" id="patDrop" style="margin-bottom:12px;padding:16px">
-      📥 LMTS 엑셀 파일을 <b>여기로 끌어다 놓으세요</b> (버튼이 안 되는 환경에서도 동작)<br>
-      <span style="font-weight:400;font-size:.78rem">월청구자료관리 · 고객정보 · ID_match · 고객현황 — 형식 자동 인식, 여러 개 동시 가능</span>
+    <div class="dropzone" id="patDrop" style="margin-bottom:12px;padding:14px 16px">
+      📥 엑셀 파일을 <b>여기로 끌어다 놓으세요</b> — 형식을 자동으로 알아보고, 여러 개를 한꺼번에 넣어도 됩니다
+      <div class="filelist">
+        <div><b>월청구자료관리</b><span>LMTS · 환자·사용일수·요율·마스크 <em>(매달 필수)</em></span></div>
+        <div><b>고객정보</b><span>LMTS · 주소·연락처·생년월일·계약기간·의사·담당자</span></div>
+        <div><b>ID_match</b><span>주민번호·현금영수증 발급번호</span></div>
+        <div><b>현금영수증내역 / 세금계산서내역</b><span>LMTS · 실제 발행분 → 대사·월별청구 반영</span></div>
+        <div><b>매출내역 / 매출전자세금계산서목록</b><span>홈택스 · 발행 후 <em>승인번호</em></span></div>
+        <div><b>고객현황 (N월)</b><span>예전에 쓰던 관리 엑셀 — 과거 자료 옮길 때</span></div>
+      </div>
+      <button class="btn sm" id="btnImportHelp" style="margin-top:10px">📖 어떤 파일을 어디서 받나요?</button>
     </div>
     <input type="file" id="importFile" accept=".xlsx,.xls" multiple class="hidden">
     <div class="tblwrap"><table class="grid" id="patTable"></table></div>
@@ -1718,8 +1740,54 @@ function routeFile(f){
   }
   importAnyFile(f);
 }
+/* 어떤 파일을 어디서 받아 무엇이 채워지는지 안내 */
+$('#btnImportHelp').onclick=e=>{
+  e.stopPropagation();
+  $('#dlgHost').innerHTML=`<div class="modalBack" id="hlpBack" style="z-index:70"><div class="modal" style="width:760px">
+    <h3>📖 어떤 파일을 넣나요?</h3>
+    <div class="helpstep">
+      <b style="color:var(--navy)">매달 이 순서면 됩니다</b><br>
+      ① 청구 <b>전</b> — LMTS <b>월청구자료관리</b> 넣기 (신규 환자 있으면 <b>고객정보</b>도 함께)<br>
+      ② 주민번호 뒷자리 채우기 → [국세청 파일]에서 두 파일 만들어 홈택스 업로드<br>
+      ③ 발행 <b>후</b> — LMTS <b>내역</b> 2개 + 홈택스 <b>매출내역·매출전자세금계산서목록</b> 넣기
+    </div>
+    <div class="tblwrap"><table class="helptbl">
+      <thead><tr><th style="width:34%">파일</th><th style="width:20%">어디서</th><th>넣으면 채워지는 것</th></tr></thead>
+      <tbody>
+        <tr><td><b>월청구자료관리.xlsx</b><div class="hint">매달 꼭 필요</div></td>
+          <td>LMTS → 월청구자료관리</td>
+          <td>환자 자동 등록 · <b>그 달의 사용일수·요율(50/20%)·마스크</b> · 임대시작일 · 모델·S/N · 담당자</td></tr>
+        <tr><td><b>고객정보.xlsx</b></td><td>LMTS → 고객정보</td>
+          <td>주소 · 연락처 · 생년월일(<b>주민번호 앞 6자리 자동</b>) · 계약기간 · 의사·병원 · 담당자 · 주소로 <b>지사 자동 지정</b></td></tr>
+        <tr><td><b>ID_match.xlsx</b></td><td>직접 관리하는 파일<div class="hint">(C:\\LMCS_Bill)</div></td>
+          <td><b>주민등록번호 13자리</b> · 현금영수증 발급번호 · 용도구분<div class="hint">주민번호는 LMTS 어느 파일에도 없어서 이 파일이나 직접 입력이 필요합니다</div></td></tr>
+        <tr><td><b>현금영수증내역_YYYYMM.xlsx</b><br><b>세금계산서내역_YYYYMM.xlsx</b></td>
+          <td>LMTS → 발행 내역</td>
+          <td>[LMTS 대사]로 이동 → 계산액과 <b>실제 발행액 대조</b>. [📥 월별 청구에 반영]을 누르면 이 자료만으로 환자·일수·요율·마스크가 채워집니다</td></tr>
+        <tr><td><b>매출내역(YYYYMMDD~).xls</b><br><b>매출전자세금계산서목록.xls</b></td>
+          <td>홈택스 → 발행 후 조회</td>
+          <td><b>현금영수증·세금계산서 승인번호</b>를 환자별로 자동 등록 → 공단 청구 화면에 붙여넣기</td></tr>
+        <tr><td><b>고객현황 (N월) 시트</b></td><td>예전에 쓰던 관리 엑셀</td>
+          <td>과거 자료를 처음 옮겨올 때만 사용 (금액을 역산해 사용일수를 맞춰줍니다)</td></tr>
+      </tbody></table></div>
+    <div class="hint" style="margin-top:12px;line-height:1.8">
+      · 파일 이름은 달라도 됩니다 — <b>내용을 보고 자동으로 구분</b>합니다.<br>
+      · 같은 파일을 다시 넣어도 안전합니다(중복 등록되지 않고 갱신만 됩니다).<br>
+      · 이미 손으로 고친 값은 되도록 보존하되, <b>일수·마스크는 LMTS 자료를 기준</b>으로 다시 맞춥니다.<br>
+      · 넣은 뒤에는 결과 창에 <b>몇 명이 등록·갱신됐는지, 확인이 필요한 건은 무엇인지</b> 표시됩니다.
+    </div>
+    <div class="actions"><button class="btn primary" id="hlpOk">닫기</button></div>
+  </div></div>`;
+  $('#hlpOk').onclick=()=>$('#dlgHost').innerHTML='';
+  $('#hlpBack').onclick=ev=>{if(ev.target.id==='hlpBack')$('#dlgHost').innerHTML='';};
+  setTimeout(()=>$('#hlpOk')&&$('#hlpOk').focus(),0);
+};
 $('#btnImportChart').onclick=()=>$('#importFile').click();
 $('#importFile').onchange=()=>{[...$('#importFile').files].forEach(routeFile);$('#importFile').value='';};
+$('#patDrop').addEventListener('click',e=>{      /* 드롭존을 눌러도 파일 선택이 열리게 */
+  if(e.target.closest('#btnImportHelp'))return;
+  $('#importFile').click();
+});
 ;['dragover','dragleave','drop'].forEach(ev=>$('#patDrop').addEventListener(ev,e=>{
   e.preventDefault();e.stopPropagation();
   $('#patDrop').classList.toggle('drag',ev==='dragover');
