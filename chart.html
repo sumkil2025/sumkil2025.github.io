@@ -509,7 +509,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.08.11';
+const APP_VERSION='2026.08.20';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -664,7 +664,7 @@ function calcPatientMonth(p,ym,ov){
   const ruleHit=!!rl.enabled&&postAdapt&&fullMonth&&!exempt&&avgMin!=null&&avgMin<(rl.minMinutes??120);
   const selfFull=(ov.selfFull===true)||(ov.selfFull===false?false:ruleHit);
   if(selfFull){                                            /* 공단부담 0, 전액 본인부담 */
-    c.selfFull=true;c.rentBonin=c.rentBase+c.abAmt;c.rentGong=0;
+    c.selfFull=true;c.rentBonin=c.rentBase;c.rentGong=0;   /* 해외분(abAmt)은 별도 항목 — 보조창에서 이중합산 방지 */
     c.bonin=c.total;c.gong=0;
   }
   return {active:true,s,e,days,N,B,split:(d2>0),d1,d2,r1,r2,autoD1,autoD2,abroad,mask,
@@ -676,6 +676,7 @@ const LSKEY='sumgilChart.v1';
 const b64e=u8=>{let s='';u8.forEach(b=>s+=String.fromCharCode(b));return btoa(s);};
 const b64d=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 let cryptoKey=null, state=null, lockTimer=null;
+let saltMeta=null;   /* {salt,iter,check} — 저장소가 외부에서 지워져도 재작성할 수 있게 메모리에 보관 */
 
 async function deriveKey(pw,saltB64,iter){
   const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
@@ -751,22 +752,30 @@ let quotaWarned=false;
 async function flushPersist(){
   clearTimeout(persistTimer);
   if(!persistDirty||!cryptoKey||!state)return;
-  const store=JSON.parse(localStorage.getItem(LSKEY));
-  store.data=await encObj(cryptoKey,state);
+  /* 저장소가 외부에서 지워졌어도(사이트 데이터 삭제 등) 복구 가능한 형태로 재작성 */
+  let store=null;
+  try{store=JSON.parse(localStorage.getItem(LSKEY)||'null');}catch(e){}
+  if(!store||!store.salt){
+    if(!saltMeta)return;
+    store={v:1,salt:saltMeta.salt,iter:saltMeta.iter,check:saltMeta.check};
+  }
   try{
+    store.data=await encObj(cryptoKey,state);
     localStorage.setItem(LSKEY,JSON.stringify(store));
     persistDirty=false;quotaWarned=false;
   }catch(e){
-    /* 저장공간 초과 — 조용히 실패하면 자료가 사라진 줄도 모른다 */
+    /* 조용히 실패하면 자료가 사라진 줄도 모른다 — 반드시 알린다 (안내창은 줄서기라 다른 창을 지우지 않음) */
     if(!quotaWarned){
       quotaWarned=true;
-      showMsg('⚠️ 저장 실패 — 저장공간 부족',
-        `브라우저 저장공간이 가득 차서 방금 변경분을 저장하지 못했습니다.\n`
-        +`(환자 ${state.patients.length}명 · 오류: ${e.name})\n\n`
-        +`지금 하실 일:\n`
-        +`1) [설정 → 암호화 백업 내려받기]로 지금 자료를 먼저 파일로 저장하세요.\n`
-        +`2) 오래된 연도의 자료를 정리하거나, Chrome에서 사용하세요(Safari는 저장 한도가 작습니다).\n\n`
-        +`백업을 받기 전에는 창을 닫지 마세요.`);
+      const quota=e&&(e.name==='QuotaExceededError'||e.code===22||e.code===1014);
+      showMsg(quota?'⚠️ 저장 실패 — 저장공간 부족':'⚠️ 저장 실패',
+        (quota
+          ?`브라우저 저장공간이 가득 차서 방금 변경분을 저장하지 못했습니다.\n(환자 ${state.patients.length}명 · 오류: ${e.name})\n\n`
+           +`지금 하실 일:\n1) [설정 → 암호화 백업 내려받기]로 지금 자료를 먼저 파일로 저장하세요.\n`
+           +`2) 오래된 연도의 자료를 정리하거나, Chrome에서 사용하세요(Safari는 저장 한도가 작습니다).`
+          :`브라우저 오류로 방금 변경분을 저장하지 못했습니다. (${(e&&e.name)||e})\n\n`
+           +`[설정 → 암호화 백업 내려받기]로 자료를 먼저 파일로 보관한 뒤, 브라우저를 재시작해보세요.`)
+        +`\n\n백업을 받기 전에는 창을 닫지 마세요.`);
     }
     throw e;
   }
@@ -788,8 +797,10 @@ function commitActiveEdit(){
 }
 async function lockApp(){
   commitActiveEdit();
-  await flushPersist();
-  cryptoKey=null;state=null;
+  try{await flushPersist();}
+  catch(e){armAutolock();return;}   /* 저장 안 된 채 잠그면 방금 입력분이 사라진다 — 경고창을 보게 두고 잠금 중단 */
+  $('#dlgHost').innerHTML='';$('#modalHost').innerHTML='';   /* 열린 창 정리 — 잠금 뒤 이전 세션 데이터 조작 방지 */
+  cryptoKey=null;state=null;saltMeta=null;
   $('#app').classList.add('hidden');
   $('#lockScreen').classList.remove('hidden');
   $('#lockOpen').classList.remove('hidden');$('#lockSetup').classList.add('hidden');
@@ -815,6 +826,7 @@ $('#btnSetup').onclick=async()=>{
   state=freshState();
   const store={v:1,salt,iter,check:await encObj(cryptoKey,'SUMGIL_OK'),data:await encObj(cryptoKey,state)};
   localStorage.setItem(LSKEY,JSON.stringify(store));
+  saltMeta={salt,iter,check:store.check};
   enterApp();
 };
 $('#btnUnlock').onclick=tryUnlock;
@@ -825,6 +837,7 @@ async function tryUnlock(){
     const key=await deriveKey($('#pwOpen').value,store.salt,store.iter);
     await decObj(key,store.check);
     cryptoKey=key; state=await decObj(key,store.data);
+    saltMeta={salt:store.salt,iter:store.iter,check:store.check};
     enterApp();
   }catch(e){ $('#lockMsg').textContent='비밀번호가 올바르지 않습니다.'; }
 }
@@ -1023,7 +1036,7 @@ $('#monthTable').addEventListener('click',e=>{
   const so=e.target.closest('button[data-act="selfOn"]');
   if(so){setOv(curYM(),so.dataset.id,{selfFull:true});renderMonth();return;}
   const sa=e.target.closest('button[data-act="selfAuto"]');
-  if(sa){const o=state.months[curYM()][sa.dataset.id];delete o.selfFull;persist();renderMonth();return;}
+  if(sa){setOv(curYM(),sa.dataset.id,{selfFull:false});renderMonth();return;}   /* 명시적 false — 자동판정(2시간 규정)보다 우선해 일반 계산으로 */
   const b=e.target.closest('button[data-act="togglePay"]');if(!b)return;
   const ym=curYM(),p=state.patients.find(x=>x.id===b.dataset.id);if(!p)return;
   const eff=getOv(ym,p.id).payMethod||p.payMethod;
@@ -1688,40 +1701,55 @@ function openPatModal(id){
   };
 }
 
-/* ===== 화면 내 안내창 (alert/confirm/prompt가 차단되는 환경 대비 — 앱 전체에서 사용) ===== */
+/* ===== 화면 내 안내창 (alert/confirm/prompt가 차단되는 환경 대비 — 앱 전체에서 사용) =====
+   여러 창이 연달아 뜨면 서로를 지워버린다(파일 여러 개 동시 가져오기 등) — 한 창씩 순서대로 보여준다 */
+let dlgSeq=0,dlgChain=Promise.resolve();
+function dlgQueue(render){
+  const run=()=>new Promise(res=>{
+    const mark='dlgm'+(++dlgSeq);
+    let done=false,watch=null;
+    const finish=v=>{if(done)return;done=true;clearInterval(watch);res(v);};
+    render(finish,mark);
+    /* 다른 코드가 #dlgHost를 직접 비워도 줄이 멈추지 않게 감시 */
+    watch=setInterval(()=>{if(!document.querySelector(`[data-mark="${mark}"]`))finish(undefined);},400);
+  });
+  const p=dlgChain.then(run,run);
+  dlgChain=p.then(()=>{},()=>{});
+  return p;
+}
 function showMsg(title,body){
-  return new Promise(res=>{
-    $('#dlgHost').innerHTML=`<div class="modalBack" id="msgBack" style="z-index:70"><div class="modal" style="width:520px">
+  return dlgQueue((finish,mark)=>{
+    $('#dlgHost').innerHTML=`<div class="modalBack" id="msgBack" data-mark="${mark}" style="z-index:70"><div class="modal" style="width:520px">
       <h3>${esc(title)}</h3>
       <div style="white-space:pre-wrap;font-size:.85rem;max-height:55vh;overflow-y:auto;line-height:1.7">${esc(body)}</div>
       <div class="actions"><button class="btn primary" id="msgOk">확인</button></div></div></div>`;
-    const done=()=>{$('#dlgHost').innerHTML='';res();};
+    const done=()=>{$('#dlgHost').innerHTML='';finish();};
     $('#msgOk').onclick=done;
     $('#msgBack').onclick=e=>{if(e.target.id==='msgBack')done();};
     setTimeout(()=>$('#msgOk')&&$('#msgOk').focus(),0);   /* Enter/Esc로 닫히도록 */
   });
 }
 function askModal(title,body,defVal,type){
-  return new Promise(res=>{
-    $('#dlgHost').innerHTML=`<div class="modalBack" id="askBack" style="z-index:70"><div class="modal" style="width:420px">
+  return dlgQueue((finish,mark)=>{
+    $('#dlgHost').innerHTML=`<div class="modalBack" id="askBack" data-mark="${mark}" style="z-index:70"><div class="modal" style="width:420px">
       <h3>${esc(title)}</h3>
       <div style="font-size:.85rem;margin-bottom:10px;white-space:pre-wrap">${esc(body)}</div>
       <input id="askVal" type="${type==='password'?'password':'text'}" style="width:100%" value="${esc(defVal||'')}">
       <div class="actions"><button class="btn" id="askCancel">취소</button><button class="btn primary" id="askOk">확인</button></div></div></div>`;
-    setTimeout(()=>$('#askVal').focus(),50);
-    $('#askOk').onclick=()=>{const v=$('#askVal').value;$('#dlgHost').innerHTML='';res(v);};
-    $('#askCancel').onclick=()=>{$('#dlgHost').innerHTML='';res(null);};
+    setTimeout(()=>$('#askVal')&&$('#askVal').focus(),50);
+    $('#askOk').onclick=()=>{const v=$('#askVal').value;$('#dlgHost').innerHTML='';finish(v);};
+    $('#askCancel').onclick=()=>{$('#dlgHost').innerHTML='';finish(null);};
     $('#askVal').addEventListener('keydown',e=>{if(e.key==='Enter')$('#askOk').click();});
   });
 }
 function confirmModal(title,body,okLabel,danger){
-  return new Promise(res=>{
-    $('#dlgHost').innerHTML=`<div class="modalBack" id="cfBack" style="z-index:70"><div class="modal" style="width:440px">
+  return dlgQueue((finish,mark)=>{
+    $('#dlgHost').innerHTML=`<div class="modalBack" id="cfBack" data-mark="${mark}" style="z-index:70"><div class="modal" style="width:440px">
       <h3>${esc(title)}</h3>
       <div style="white-space:pre-wrap;font-size:.85rem;line-height:1.7">${esc(body)}</div>
       <div class="actions"><button class="btn" id="cfNo">취소</button>
       <button class="btn ${danger?'danger':'primary'}" id="cfYes">${esc(okLabel||'확인')}</button></div></div></div>`;
-    const done=v=>{$('#dlgHost').innerHTML='';res(v);};
+    const done=v=>{$('#dlgHost').innerHTML='';finish(v);};
     $('#cfYes').onclick=()=>done(true);
     $('#cfNo').onclick=()=>done(false);
     $('#cfBack').onclick=e=>{if(e.target.id==='cfBack')done(false);};
@@ -2111,9 +2139,11 @@ async function rawParseXlsx(buf){
 const ymd8=v=>{
   if(v==null||v==='')return null;
   if(v instanceof Date)return fd(v);
-  if(typeof v==='number'&&v>20000&&v<80000){ /* 엑셀 날짜 일련번호 */
+  if(typeof v==='number'&&v>366&&v<73416){ /* 엑셀 날짜 일련번호 1901~2100 — 1954년 이전 생년월일도 포함 */
     const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*864e5);
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+    const y=d.getUTCFullYear();
+    if(y<1900||y>2100)return null;
+    return `${y}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
   }
   const s=String(v).trim();
   let m=s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
@@ -3072,6 +3102,7 @@ $('#btnChangePw').onclick=()=>{
     cryptoKey=await deriveKey(nw,salt,iter);
     const ns={v:1,salt,iter,check:await encObj(cryptoKey,'SUMGIL_OK'),data:await encObj(cryptoKey,state)};
     localStorage.setItem(LSKEY,JSON.stringify(ns));
+    saltMeta={salt,iter,check:ns.check};
     persistDirty=false;
     $('#dlgHost').innerHTML='';
     showMsg('완료','비밀번호가 변경되었습니다.\n새 백업 파일도 하나 내려받아 두세요.');
@@ -3079,6 +3110,7 @@ $('#btnChangePw').onclick=()=>{
 };
 $('#btnBackup').onclick=async()=>{
   state.settings.lastBackup=fd(new Date());
+  persist();               /* 변경 표시 — 안 하면 flushPersist가 그냥 지나쳐 백업 파일에 옛 데이터가 담긴다 */
   await flushPersist();
   const blob=new Blob([localStorage.getItem(LSKEY)],{type:'application/json'});
   const a=document.createElement('a');
@@ -3100,6 +3132,7 @@ $('#restoreFile').onchange=()=>{
       if(!await confirmModal('백업 복원','현재 데이터를 백업 파일 내용으로 교체합니다. 계속할까요?','교체',true))return;
       localStorage.setItem(LSKEY,rd.result);
       cryptoKey=k;state=await decObj(k,store.data);persistDirty=false;
+      saltMeta={salt:store.salt,iter:store.iter,check:store.check};
       showMsg('완료','복원이 끝났습니다.');renderAll();
     }catch(e){showMsg('복원 실패','파일 또는 비밀번호를 확인하세요.');}
     $('#restoreFile').value='';
