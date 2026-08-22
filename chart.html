@@ -261,12 +261,14 @@
       <h2 style="margin:0" id="monthTitle">월별 청구</h2>
       <select id="mStaffFilter" title="담당자별 보기" style="width:120px"></select>
       <div class="spacer"></div>
+      <button class="btn sm" id="btnMonthApprove" title="발행 후 홈택스에서 받은 매출내역·매출전자세금계산서목록 파일을 넣으면 승인번호가 환자별로 자동 등록됩니다">📥 승인번호 가져오기</button>
       <button class="btn sm" id="btnTwoLine" title="한 환자를 두 줄로 표시하면 가로 스크롤이 줄어듭니다">⇕ 두 줄</button>
       <button class="btn sm" id="btnMonthXlsx">📤 월별 표 엑셀 내보내기</button>
     </div>
     <div class="hint" style="margin-bottom:8px">
       일수·해외·마스크를 수정하면 자동 저장됩니다. 일수 입력을 비우면 임대기간으로 자동 계산합니다.
       해외 일수는 출국심사일 다음날~입국심사일 전날 기준이며 전액(100%) 본인부담으로 계산됩니다.
+      발행 후 홈택스에서 받은 <b>매출내역·매출전자세금계산서목록</b>은 [📥 승인번호 가져오기]를 누르거나 이 화면에 끌어다 놓으면 승인번호가 자동 등록됩니다.
     </div>
     <div class="tblwrap"><table class="grid" id="monthTable"></table></div>
   </div>
@@ -1827,6 +1829,7 @@ $('#btnImportHelp').onclick=e=>{
   setTimeout(()=>$('#hlpOk')&&$('#hlpOk').focus(),0);
 };
 $('#btnImportChart').onclick=()=>$('#importFile').click();
+$('#btnMonthApprove').onclick=()=>$('#importFile').click();   /* 월별 청구에서도 같은 입구 — 승인번호 파일도 자동 인식 */
 $('#importFile').onchange=()=>{[...$('#importFile').files].forEach(routeFile);$('#importFile').value='';};
 $('#patDrop').addEventListener('click',e=>{      /* 드롭존을 눌러도 파일 선택이 열리게 */
   if(e.target.closest('#btnImportHelp'))return;
