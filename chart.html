@@ -87,9 +87,11 @@
   table.grid input.inline:hover{border-color:var(--line);background:#fff}
   table.grid input.inline:focus{border-color:var(--blue);background:#fff;outline:none}
   table.grid input.inline.bad{border-color:var(--red);background:#fdf0ef}
-  /* 순응통과일 인라인 달력 (환자 관리 표) */
-  table.grid input.pdate{width:128px}
+  /* 인라인 달력 (환자 관리 표: 순응·임대·반납·처방) */
+  table.grid input.pdate{width:128px;padding:2px 5px}
   table.grid input.pdate.on{color:var(--green);font-weight:700}
+  .dstack{display:flex;flex-direction:column;gap:1px}
+  .dstack .dsub{display:flex;align-items:center;gap:3px;font-size:.68rem;color:var(--muted);font-weight:700;white-space:nowrap}
   /* 환자표: 앞 3열(#·차트번호·성명) 고정 — 가로 스크롤해도 누구 행인지 유지 */
   #patTable th:nth-child(1),#patTable td:nth-child(1){position:sticky;left:0;width:32px;min-width:32px;z-index:1}
   #patTable th:nth-child(2),#patTable td:nth-child(2){position:sticky;left:32px;width:72px;min-width:72px;z-index:1}
@@ -1275,7 +1277,7 @@ const DEVICES=['수동형','자동형','이중형'];
 /* 환자 표에서 켜고 끌 수 있는 열 (#·차트번호·성명·버튼은 항상 표시) */
 const PAT_COLS=[
   {k:'rrn',t:'주민번호'},{k:'phone',t:'연락처'},{k:'device',t:'기기·모델명'},
-  {k:'pressure',t:'처방압력'},{k:'sn',t:'S/N'},{k:'rentStart',t:'임대시작'},
+  {k:'pressure',t:'처방압력'},{k:'sn',t:'S/N'},{k:'rentStart',t:'임대·반납'},
   {k:'rx',t:'처방기간'},{k:'pass',t:'순응'},{k:'pay',t:'결제'},
   {k:'branch',t:'지사'},{k:'staff',t:'담당자'},{k:'status',t:'상태'}];
 /* 담당자 목록 (등록된 환자에서 자동 수집) */
@@ -1373,8 +1375,14 @@ function renderPatients(){
       ${cell('device',`<td>${esc(p.device)}${p.model?` <span class="hint">${esc(p.model)}</span>`:''}</td>`)}
       ${cell('pressure',`<td><input class="inline" style="width:58px" value="${esc(p.pressure||'')}" data-pf="pressure" data-id="${p.id}" placeholder="4-15" title="처방압력 (예: 4-15) — 직접 수정 가능"></td>`)}
       ${cell('sn',`<td><input class="inline" style="width:72px" value="${esc(p.sn||'')}" data-pf="sn" data-id="${p.id}" title="직접 수정 가능"></td>`)}
-      ${cell('rentStart',`<td style="white-space:nowrap" title="${esc(p.rentStart||'')}${p.rentEnd?` ~ ${esc(p.rentEnd)} 반납`:''}">${p.rentStart?p.rentStart.slice(2).replace(/-/g,'.'):''}${p.rentEnd?`<br><span class="hint">반납 ${p.rentEnd.slice(5).replace('-','.')}</span>`:''}</td>`)}
-      ${cell('rx',`<td style="white-space:nowrap" title="${esc(p.rxStart||'')}${p.rxEnd?` ~ ${esc(p.rxEnd)}`:''}">${p.rxEnd?'~'+p.rxEnd.slice(2).replace(/-/g,'.'):(p.rxStart?p.rxStart.slice(2).replace(/-/g,'.'):'')}</td>`)}
+      ${cell('rentStart',`<td><div class="dstack">
+        <input type="date" class="inline pdate" value="${p.rentStart||''}" data-pf="rentStart" data-id="${p.id}" title="임대 시작일 — 일할계산 기준 · 비울 수 없음 · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 복귀">
+        <label class="dsub">반납<input type="date" class="inline pdate" value="${p.rentEnd||''}" data-pf="rentEnd" data-id="${p.id}" title="반납일(임대 종료) — 비우면 사용중 · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 복귀"></label>
+      </div></td>`)}
+      ${cell('rx',`<td><div class="dstack">
+        <input type="date" class="inline pdate" value="${p.rxStart||''}" data-pf="rxStart" data-id="${p.id}" title="처방 시작일">
+        <label class="dsub">~<input type="date" class="inline pdate" value="${p.rxEnd||''}" data-pf="rxEnd" data-id="${p.id}" title="처방 종료일"></label>
+      </div></td>`)}
       ${cell('pass',`<td><input type="date" class="inline pdate ${p.passDate?'on':''}" value="${p.passDate||''}" data-pf="passDate" data-id="${p.id}" title="순응통과(재처방) 시작일 — 이 날부터 본인부담 20% · 비우면 순응중(50%) · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 되돌아갑니다"></td>`)}
       ${cell('pay',`<td><button class="badge tgl ${p.payMethod==='card'?'card':'cash'}" data-act="togglePay" data-id="${p.id}" title="${p.payMethod==='card'?'카드 결제 — 현금영수증 일괄발급에서 제외됨':'현금영수증 발행 대상'} · 클릭하면 전환">${p.payMethod==='card'?'카드':'현금'}</button></td>`)}
       ${cell('branch',`<td><button class="btn sm brbtn" data-act="branch" data-id="${p.id}" title="클릭하여 지사 선택${p.branchFax?` · 팩스 ${esc(p.branchFax)}`:''}">${esc(p.branch||'선택…')}</button></td>`)}
@@ -1389,7 +1397,7 @@ function renderPatients(){
   $('#patTable').innerHTML=`
     <thead><tr><th>#</th>${th('mgmtCode','차트번호')}${th('name','성명')}
     ${cell('rrn','<th>주민번호</th>')}${cell('phone','<th>연락처</th>')}${cell('device',th('device','기기'))}
-    ${cell('pressure','<th>처방압력</th>')}${cell('sn','<th>S/N</th>')}${cell('rentStart',th('rentStart','임대시작'))}
+    ${cell('pressure','<th>처방압력</th>')}${cell('sn','<th>S/N</th>')}${cell('rentStart',th('rentStart','임대·반납'))}
     ${cell('rx','<th>처방기간</th>')}${cell('pass',th('pass','순응'))}${cell('pay',th('pay','결제'))}
     ${cell('branch',th('branch','지사'))}${cell('staff',th('staff','담당자'))}${cell('status',th('status','상태'))}<th></th></tr></thead>
     <tbody>${body||`<tr><td colspan="${nCols}" style="text-align:center;color:var(--muted);padding:26px">등록된 환자가 없습니다.</td></tr>`}</tbody>`;
@@ -1442,15 +1450,30 @@ $('#patTable').addEventListener('change',e=>{
   if(!el.dataset||!el.dataset.pf)return;
   const p=state.patients.find(x=>x.id===el.dataset.id);if(!p)return;
   const f=el.dataset.pf;let v=el.value.trim();
-  if(f==='passDate'){
+  if(f==='passDate'||f==='rentStart'||f==='rentEnd'||f==='rxStart'||f==='rxEnd'){
     const nv=el.value||null;
-    if((p.passDate||null)!==nv){
-      p.passDate=nv;
-      /* 구간·요율 불일치 방지 — 수정 창과 동일하게 월별 수기 일수를 자동계산으로 복귀 */
-      for(const ymk in state.months){const o=state.months[ymk]&&state.months[ymk][p.id];if(o){delete o.d1;delete o.d2;}}
+    if(f==='rentStart'&&!nv){                     /* 필수값 — 비우면 이전 값 복원 */
+      el.value=p.rentStart||'';
+      el.classList.add('bad');el.title='임대 시작일은 비울 수 없습니다 (일할계산 기준일)';
+      setTimeout(()=>el.classList.remove('bad'),1500);
+      return;
+    }
+    if((p[f]||null)!==nv){
+      p[f]=nv;
+      /* 임대·순응 날짜는 구간·요율에 영향 — 수정 창과 동일하게 월별 수기 일수를 자동계산으로 복귀 */
+      if(f!=='rxStart'&&f!=='rxEnd'){
+        for(const ymk in state.months){const o=state.months[ymk]&&state.months[ymk][p.id];if(o){delete o.d1;delete o.d2;}}
+      }
       persist();
     }
-    el.classList.toggle('on',!!nv);
+    if(f==='passDate')el.classList.toggle('on',!!nv);
+    /* 날짜 앞뒤 뒤집힘 경고 (저장은 하되 표시) */
+    const flip=(f==='rentEnd'&&nv&&p.rentStart&&nv<p.rentStart)
+             ||(f==='rxEnd'&&nv&&p.rxStart&&nv<p.rxStart)
+             ||(f==='rentStart'&&p.rentEnd&&nv>p.rentEnd)
+             ||(f==='rxStart'&&nv&&p.rxEnd&&nv>p.rxEnd);
+    el.classList.toggle('bad',!!flip);
+    if(flip)el.title='종료일이 시작일보다 빠릅니다 — 날짜를 확인하세요';
     return;
   }
   if(f==='rrn'||f==='phone')v=digits(v);
