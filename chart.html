@@ -525,7 +525,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.08.31';
+const APP_VERSION='2026.09.01';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -740,7 +740,9 @@ function ensureDefaults(){
   /* 이전 기본값(기기·처방기간·상태 숨김)을 쓰던 사용자는 새 기본값(기기만 숨김)으로 이전 */
   if(s.hideCols.length===3&&['device','rx','status'].every(k=>s.hideCols.includes(k)))s.hideCols=['device'];
   if(!s.twoLineDefaulted){s.monthTwoLine=true;s.twoLineDefaulted=true;}   /* 두 줄 보기를 기본으로 (1회 적용) */
-  if(!s.patTwoLineDefaulted){s.patTwoLine=true;s.patTwoLineDefaulted=true;} /* 환자 관리도 두 줄 기본 */
+  /* 환자 관리 두 줄 보기: 잠깐 기본으로 켰다가 사용자 요청으로 한 줄 기본 복귀 (2026-09-01)
+     — 이미 두 줄로 바뀐 저장값도 1회 한 줄로 되돌리고, 이후엔 버튼 선택을 존중 */
+  if(s.patOneLineReverted===undefined){s.patTwoLine=false;s.patOneLineReverted=true;}
   for(const k of['maskItem','maskSpec','cashIdSrc','autolock'])if(s[k]===undefined)s[k]=d[k];
   state.months=state.months||{};state.patients=state.patients||[];
   for(const p of state.patients){
