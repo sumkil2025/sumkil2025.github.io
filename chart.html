@@ -90,6 +90,14 @@
   /* 인라인 달력 (환자 관리 표: 순응·임대·반납·처방) */
   table.grid input.pdate{width:128px;padding:2px 5px}
   table.grid input.pdate.on{color:var(--green);font-weight:700}
+  /* 환자 관리 두 줄 보기 — 날짜·기기·주소는 둘째 줄로 */
+  #patTable tr.sub td{position:static!important;box-shadow:none;border-bottom:2px solid var(--line);padding:0 8px 7px}
+  #patTable tr:has(+tr.sub) td{border-bottom:none;padding-bottom:2px}
+  #patTable tr.sub+tr td{border-top:none}
+  .patsub{display:flex;gap:6px 18px;align-items:center;flex-wrap:wrap;font-size:.78rem;color:var(--muted)}
+  .patsub b{font-weight:700;margin-right:5px;font-size:.72rem}
+  .patsub label{display:flex;align-items:center;white-space:nowrap}
+  .patsub input.pdate{width:120px;padding:1px 4px}
   .dstack{display:flex;flex-direction:column;gap:1px}
   .dstack .dsub{display:flex;align-items:center;gap:3px;font-size:.68rem;color:var(--muted);font-weight:700;white-space:nowrap}
   /* 환자표: 앞 3열(#·차트번호·성명) 고정 — 가로 스크롤해도 누구 행인지 유지 */
@@ -288,6 +296,7 @@
       <input type="search" id="patSearch" placeholder="이름·연락처·S/N 검색" style="width:170px">
       <select id="staffFilter" title="담당자별 보기" style="width:110px"></select>
       <datalist id="staffOpts"></datalist>
+      <button class="btn sm" id="btnPatTwoLine" title="날짜·기기·주소를 둘째 줄로 내려 가로 스크롤을 없앱니다">⇕ 두 줄</button>
       <button class="btn sm" id="btnCols" title="표에 보일 열 고르기">⚙️ 표시 열</button>
       <button class="btn sm" id="btnImportChart">📥 엑셀 가져오기</button>
       <button class="btn sm" id="btnAutoBranch" title="주소가 있고 지사가 비어있는 환자의 관할 지사를 자동으로 채웁니다">📍 주소로 지사 자동지정</button>
@@ -731,6 +740,7 @@ function ensureDefaults(){
   /* 이전 기본값(기기·처방기간·상태 숨김)을 쓰던 사용자는 새 기본값(기기만 숨김)으로 이전 */
   if(s.hideCols.length===3&&['device','rx','status'].every(k=>s.hideCols.includes(k)))s.hideCols=['device'];
   if(!s.twoLineDefaulted){s.monthTwoLine=true;s.twoLineDefaulted=true;}   /* 두 줄 보기를 기본으로 (1회 적용) */
+  if(!s.patTwoLineDefaulted){s.patTwoLine=true;s.patTwoLineDefaulted=true;} /* 환자 관리도 두 줄 기본 */
   for(const k of['maskItem','maskSpec','cashIdSrc','autolock'])if(s[k]===undefined)s[k]=d[k];
   state.months=state.months||{};state.patients=state.patients||[];
   for(const p of state.patients){
@@ -1364,23 +1374,39 @@ function renderPatients(){
   const hid=state.settings.hideCols||[];
   const on=k=>!hid.includes(k);
   const cell=(k,html)=>on(k)?html:'';
+  /* 두 줄 보기: 날짜·기기는 둘째 줄로 내려 가로 폭을 줄인다 */
+  const two=!!state.settings.patTwoLine;
+  $('#btnPatTwoLine').classList.toggle('primary',two);
+  $('#btnPatTwoLine').textContent=two?'⇕ 두 줄 ✓':'⇕ 두 줄';
+  const L2={device:1,rentStart:1,rentEnd:1,rx:1,pass:1};
+  const c1=(k,html)=>on(k)&&(!two||!L2[k])?html:'';
+  const nCols1=3+1+PAT_COLS.filter(c=>on(c.k)&&(!two||!L2[c.k])).length;
   const body=pats.filter(p=>!staffFilter||(staffFilter==='(미지정)'?!(p.staff||'').trim():(p.staff||'').trim()===staffFilter))
     .filter(p=>!q
       ||[p.name,p.mgmtCode,p.phone,p.sn,p.branch,p.staff].join(' ').toLowerCase().includes(q)
       ||(qd&&(digits(p.phone).includes(qd)||digits(p.rrn).includes(qd))))   /* 010-1234 처럼 하이픈 포함 검색 */
-    .map((p,i)=>`<tr>
+    .map((p,i)=>{
+      const line2=two?`<tr class="sub"><td></td><td colspan="${nCols1-1}"><div class="patsub">
+        ${on('rentStart')?`<label><b>계약시작</b><input type="date" class="inline pdate" value="${p.rentStart||''}" data-pf="rentStart" data-id="${p.id}" title="계약시작일 — 청구 일할계산 기준 · 비울 수 없음 · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 복귀 (처방 시작일도 함께 따라감)"></label>`:''}
+        ${on('rentEnd')?`<label><b>계약종료</b><input type="date" class="inline pdate" value="${p.rentEnd||''}" data-pf="rentEnd" data-id="${p.id}" title="계약종료일(반납·해지) — 비우면 사용중 · 이 날까지만 청구 계산 · 바꾸면 월별 수기 일수 자동계산 복귀"></label>`:''}
+        ${on('rx')?`<label><b>처방종료</b><input type="date" class="inline pdate" value="${p.rxEnd||''}" data-pf="rxEnd" data-id="${p.id}" title="처방종료일 — 재처방(처방전 재발행) 시 새 종료일로 갱신"></label>`:''}
+        ${on('pass')?`<label><b>순응통과</b><input type="date" class="inline pdate ${p.passDate?'on':''}" value="${p.passDate||''}" data-pf="passDate" data-id="${p.id}" title="순응통과(재처방) 시작일 — 이 날부터 본인부담 20% · 비우면 순응중(50%) · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 되돌아갑니다"></label>`:''}
+        ${on('device')?`<span><b>기기</b>${esc(p.device)}${p.model?` · ${esc(p.model)}`:''}</span>`:''}
+        ${p.addr?`<span title="${esc(p.addr)}">📍 ${esc(p.addr.length>26?p.addr.slice(0,26)+'…':p.addr)}</span>`:''}
+      </div></td></tr>`:'';
+      return `<tr>
       <td>${i+1}</td>
       <td><input class="inline" style="width:64px" value="${esc(p.mgmtCode||'')}" data-pf="mgmtCode" data-id="${p.id}" placeholder="A00000" title="LMTS 차트번호 — 직접 수정 가능"></td>
       <td><b>${esc(p.name)}</b></td>
       ${cell('rrn',`<td><input class="inline ${p.rrn&&p.rrn.length!==13&&p.rrn.length!==6?'bad':''}" style="width:112px" value="${esc(fmtRRN(p.rrn))}" data-pf="rrn" data-id="${p.id}" placeholder="000000-0000000" title="${p.rrn&&p.rrn.length===6?'뒷자리 7자리를 이어서 입력 → Tab/↓로 다음 환자':'직접 수정 가능'}"></td>`)}
       ${cell('phone',`<td><input class="inline ${p.phone&&p.phone.length!==10&&p.phone.length!==11?'bad':''}" style="width:94px" value="${esc(fmtPhone(p.phone))}" data-pf="phone" data-id="${p.id}" placeholder="010-" title="직접 수정 가능"></td>`)}
-      ${cell('device',`<td>${esc(p.device)}${p.model?` <span class="hint">${esc(p.model)}</span>`:''}</td>`)}
+      ${c1('device',`<td>${esc(p.device)}${p.model?` <span class="hint">${esc(p.model)}</span>`:''}</td>`)}
       ${cell('pressure',`<td><input class="inline" style="width:58px" value="${esc(p.pressure||'')}" data-pf="pressure" data-id="${p.id}" placeholder="4-15" title="처방압력 (예: 4-15) — 직접 수정 가능"></td>`)}
       ${cell('sn',`<td><input class="inline" style="width:72px" value="${esc(p.sn||'')}" data-pf="sn" data-id="${p.id}" title="직접 수정 가능"></td>`)}
-      ${cell('rentStart',`<td><input type="date" class="inline pdate" value="${p.rentStart||''}" data-pf="rentStart" data-id="${p.id}" title="계약시작일 — 청구 일할계산 기준 · 비울 수 없음 · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 복귀 (처방 시작일도 함께 따라감)"></td>`)}
-      ${cell('rentEnd',`<td><input type="date" class="inline pdate" value="${p.rentEnd||''}" data-pf="rentEnd" data-id="${p.id}" title="계약종료일(반납·해지) — 비우면 사용중 · 이 날까지만 청구 계산 · 바꾸면 월별 수기 일수 자동계산 복귀"></td>`)}
-      ${cell('rx',`<td><input type="date" class="inline pdate" value="${p.rxEnd||''}" data-pf="rxEnd" data-id="${p.id}" title="처방종료일 — 재처방(처방전 재발행) 시 새 종료일로 갱신"></td>`)}
-      ${cell('pass',`<td><input type="date" class="inline pdate ${p.passDate?'on':''}" value="${p.passDate||''}" data-pf="passDate" data-id="${p.id}" title="순응통과(재처방) 시작일 — 이 날부터 본인부담 20% · 비우면 순응중(50%) · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 되돌아갑니다"></td>`)}
+      ${c1('rentStart',`<td><input type="date" class="inline pdate" value="${p.rentStart||''}" data-pf="rentStart" data-id="${p.id}" title="계약시작일 — 청구 일할계산 기준 · 비울 수 없음 · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 복귀 (처방 시작일도 함께 따라감)"></td>`)}
+      ${c1('rentEnd',`<td><input type="date" class="inline pdate" value="${p.rentEnd||''}" data-pf="rentEnd" data-id="${p.id}" title="계약종료일(반납·해지) — 비우면 사용중 · 이 날까지만 청구 계산 · 바꾸면 월별 수기 일수 자동계산 복귀"></td>`)}
+      ${c1('rx',`<td><input type="date" class="inline pdate" value="${p.rxEnd||''}" data-pf="rxEnd" data-id="${p.id}" title="처방종료일 — 재처방(처방전 재발행) 시 새 종료일로 갱신"></td>`)}
+      ${c1('pass',`<td><input type="date" class="inline pdate ${p.passDate?'on':''}" value="${p.passDate||''}" data-pf="passDate" data-id="${p.id}" title="순응통과(재처방) 시작일 — 이 날부터 본인부담 20% · 비우면 순응중(50%) · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 되돌아갑니다"></td>`)}
       ${cell('pay',`<td><button class="badge tgl ${p.payMethod==='card'?'card':'cash'}" data-act="togglePay" data-id="${p.id}" title="${p.payMethod==='card'?'카드 결제 — 현금영수증 일괄발급에서 제외됨':'현금영수증 발행 대상'} · 클릭하면 전환">${p.payMethod==='card'?'카드':'현금'}</button></td>`)}
       ${cell('branch',`<td><button class="btn sm brbtn" data-act="branch" data-id="${p.id}" title="클릭하여 지사 선택${p.branchFax?` · 팩스 ${esc(p.branchFax)}`:''}">${esc(p.branch||'선택…')}</button></td>`)}
       ${cell('staff',`<td><input class="inline" style="width:62px" list="staffOpts" value="${esc(p.staff||'')}" data-pf="staff" data-id="${p.id}" placeholder="담당자" title="담당자 — 직접 입력하거나 목록에서 선택"></td>`)}
@@ -1389,13 +1415,13 @@ function renderPatients(){
         <button class="btn sm" data-act="edit" data-id="${p.id}" title="환자 정보 수정">✏️</button>
         <button class="btn sm danger" data-act="del" data-id="${p.id}" title="환자 삭제">🗑</button>
       </td>
-    </tr>`).join('');
-  const nCols=3+1+PAT_COLS.filter(c=>on(c.k)).length;
+    </tr>${line2}`;}).join('');
+  const nCols=nCols1;
   $('#patTable').innerHTML=`
     <thead><tr><th>#</th>${th('mgmtCode','차트번호')}${th('name','성명')}
-    ${cell('rrn','<th>주민번호</th>')}${cell('phone','<th>연락처</th>')}${cell('device',th('device','기기'))}
-    ${cell('pressure','<th>처방압력</th>')}${cell('sn','<th>S/N</th>')}${cell('rentStart',th('rentStart','계약시작'))}${cell('rentEnd',th('rentEnd','계약종료'))}
-    ${cell('rx',th('rx','처방종료'))}${cell('pass',th('pass','순응'))}${cell('pay',th('pay','결제'))}
+    ${cell('rrn','<th>주민번호</th>')}${cell('phone','<th>연락처</th>')}${c1('device',th('device','기기'))}
+    ${cell('pressure','<th>처방압력</th>')}${cell('sn','<th>S/N</th>')}${c1('rentStart',th('rentStart','계약시작'))}${c1('rentEnd',th('rentEnd','계약종료'))}
+    ${c1('rx',th('rx','처방종료'))}${c1('pass',th('pass','순응'))}${cell('pay',th('pay','결제'))}
     ${cell('branch',th('branch','지사'))}${cell('staff',th('staff','담당자'))}${cell('status',th('status','상태'))}<th></th></tr></thead>
     <tbody>${body||`<tr><td colspan="${nCols}" style="text-align:center;color:var(--muted);padding:26px">등록된 환자가 없습니다.</td></tr>`}</tbody>`;
   $('#patTable').onclick=e=>{
@@ -1577,6 +1603,7 @@ function openBranchPicker(cb,addrHint){
 $('#patSearch').addEventListener('input',renderPatients);
 $('#staffFilter').addEventListener('change',()=>{staffFilter=$('#staffFilter').value;renderPatients();});
 $('#btnAddPat').onclick=()=>openPatModal(null);
+$('#btnPatTwoLine').onclick=()=>{state.settings.patTwoLine=!state.settings.patTwoLine;persist();renderPatients();};
 /* 표시 열 고르기 — 화면에 안 들어가는 열을 꺼서 가로 스크롤 없애기 */
 $('#btnCols').onclick=()=>{
   const hid=state.settings.hideCols||[];
