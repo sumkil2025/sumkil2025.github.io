@@ -551,7 +551,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.05.3';
+const APP_VERSION='2026.09.05.4';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1354,7 +1354,7 @@ function openClaimView(pid,k){
     <div class="cvsec">국세청자료</div>
     ${(ca||ta)?`<div class="tblwrap"><table class="grid cvtbl"><thead><tr><th>순번</th><th>문서종류</th><th>승인번호</th><th class="num">합계금액</th></tr></thead><tbody>
       ${ta?`<tr><td>1</td><td>전자세금계산서</td><td>${chip(ta,ta)}</td><td class="num">${chip(won(u.gong),u.gong)}</td></tr>`:''}
-      ${ca?`<tr><td>${ta?2:1}</td><td>현금영수증${caSum?' <span class="hint">(월 합산 1장)</span>':''}</td><td>${chip(ca,ca)}</td><td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>`:''}
+      ${ca?`<tr><td>${ta?2:1}</td><td>현금영수증${caSum?' <span class="badge warn" title="구간별로 2장 발행해야 합니다">⚠️ 월 합산 1장</span>':''}</td><td>${chip(ca,ca)}</td><td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>`:''}
       </tbody></table></div>`:`<div class="cvempty">등록된 국세청자료 없음</div>`}
     ${(c.avgMin!=null||ad||lm)?`<div class="cvsec">숨길이 참고자료 <small style="font-weight:400;color:var(--muted);font-size:.74rem">LMTS 순응후관리 · 월청구자료 — 대조용</small></div>
       <div class="cv3">
@@ -2272,7 +2272,7 @@ function importApproval(kind,aoa,h,fname){
   /* 후보 월: 선택 월 → 전달 → 그 전달 (현금영수증엔 청구월 정보가 없어 금액으로 찾는다) */
   const cands=[sel,ymAdd(sel,-1),ymAdd(sel,-2),ymAdd(sel,1)];
   const unitsOf=(p,ym)=>{const c=calcPatientMonth(p,ym,getOv(ym,p.id));return c.active?c.units:[];};
-  let nOk=0;const done=[],miss=[],dup=[];
+  let nOk=0;const done=[],miss=[],dup=[],warn=[];
   for(const rec of recs){
     /* ① 환자 찾기 */
     let cand=[],via='';
@@ -2286,7 +2286,7 @@ function importApproval(kind,aoa,h,fname){
     }
     /* ② 월·구간 찾기 — 금액이 맞는 청구 단위 */
     const months=(kind==='tax'&&rec.date)?[rec.date.slice(0,7),...cands]:cands;
-    /* 구간 금액이 맞으면 그 구간에, 현금영수증은 월 합산 한 장으로 발행되기도 하므로 구간 합계도 인정 */
+    /* 구간 금액이 맞으면 그 구간에. 현금영수증이 월 합산 한 장으로 잘못 발행됐으면(구간 합계 = 금액) 기록은 하되 경고 */
     const findUnit=(p,ym)=>{const us=unitsOf(p,ym);const u=us.find(x=>x[amtKey]===rec.amt);
       if(u)return {p,ym,k:u.k,multi:u.multi,ks:[u.k]};
       if(kind==='cash'&&us.length>1&&us.reduce((a,x)=>a+x.bonin,0)===rec.amt)return {p,ym,k:0,multi:true,ks:us.map(x=>x.k),sum:true};
@@ -2319,7 +2319,8 @@ function importApproval(kind,aoa,h,fname){
       if(prev&&prev!==rec.app)dup.push(`· ${hit.p.name} ${hit.ym}${hit.multi?` 구간${kk}`:''}: ${prev} → ${rec.app}`);
       uSet(hit.ym,hit.p.id,kk,{[field]:rec.app});
     }
-    done.push(`✓ ${hit.p.name} (${hit.ym}${hit.multi?(hit.sum?' 월 합산(구간1+2)':` 구간${hit.k} ${hit.k===1?'순응중':'순응후'}`):''}) ${rec.app}${via&&via!=='주민번호'&&via!=='주민번호 뒤4자리'?` [${via}]`:''}`);
+    if(hit.sum)warn.push(`· ${hit.p.name} (${hit.ym}): 현금영수증이 월 합산 1장(${won(rec.amt)})으로 발행됨 — 순응중·순응후 구간별 2장이어야 합니다. 승인 ${rec.app}은 두 구간에 기록해 두었습니다`);
+    else done.push(`✓ ${hit.p.name} (${hit.ym}${hit.multi?` 구간${hit.k} ${hit.k===1?'순응중':'순응후'}`:''}) ${rec.app}${via&&via!=='주민번호'&&via!=='주민번호 뒤4자리'?` [${via}]`:''}`);
     nOk++;
   }
   /* 카드 결제자 안내 — 현금영수증이 없는 게 정상 */
@@ -2330,8 +2331,9 @@ function importApproval(kind,aoa,h,fname){
   }
   persist();renderAll();
   showMsg(`${label} 승인번호 가져오기`,
-    `${fname}\n${recs.length}건 중 ${nOk}건 등록`+(miss.length?` · 미매칭 ${miss.length}건`:'')
+    `${fname}\n${recs.length}건 중 ${nOk}건 등록`+(miss.length?` · 미매칭 ${miss.length}건`:'')+(warn.length?` · ⚠️ 발행 방식 확인 ${warn.length}건`:'')
     +`\n\n${done.join('\n')}`
+    +(warn.length?`\n\n[⚠️ 발행 방식 확인]\n${warn.join('\n')}`:'')
     +(dup.length?`\n\n[기존 값 교체]\n${dup.join('\n')}`:'')
     +(miss.length?`\n\n[확인 필요]\n${miss.join('\n')}`:'')
     +cardNote
@@ -3196,7 +3198,7 @@ function renderRecon(){
       if(row){
         const free=row.c.units.filter(u=>!used.has(row.p.id+'|'+u.k));
         unit=free.find(u=>u[calcKey]===rec.amt)||null;
-        /* 현금영수증은 월 합산 한 장으로 발행되기도 함 → 구간 합계와 맞으면 일치 */
+        /* 현금영수증이 월 합산 한 장으로 잘못 발행된 경우(구간 합계 = 금액) → 짝은 맞추되 경고로 표시 */
         if(!unit&&type==='cash'&&free.length>1&&free.reduce((a,u)=>a+u.bonin,0)===rec.amt){free.forEach(u=>used.add(row.p.id+'|'+u.k));sum=true;}
         if(!unit&&!sum)unit=(rec.seq?free.find(u=>u.k===rec.seq):null)||free[0]||null;
         if(unit)used.add(row.p.id+'|'+unit.k);
@@ -3213,7 +3215,8 @@ function renderRecon(){
     let ok=0,bad=0,note=0;
     const body=pairs.map(x=>{
       let st;
-      if(x.mine!=null&&x.lmts!=null&&x.mine===x.lmts){st=x.sum?'<span class="diff-ok">일치 ✓ <span class="hint">(월 합산 1장)</span></span>':'<span class="diff-ok">일치 ✓</span>';ok++;}
+      if(x.sum){st='<span class="diff-bad">⚠️ 월 합산 1장으로 발행됨 — 구간별 2장이어야 합니다</span>';bad++;}
+      else if(x.mine!=null&&x.lmts!=null&&x.mine===x.lmts){st='<span class="diff-ok">일치 ✓</span>';ok++;}
       else if(x.extra){st='<span class="diff-bad">차트에 해당 청구건(구간) 없음</span>';bad++;}
       else if(x.mine==null){st='<span class="diff-bad">차트에 없음 — 환자 등록 필요</span>';bad++;}
       else if(x.lmts==null){
