@@ -154,6 +154,22 @@
   .cvgrid{display:grid;grid-template-columns:130px 1fr 130px 1fr;gap:2px 10px;font-size:.86rem;align-items:center}
   .cvl{color:var(--muted);font-weight:700;padding:4px 0;font-size:.78rem}
   .cvv{padding:4px 8px;border-radius:6px;cursor:pointer;font-variant-numeric:tabular-nums;font-weight:600}
+  /* 청구입력 보조창 — 공단 화면과 같은 3열(좌·중·우) 격자 */
+  .modal.cvmodal{width:1080px}   /* .modal 규칙이 뒤에 있어 구체성으로 이김 */
+  .cvh1{font-size:1.02rem;font-weight:800;color:var(--navy);margin:20px 0 2px;padding-bottom:6px;border-bottom:2px solid var(--navy)}
+  .cv3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 16px;font-size:.86rem;align-items:start}
+  .cvi{display:grid;grid-template-columns:128px minmax(0,1fr);align-items:center;min-height:32px;column-gap:6px}
+  .cvi.span3{grid-column:1/-1}
+  .cvi.blank{min-height:32px}
+  .cvd{display:flex;align-items:center;flex-wrap:wrap;gap:2px 4px;min-width:0;font-variant-numeric:tabular-nums}
+  .cvaux{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;margin:6px 0 2px;padding:6px 10px;background:#f6f8fd;border-radius:8px;font-size:.8rem}
+  .cvaux>b{color:var(--muted);font-size:.74rem;margin-right:2px}
+  .cvai{display:inline-flex;align-items:center;gap:4px}
+  .cvai .cvl{padding:0}
+  .cvtbl{font-size:.83rem}
+  .cvempty{color:#c0c6d4;font-size:.85rem;padding:6px 8px}
+  @media (max-width:1000px){.cv3{grid-template-columns:repeat(2,minmax(0,1fr))}.cvi.blank{display:none}}
+  @media (max-width:640px){.cv3{grid-template-columns:1fr}}
   .cvv:hover{background:#eef4fd;outline:1.5px solid var(--blue)}
   .cvv.copied{background:#e9f9f1;outline:1.5px solid var(--green)}
   .cvv.empty{color:#c0c6d4;cursor:default;font-weight:400}
@@ -535,7 +551,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.05';
+const APP_VERSION='2026.09.05.3';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1270,109 +1286,86 @@ function openClaimView(pid,k){
     const o=state.months[kk]&&state.months[kk][p.id];
     if(o&&o.mask){firstMask=kk;break;}
   }
-  /* 처방 구분·기간: 순응중 구간 = 최초 처방(재처방 전일까지) / 순응후 구간 = 재처방(순응통과일부터) */
+  /* 처방 구분·기간: 순응중 구간 = 최초 처방(재처방 전일까지) / 순응후 구간 = 현재 처방(재처방일부터) */
   const post=u.rate===0.2;
   const rxS=post?(p.rxStart||p.passDate||p.rentStart):(p.passDate?p.rentStart:(p.rxStart||p.rentStart));
   const rxE=post?p.rxEnd:((p.passDate&&rxS&&p.passDate>rxS)?addDays(p.passDate,-1):p.rxEnd);
   const rxKind=post?'순응기간 후 처방':'순응기간 중 처방';
   const devLabel={'수동형':'수동형(CPAP)','자동형':'자동형(APAP)','이중형':'이중형(BiPAP)'}[p.device]||p.device;
-  const row=(label,val,copy,cls)=>{
-    if(val===''||val==null)return `<div class="cvl">${label}</div><div class="cvv empty">—</div>`;
-    return `<div class="cvl">${label}</div><div class="cvv ${cls||''}" data-copy="${esc(copy!=null?copy:String(val).replace(/,/g,''))}">${esc(String(val))}</div>`;
-  };
   const rrnF=digits(p.rrn).slice(0,6),rrnB=digits(p.rrn).slice(6);
   const rentBase=u.base+u.abAmt,rentBonin=u.rentBonin+u.abAmt;
   const ca=uGet(ov,u.k,'cashApprove'),ta=uGet(ov,u.k,'taxApprove'),cd=uGet(ov,u.k,'claimed');
+  /* 분리 발행인데 두 구간의 현금영수증 승인번호가 같으면 = 월 합산 한 장 발행 → 합계는 월 본인부담 */
+  const caSum=multi&&ca&&c.units.every(x=>uGet(ov,x.k,'cashApprove')===ca);
   const segTitle=multi?` <span class="badge ${u.rate===.5?'b50':'b20'}">구간${u.k} · ${u.rate===.5?'순응중 50%':'순응후 20%'}</span>`:'';
-  $('#modalHost').innerHTML=`<div class="modalBack" id="cvBack"><div class="modal" style="width:760px">
+  /* ── 3열 격자 부품: 항목명 + 값(클릭 복사) ── */
+  const chip=(val,copy,cls)=>(val===''||val==null)?`<span class="cvv empty">—</span>`
+    :`<span class="cvv ${cls||''}" data-copy="${esc(copy!=null?copy:String(val).replace(/,/g,''))}">${esc(String(val))}</span>`;
+  const item=(label,val,copy,cls,span)=>`<div class="cvi${span?' '+span:''}"><div class="cvl">${label}</div><div class="cvd">${chip(val,copy,cls)}</div></div>`;
+  const raw=(label,html,span)=>`<div class="cvi${span?' '+span:''}"><div class="cvl">${label}</div><div class="cvd">${html}</div></div>`;
+  const blank='<div class="cvi blank"></div>';
+  const range=(a,b)=>`${chip(dot(a),dot(a))}<span class="hint">~</span>${chip(dot(b),dot(b))}`;
+  const aux=(title,items)=>`<div class="cvaux"><b>${title}</b>${items.map(([l,v,cp])=>`<span class="cvai"><span class="cvl">${l}</span>${chip(v,cp)}</span>`).join('')}</div>`;
+  const avgH=c.avgMin!=null?Math.floor(c.avgMin/60):null;
+  const ad=ov.adapt||null,lm=ov.lmts||null;
+  const lmRow=lm?(lm.rows||[]).find(x=>x.kind==='A'&&(!multi||Math.abs(x.rate-u.rate)<0.001)):null;
+  $('#modalHost').innerHTML=`<div class="modalBack" id="cvBack"><div class="modal cvmodal">
     <h3>📋 공단 청구 입력 — ${esc(p.name)} · ${ym.replace('-','년 ')}월${segTitle}
-      <small style="font-weight:400;color:var(--muted);font-size:.76rem">값을 클릭하면 복사됩니다</small></h3>
-    ${multi?`<div class="hint" style="margin:-6px 0 10px;padding:8px 10px;background:#f3f8ff;border-radius:8px;color:var(--navy)">이 달은 순응중·순응후 구간이 함께 있어 청구서·세금계산서·현금영수증을 <b>구간마다 따로</b> 냅니다. 이 창은 <b>구간${u.k}(${u.rate===.5?'순응중':'순응후'})</b>의 값입니다 — 다른 구간은 월별 표의 해당 구간 행 📋.</div>`:''}
+      <small style="font-weight:400;color:var(--muted);font-size:.76rem">공단 화면과 같은 자리 배치 · 값을 클릭하면 복사됩니다</small></h3>
+    ${multi?`<div class="hint" style="margin:-6px 0 10px;padding:8px 10px;background:#f3f8ff;border-radius:8px;color:var(--navy)">이 달은 순응중·순응후 구간이 함께 있어 청구서·세금계산서를 <b>구간마다 따로</b> 냅니다. 이 창은 <b>구간${u.k}(${u.rate===.5?'순응중':'순응후'})</b>의 값입니다 — 다른 구간은 월별 표의 해당 구간 행 📋.</div>`:''}
     <div class="cvsec">수진자 정보</div>
-    <div class="cvgrid">
-      ${row('성명',p.name)}
-      <div class="cvl">주민번호</div><div style="display:flex;gap:6px">
-        ${rrnF?`<span class="cvv" data-copy="${rrnF}">${rrnF}</span>`:'<span class="cvv empty">앞자리 없음</span>'}
-        ${rrnB?`<span class="cvv" data-copy="${rrnB}">${rrnB}</span>`:'<span class="cvv empty">뒷자리 미입력</span>'}</div>
-      ${row('처리지사',p.branch)}
-      ${row('지사 팩스',p.branchFax)}
+    <div class="cv3">
+      ${item('요양비종류','양압기','양압기')}
+      ${raw('주민번호',`${rrnF?chip(rrnF,rrnF):'<span class="cvv empty">앞자리 없음</span>'}<span class="hint">-</span>${rrnB?chip(rrnB,rrnB):'<span class="cvv empty">뒷자리 미입력</span>'}`)}
+      ${item('성명',p.name)}
+      ${item('처리지사',p.branch)}${blank}${blank}
+      ${aux('보조정보',[['지사 팩스',p.branchFax]])}
     </div>
+    <div class="cvh1">양압기 상세내역</div>
     <div class="cvsec">처방정보</div>
-    <div class="cvgrid">
-      ${row('처방전발행일',dot(rxS))}
-      ${row('처방구분',rxKind,rxKind)}
-      ${row('처방기간(시작)',dot(rxS))}
-      ${row('처방기간(종료)',dot(rxE))}
-      ${row('양압기 종류',devLabel,devLabel)}
-      ${row('처방압력',p.pressure||'')}
-      ${row('상병',`${cl.sickCode||''} ${cl.sickName||''}`.trim(),cl.sickCode)}
-      ${row('요양기관',`${cl.hospCode||''} ${p.hospital||cl.hospName||''}`.trim(),cl.hospCode)}
-      ${row('의사면허/의사명',docLic?`${docLic} ${docName}`:docName,docLic||docName)}
-      ${row('전문의번호',p.docSpecNo||cl.specNo)}
-      ${row('전문과목',cl.specialty)}
-      ${row('마스크 최초지급월',firstMask?dot(firstMask):'' )}
+    <div class="cv3">
+      ${item('처방전등록번호','')}${item('처방전발행일',dot(rxS))}${item('처방구분',rxKind,rxKind)}
+      ${raw('처방기간',range(rxS,rxE))}${item('양압기 종류',devLabel,devLabel)}${item('직전 처방기간 평균 사용시간','')}
+      ${item('상병',`${cl.sickCode||''} ${cl.sickName||''}`.trim(),cl.sickCode)}${item('상세항목','')}${item('마스크 최초지급월',firstMask?dot(firstMask):'')}
+      ${item('의사면허번호/의사명',docLic?`${docLic} ${docName}`:docName,docLic||docName)}${item('요양기관',`${cl.hospCode||''} ${p.hospital||cl.hospName||''}`.trim(),cl.hospCode)}${item('진료구분','')}
+      ${blank}${item('전문의번호',p.docSpecNo||cl.specNo)}${item('전문과목',cl.specialty)}
+      ${aux('숨길이 추가정보',[['처방압력',p.pressure||'']])}
     </div>
     <div class="cvsec">청구정보</div>
-    <div class="cvgrid">
-      ${row('사업자등록번호',fmtBiz(st.supplier.regno),digits(st.supplier.regno))}
-      ${row('업체명',st.supplier.name)}
-      ${row('업체계약기간(시작)',dot(rxS))}
-      ${row('업체계약기간(종료)',dot(rxE))}
-      ${row('사용기간(시작)',dot(u.s))}
-      ${row('사용기간(종료)',dot(u.e))}
-      ${row('사용일수',`${u.days}일`,u.days)}
-      ${row(`양압기 계약금액 (${won(state.settings.prices[p.device]||state.settings.prices['자동형'])}원 × ${u.days}/${c.N}일 일할)`,won(rentBase),rentBase)}
-      ${row('소모품(마스크) 구입금액',u.mask?won(pr.maskBase):'',u.mask?pr.maskBase:null)}
-      ${row('구입총액',won(u.total),u.total)}
-      ${row(`기기대여 본인부담금${u.abroadDays?' (해외분 포함)':''}`,won(rentBonin),rentBonin)}
-      ${row('마스크 본인부담금',u.mask?won(u.maskBonin):'',u.mask?u.maskBonin:null)}
-      ${row('본인부담총액',won(u.bonin),u.bonin,'big')}
-      ${row('공단부담총액',won(u.gong),u.gong,'big')}
-      ${row('현금영수증 승인번호',ca||'')}
-      ${row('세금계산서 승인번호',ta||'')}
+    <div class="cv3">
+      ${item('사업자등록번호',fmtBiz(st.supplier.regno),digits(st.supplier.regno))}${item('업체명',st.supplier.name)}${raw('사용기간',`${range(u.s,u.e)}<span class="hint">·</span>${chip(u.days+'일',u.days)}`)}
+      ${raw('업체계약기간',range(rxS,rxE))}${item('구입총액',won(u.total),u.total)}${raw('월별 평균 사용시간',avgH!=null?`${chip(avgH+' 시간',avgH)}<span class="hint">(${hm(c.avgMin)})</span>`:'<span class="cvv empty">—</span>')}
+      ${item('본인부담총액',won(u.bonin),u.bonin,'big')}${item('실본인부담총액','')}${item('공단부담총액',won(u.gong),u.gong,'big')}
+      ${item('반납기간','')}${blank}${blank}
+      ${aux('부담금 상세',[['기기대여 본인부담금',won(rentBonin),rentBonin],['마스크 본인부담금',u.mask?won(u.maskBonin):'',u.mask?u.maskBonin:null],['기기대여 공단부담금',won(u.rentGong),u.rentGong],['마스크 공단부담금',u.mask?won(u.maskGong):'',u.mask?u.maskGong:null]])}
     </div>
-    ${(c.avgMin!=null||ov.adapt)?`<div class="cvsec">순응 후 사용현황 <small style="font-weight:400;color:var(--muted);font-size:.74rem">LMTS 순응후관리 — 20% 청구 시 평균사용시간 입력</small></div>
-    <div class="cvgrid">
-      ${row('일평균 사용시간 (시:분)',c.avgMin!=null?hmColon(c.avgMin):'',c.avgMin!=null?hmColon(c.avgMin):null,'big')}
-      ${row('일평균 사용시간 (분)',c.avgMin!=null?String(c.avgMin):'',c.avgMin)}
-      ${ov.adapt?row('적용기간',`${dot(ov.adapt.start)} ~ ${ov.adapt.end?dot(ov.adapt.end):(ov.adapt.endRaw||'계속')}`,dot(ov.adapt.start)):''}
-      ${ov.adapt?row('산정일수 / 사용일수',`${ov.adapt.calcDays}일 / ${ov.adapt.useDays}일`,ov.adapt.useDays):''}
-      ${ov.adapt?row('누적사용시간',hm(ov.adapt.cumMin),ov.adapt.cumMin):''}
-      ${ov.adapt&&ov.adapt.baseMin!=null?row('월말 통과기준 / 부족시간',`${hm(ov.adapt.baseMin)} / ${hm(ov.adapt.needMin||0)}`,ov.adapt.baseMin):''}
-      ${ov.adapt?row('최종자료일',dot(ov.adapt.last)):''}
-      ${ov.adapt?row('청구여부 · 예외기간(순응중·후 혼재)',`${ov.adapt.claim||'—'} · ${ov.adapt.ex||'—'}`,ov.adapt.claim):''}
-      ${ov.adapt&&ov.adapt.start&&p.passDate&&ov.adapt.start!==p.passDate?`<div class="cvl">⚠️ 대조</div><div class="cvv empty" style="color:var(--red)">적용기간시작일 ${dot(ov.adapt.start)} ≠ 순응통과일 ${dot(p.passDate)}</div>`:''}
-    </div>`:''}
-    ${ov.lmts?`<div class="cvsec">LMTS 청구자료 <small style="font-weight:400;color:var(--muted);font-size:.74rem">월청구자료관리 — 대조·참고</small></div>
-    <div class="cvgrid">
-      ${row('처방유형 / 통과여부',`${ov.lmts.rxType||'—'} / ${ov.lmts.pass||'—'}`,ov.lmts.rxType)}
-      ${ov.lmts.avgText?row('평균시간(LMTS 표기)',ov.lmts.avgText,hmColon(parseHM(ov.lmts.avgText))):''}
-      ${row('결제수단 / 확정',`${ov.lmts.pay||'—'} / ${ov.lmts.conf||'—'}`,ov.lmts.pay)}
-      ${row('공단수금 / 개인수금',`${ov.lmts.gp||'—'} / ${ov.lmts.sp||'—'}`)}
-      ${(()=>{const rr=(ov.lmts.rows||[]).find(x=>x.kind==='A'&&(!u.multi||Math.abs(x.rate-u.rate)<0.001));return rr?row('계산서번호 / 현금번호',`${rr.billNo||'—'} / ${rr.cashNo||'—'}`,rr.billNo)+row('LMTS 금액 (기준/본인/공단)',`${won(rr.amt)} / ${won(rr.bonin)} / ${won(rr.gong)}`,rr.amt):'';})()}
-      ${ov.lmts.last?row('최종자료일',dot(ov.lmts.last)):''}
-      ${ov.lmts.issue?row('이슈',ov.lmts.issue):''}
-    </div>`:''}
     <div class="cvsec">기기대여정보</div>
-    <div class="cvgrid">
-      ${mgmtNo?row('양압기 관리번호',mgmtNo):row('양압기 관리번호','')}
-      ${!mgmtNo&&p.sn?`<div class="cvl">└ 안내</div><div class="cvv empty">환자 정보에 제조년월을 넣으면 자동생성 (제조년월+S/N)</div>`:''}
-      ${row('모델명',p.model)}
-      ${row('S/N',p.sn)}
-      ${row('제조년월',dot(p.mfgYm))}
-      ${row('양압기 계약금액(일할)',won(rentBase),rentBase)}
-      ${row('본인부담(임대)',won(rentBonin),rentBonin)}
-      ${row('공단부담(임대)',won(u.rentGong),u.rentGong)}
+    <div class="cv3">
+      ${raw('양압기 관리번호',`${chip(mgmtNo,mgmtNo)}<span class="cvl" style="margin-left:14px">모델명</span>${chip(p.model,p.model)}`,'span3')}
+      ${item('계약금액',won(rentBase),rentBase)}${item('산정기준',won(rentBase),rentBase)}${item('양압기 종류',devLabel,devLabel)}
+      ${item('본인부담',won(rentBonin),rentBonin)}${item('실본인부담','')}${item('공단부담',won(u.rentGong),u.rentGong)}
+      ${item('회수일','')}${item('제조년월',dot(p.mfgYm))}${blank}
+      ${aux('보조정보',[['S/N',p.sn]].concat(!mgmtNo&&p.sn?[['안내','환자 정보에 제조년월을 넣으면 관리번호 자동생성 (제조년월+S/N)']]:[]))}
     </div>
-    <div class="cvsec">소모품(마스크)구입정보</div>
-    <div class="cvgrid">
-      ${u.mask?`
-        ${row('구입금액(산정기준)',won(pr.maskBase),pr.maskBase)}
-        ${row('세트/개','1',1)}
-        ${row('본인부담(마스크)',won(u.maskBonin),u.maskBonin)}
-        ${row('공단부담(마스크)',won(u.maskGong),u.maskGong)}
-      `:`<div class="cvl">마스크</div><div class="cvv empty">${multi&&c.mask?'이 구간에는 없음 (다른 구간 문서에 포함)':'이 달 마스크 청구 없음'}</div>`}
-    </div>
+    <div class="cvsec">소모품구입정보</div>
+    ${u.mask?`<div class="tblwrap"><table class="grid cvtbl"><thead><tr><th>구분</th><th>제품</th><th>소모품</th><th class="num">세트/개</th><th class="num">구입금액</th><th class="num">산정기준</th><th class="num">본인부담</th><th class="num">실부담</th><th class="num">공단부담</th></tr></thead>
+      <tbody><tr><td>기본</td><td>—</td><td>${chip(st.maskItem||'마스크(기본형)',st.maskItem||'마스크(기본형)')}</td><td class="num">${chip('1',1)}</td><td class="num">${chip(won(pr.maskBase),pr.maskBase)}</td><td class="num">${chip(won(pr.maskBase),pr.maskBase)}</td><td class="num">${chip(won(u.maskBonin),u.maskBonin)}</td><td class="num">—</td><td class="num">${chip(won(u.maskGong),u.maskGong)}</td></tr></tbody></table></div>`
+      :`<div class="cvempty">${multi&&c.mask?'이 구간 소모품 청구 없음 (다른 구간 문서에 포함)':'이 달 소모품 청구 없음'}</div>`}
+    <div class="cvsec">국세청자료</div>
+    ${(ca||ta)?`<div class="tblwrap"><table class="grid cvtbl"><thead><tr><th>순번</th><th>문서종류</th><th>승인번호</th><th class="num">합계금액</th></tr></thead><tbody>
+      ${ta?`<tr><td>1</td><td>전자세금계산서</td><td>${chip(ta,ta)}</td><td class="num">${chip(won(u.gong),u.gong)}</td></tr>`:''}
+      ${ca?`<tr><td>${ta?2:1}</td><td>현금영수증${caSum?' <span class="hint">(월 합산 1장)</span>':''}</td><td>${chip(ca,ca)}</td><td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>`:''}
+      </tbody></table></div>`:`<div class="cvempty">등록된 국세청자료 없음</div>`}
+    ${(c.avgMin!=null||ad||lm)?`<div class="cvsec">숨길이 참고자료 <small style="font-weight:400;color:var(--muted);font-size:.74rem">LMTS 순응후관리 · 월청구자료 — 대조용</small></div>
+      <div class="cv3">
+      ${(c.avgMin!=null||ad)?aux('순응 후 사용현황',[['일평균 사용시간',c.avgMin!=null?`${hmColon(c.avgMin)} (${c.avgMin}분)`:'',c.avgMin!=null?hmColon(c.avgMin):null]]
+        .concat(ad?[['적용기간',`${dot(ad.start)} ~ ${ad.end?dot(ad.end):(ad.endRaw||'계속')}`,dot(ad.start)],['산정/사용일수',`${ad.calcDays}일 / ${ad.useDays}일`,ad.useDays],['누적사용시간',hm(ad.cumMin),ad.cumMin],
+          ['월말 통과기준/부족',ad.baseMin!=null?`${hm(ad.baseMin)} / ${hm(ad.needMin||0)}`:'',ad.baseMin],['최종자료일',dot(ad.last)],['청구여부·예외기간(혼재)',`${ad.claim||'—'} · ${ad.ex||'—'}`]]:[])):''}
+      ${(ad&&ad.start&&p.passDate&&ad.start!==p.passDate)?`<div class="cvaux" style="color:var(--red)">⚠️ 적용기간시작일 ${dot(ad.start)} ≠ 순응통과일 ${dot(p.passDate)}</div>`:''}
+      ${lm?aux('LMTS 청구자료',[['처방유형/통과여부',`${lm.rxType||'—'} / ${lm.pass||'—'}`,lm.rxType],['평균시간(LMTS)',lm.avgText||'',lm.avgText?hmColon(parseHM(lm.avgText)):null],['결제수단/확정',`${lm.pay||'—'} / ${lm.conf||'—'}`,lm.pay],['공단수금/개인수금',`${lm.gp||'—'} / ${lm.sp||'—'}`]]
+        .concat(lmRow?[['계산서번호/현금번호',`${lmRow.billNo||'—'} / ${lmRow.cashNo||'—'}`,lmRow.billNo],['LMTS 금액(기준/본인/공단)',`${won(lmRow.amt)} / ${won(lmRow.bonin)} / ${won(lmRow.gong)}`,lmRow.amt]]:[])
+        .concat(lm.last?[['최종자료일',dot(lm.last)]]:[]).concat(lm.issue?[['이슈',lm.issue]]:[])):''}
+      </div>`:''}
     ${u.abroadDays?`<div class="hint" style="margin-top:10px;color:var(--red)">⚠️ 해외 체류 ${u.abroadDays}일 포함 — 해외일은 전액 본인부담으로 계산되어 있습니다. 공단 화면 입력 시 확인하세요.</div>`:''}
     ${c.selfFull?`<div class="hint" style="margin-top:10px;color:var(--red)">⚠️ 순응 후 하루 평균 사용시간 ${c.avgMin!=null?c.avgMin+'분':'—'} (기준 ${state.settings.rule2h.minMinutes}분 미만) → <b>이 달 요양비 미지급 · 전액 본인부담</b>으로 계산했습니다. 공단 청구 대상이 아닙니다.</div>`:''}
     <div class="actions" style="justify-content:space-between;align-items:center;border-top:1px dashed var(--line);padding-top:12px">
@@ -2293,12 +2286,14 @@ function importApproval(kind,aoa,h,fname){
     }
     /* ② 월·구간 찾기 — 금액이 맞는 청구 단위 */
     const months=(kind==='tax'&&rec.date)?[rec.date.slice(0,7),...cands]:cands;
+    /* 구간 금액이 맞으면 그 구간에, 현금영수증은 월 합산 한 장으로 발행되기도 하므로 구간 합계도 인정 */
+    const findUnit=(p,ym)=>{const us=unitsOf(p,ym);const u=us.find(x=>x[amtKey]===rec.amt);
+      if(u)return {p,ym,k:u.k,multi:u.multi,ks:[u.k]};
+      if(kind==='cash'&&us.length>1&&us.reduce((a,x)=>a+x.bonin,0)===rec.amt)return {p,ym,k:0,multi:true,ks:us.map(x=>x.k),sum:true};
+      return null;};
     let hit=null;
     for(const p of cand){
-      for(const ym of months){
-        const u=unitsOf(p,ym).find(x=>x[amtKey]===rec.amt);
-        if(u){hit={p,ym,k:u.k,multi:u.multi};break;}
-      }
+      for(const ym of months){const h=findUnit(p,ym);if(h){hit=h;break;}}
       if(hit)break;
     }
     /* ③ 폴백 — 주민번호가 없어도 그 달에 금액이 유일하면 그 사람으로 확정 */
@@ -2306,9 +2301,9 @@ function importApproval(kind,aoa,h,fname){
       const pairs=[];
       for(const ym of months)for(const p of state.patients){
         if(kind==='cash'&&(getOv(ym,p.id).payMethod||p.payMethod)==='card')continue;   /* 카드결제자는 현금영수증 대상 아님 */
-        for(const u of unitsOf(p,ym))if(u[amtKey]===rec.amt)pairs.push({p,ym,k:u.k,multi:u.multi});
+        const h=findUnit(p,ym);if(h)pairs.push(h);
       }
-      const uniq=[...new Map(pairs.map(x=>[x.p.id+'|'+x.ym+'|'+x.k,x])).values()];
+      const uniq=[...new Map(pairs.map(x=>[x.p.id+'|'+x.ym+'|'+x.ks.join(),x])).values()];
       if(uniq.length===1){hit=uniq[0];via='금액 일치(단독)';}
       else if(uniq.length>1&&cand.length){hit=null;}
     }
@@ -2319,10 +2314,12 @@ function importApproval(kind,aoa,h,fname){
         :`· ${who} — 승인 ${rec.app} (${won(rec.amt)}원): 해당 환자를 찾지 못함${kind==='cash'?' (주민번호 13자리 입력 필요)':''}`);
       continue;
     }
-    const prev=uGet(getOv(hit.ym,hit.p.id),hit.k,field);
-    if(prev&&prev!==rec.app)dup.push(`· ${hit.p.name} ${hit.ym}${hit.multi?` 구간${hit.k}`:''}: ${prev} → ${rec.app}`);
-    uSet(hit.ym,hit.p.id,hit.k,{[field]:rec.app});
-    done.push(`✓ ${hit.p.name} (${hit.ym}${hit.multi?` 구간${hit.k} ${hit.k===1?'순응중':'순응후'}`:''}) ${rec.app}${via&&via!=='주민번호'&&via!=='주민번호 뒤4자리'?` [${via}]`:''}`);
+    for(const kk of hit.ks){
+      const prev=uGet(getOv(hit.ym,hit.p.id),kk,field);
+      if(prev&&prev!==rec.app)dup.push(`· ${hit.p.name} ${hit.ym}${hit.multi?` 구간${kk}`:''}: ${prev} → ${rec.app}`);
+      uSet(hit.ym,hit.p.id,kk,{[field]:rec.app});
+    }
+    done.push(`✓ ${hit.p.name} (${hit.ym}${hit.multi?(hit.sum?' 월 합산(구간1+2)':` 구간${hit.k} ${hit.k===1?'순응중':'순응후'}`):''}) ${rec.app}${via&&via!=='주민번호'&&via!=='주민번호 뒤4자리'?` [${via}]`:''}`);
     nOk++;
   }
   /* 카드 결제자 안내 — 현금영수증이 없는 게 정상 */
@@ -3195,14 +3192,17 @@ function renderRecon(){
     rs.recs.forEach(rec=>{
       let row=rec.code?rows.find(r=>r.p.mgmtCode===rec.code):null;
       if(!row){const c=rows.filter(r=>r.p.name===rec.name);if(c.length===1)row=c[0];}
-      let unit=null;
+      let unit=null,sum=false;
       if(row){
         const free=row.c.units.filter(u=>!used.has(row.p.id+'|'+u.k));
-        unit=free.find(u=>u[calcKey]===rec.amt)||(rec.seq?free.find(u=>u.k===rec.seq):null)||free[0]||null;
+        unit=free.find(u=>u[calcKey]===rec.amt)||null;
+        /* 현금영수증은 월 합산 한 장으로 발행되기도 함 → 구간 합계와 맞으면 일치 */
+        if(!unit&&type==='cash'&&free.length>1&&free.reduce((a,u)=>a+u.bonin,0)===rec.amt){free.forEach(u=>used.add(row.p.id+'|'+u.k));sum=true;}
+        if(!unit&&!sum)unit=(rec.seq?free.find(u=>u.k===rec.seq):null)||free[0]||null;
         if(unit)used.add(row.p.id+'|'+unit.k);
       }
       pairs.push({name:rec.name,code:rec.code,seg:(row&&row.c.units.length>1&&unit)?unit:null,
-        lmts:rec.amt,mine:unit?unit[calcKey]:null,row,extra:!!row&&!unit});
+        lmts:rec.amt,mine:sum?rec.amt:(unit?unit[calcKey]:null),row,extra:!!row&&!unit&&!sum,sum});
     });
     rows.forEach(r=>r.c.units.forEach(u=>{
       if(used.has(r.p.id+'|'+u.k))return;
@@ -3213,7 +3213,7 @@ function renderRecon(){
     let ok=0,bad=0,note=0;
     const body=pairs.map(x=>{
       let st;
-      if(x.mine!=null&&x.lmts!=null&&x.mine===x.lmts){st='<span class="diff-ok">일치 ✓</span>';ok++;}
+      if(x.mine!=null&&x.lmts!=null&&x.mine===x.lmts){st=x.sum?'<span class="diff-ok">일치 ✓ <span class="hint">(월 합산 1장)</span></span>':'<span class="diff-ok">일치 ✓</span>';ok++;}
       else if(x.extra){st='<span class="diff-bad">차트에 해당 청구건(구간) 없음</span>';bad++;}
       else if(x.mine==null){st='<span class="diff-bad">차트에 없음 — 환자 등록 필요</span>';bad++;}
       else if(x.lmts==null){
