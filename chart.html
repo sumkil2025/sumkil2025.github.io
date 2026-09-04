@@ -282,7 +282,7 @@
       <h2 style="margin:0" id="monthTitle">월별 청구</h2>
       <select id="mStaffFilter" title="담당자별 보기" style="width:120px"></select>
       <div class="spacer"></div>
-      <button class="btn sm" id="btnMonthApprove" title="발행 후 홈택스에서 받은 매출내역·매출전자세금계산서목록 파일을 넣으면 승인번호가 환자별로 자동 등록됩니다">📥 승인번호 가져오기</button>
+      <button class="btn sm" id="btnMonthApprove" title="홈택스 매출내역·매출전자세금계산서목록(승인번호) / LMTS 순응후관리(평균사용시간) 파일 — 내용을 보고 자동 인식">📥 승인번호·순응후관리 가져오기</button>
       <button class="btn sm" id="btnTwoLine" title="한 환자를 두 줄로 표시하면 가로 스크롤이 줄어듭니다">⇕ 두 줄</button>
       <button class="btn sm" id="btnMonthXlsx">📤 월별 표 엑셀 내보내기</button>
     </div>
@@ -290,7 +290,7 @@
       일수·해외·마스크를 수정하면 자동 저장됩니다. 일수 입력을 비우면 임대기간으로 자동 계산합니다.
       해외 일수는 출국심사일 다음날~입국심사일 전날 기준이며 전액(100%) 본인부담으로 계산됩니다.
       순응중(50%)과 순응후(20%)가 같은 달에 있으면 <b>구간마다 청구서·세금계산서·현금영수증을 따로</b> 냅니다 — 그 환자는 아래에 구간 행 2개가 생기고 국세청 파일도 2건씩 만들어집니다.
-      발행 후 홈택스에서 받은 <b>매출내역·매출전자세금계산서목록</b>은 [📥 승인번호 가져오기]를 누르거나 이 화면에 끌어다 놓으면 승인번호가 자동 등록됩니다.
+      발행 후 홈택스에서 받은 <b>매출내역·매출전자세금계산서목록</b>, 순응통과 환자의 LMTS <b>순응후관리</b>(평균사용시간)는 [📥 승인번호·순응후관리 가져오기]를 누르거나 이 화면에 끌어다 놓으면 이 달에 자동 등록됩니다.
     </div>
     <div class="tblwrap"><table class="grid" id="monthTable"></table></div>
   </div>
@@ -320,6 +320,7 @@
         <div><b>ID_match</b><span>주민번호·현금영수증 발급번호</span></div>
         <div><b>현금영수증내역 / 세금계산서내역</b><span>LMTS · 실제 발행분 → 대사·월별청구 반영</span></div>
         <div><b>매출내역 / 매출전자세금계산서목록</b><span>홈택스 · 발행 후 <em>승인번호</em></span></div>
+        <div><b>순응후관리</b><span>LMTS · 순응통과일 대조 · <em>평균사용시간</em>(20% 청구 입력) → 청구 월에</span></div>
         <div><b>고객현황 (N월)</b><span>예전에 쓰던 관리 엑셀 — 과거 자료 옮길 때</span></div>
       </div>
       <button class="btn sm" id="btnImportHelp" style="margin-top:10px">📖 어떤 파일을 어디서 받나요?</button>
@@ -534,7 +535,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.04.2';
+const APP_VERSION='2026.09.04.3';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -570,6 +571,16 @@ function fmtRRN(v){
   if(d.length===6)return d+'-';   /* 앞자리만 채워진 상태 (생년월일 유래) */
   return v||'';
 }
+/* "06시간19분" / "16시간" / 숫자(분) → 분 */
+const parseHM=v=>{
+  if(v==null||v==='')return null;
+  if(typeof v==='number')return Math.round(v);
+  const s=String(v).trim(),h=s.match(/(\d+)\s*시간/),m=s.match(/(\d+)\s*분/);
+  if(h||m)return (h?+h[1]:0)*60+(m?+m[1]:0);
+  const n=Number(s.replace(/[^\d.]/g,''));return isNaN(n)?null:Math.round(n);
+};
+const hm=m=>m==null?'':`${Math.floor(m/60)}시간${String(m%60).padStart(2,'0')}분`;
+const hmColon=m=>m==null?'':`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;
 function fmtPhone(v){const d=digits(v);return d.length===11?`${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`:(d.length===10?`${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`:v||'');}
 
 /* ================== 일할 계산 핵심 (검증 완료 로직) ================== */
@@ -1011,7 +1022,7 @@ function renderMonth(){
     const tipG=`임대(공단) ${won(c.rentGong)}원`+(c.mask?` + 마스크 ${won(maskGong)}원`:'');
     const cardEff=(ov.payMethod||p.payMethod)==='card';
     /* 순응 후 월평균 사용시간 미달 → 전액 본인부담 (고시 2시간 규정) — 수동 지정 버튼 */
-    const avgCell=`${c.avgMin!=null?`<b style="color:var(--muted)">평균사용</b> ${c.avgMin}분(${(c.avgMin/60).toFixed(1)}h) · `:''}
+    const avgCell=`${c.avgMin!=null?`<b style="color:var(--muted)">평균사용</b> ${hm(c.avgMin)} · `:''}
       ${c.selfFull
         ?`<span class="badge warn">전액본인 100%</span> <button class="btn sm" data-act="selfAuto" data-id="${p.id}" title="일반 급여 계산으로 되돌리기">해제</button>`
         :`<button class="btn sm" data-act="selfOn" data-id="${p.id}" title="순응 후 하루 평균 사용시간 2시간 미만 등으로 이 달 요양비가 지급되지 않을 때 — 전액 본인부담(공단 0원)으로 계산">100% 지정</button>`}`;
@@ -1320,6 +1331,18 @@ function openClaimView(pid,k){
       ${row('현금영수증 승인번호',ca||'')}
       ${row('세금계산서 승인번호',ta||'')}
     </div>
+    ${(c.avgMin!=null||ov.adapt)?`<div class="cvsec">순응 후 사용현황 <small style="font-weight:400;color:var(--muted);font-size:.74rem">LMTS 순응후관리 — 20% 청구 시 평균사용시간 입력</small></div>
+    <div class="cvgrid">
+      ${row('일평균 사용시간 (시:분)',c.avgMin!=null?hmColon(c.avgMin):'',c.avgMin!=null?hmColon(c.avgMin):null,'big')}
+      ${row('일평균 사용시간 (분)',c.avgMin!=null?String(c.avgMin):'',c.avgMin)}
+      ${ov.adapt?row('적용기간',`${dot(ov.adapt.start)} ~ ${ov.adapt.end?dot(ov.adapt.end):(ov.adapt.endRaw||'계속')}`,dot(ov.adapt.start)):''}
+      ${ov.adapt?row('산정일수 / 사용일수',`${ov.adapt.calcDays}일 / ${ov.adapt.useDays}일`,ov.adapt.useDays):''}
+      ${ov.adapt?row('누적사용시간',hm(ov.adapt.cumMin),ov.adapt.cumMin):''}
+      ${ov.adapt&&ov.adapt.baseMin!=null?row('월말 통과기준 / 부족시간',`${hm(ov.adapt.baseMin)} / ${hm(ov.adapt.needMin||0)}`,ov.adapt.baseMin):''}
+      ${ov.adapt?row('최종자료일',dot(ov.adapt.last)):''}
+      ${ov.adapt?row('청구여부 · 예외기간',`${ov.adapt.claim||'—'} · ${ov.adapt.ex||'—'}`,ov.adapt.claim):''}
+      ${ov.adapt&&ov.adapt.start&&p.passDate&&ov.adapt.start!==p.passDate?`<div class="cvl">⚠️ 대조</div><div class="cvv empty" style="color:var(--red)">적용기간시작일 ${dot(ov.adapt.start)} ≠ 순응통과일 ${dot(p.passDate)}</div>`:''}
+    </div>`:''}
     <div class="cvsec">기기대여정보</div>
     <div class="cvgrid">
       ${mgmtNo?row('양압기 관리번호',mgmtNo):row('양압기 관리번호','')}
@@ -2035,6 +2058,8 @@ $('#btnImportHelp').onclick=e=>{
         <tr><td><b>매출내역(YYYYMMDD~).xls</b><br><b>매출전자세금계산서목록.xls</b></td>
           <td>홈택스 → 발행 후 조회</td>
           <td><b>현금영수증·세금계산서 승인번호</b>를 환자별로 자동 등록 → 공단 청구 화면에 붙여넣기</td></tr>
+        <tr><td><b>순응후관리.xlsx</b></td><td>LMTS → 순응후관리</td>
+          <td>순응통과(20%) 환자의 <b>평균사용시간</b>을 해당 청구 월에 입력(보조창에서 복사) · <b>적용기간시작일 ↔ 순응통과일 대조</b> · 산정/사용일수·누적시간·월말기준 참고<div class="hint">최종자료일로 대상 월을 판단해 선택 월과 다르면 확인합니다</div></td></tr>
         <tr><td><b>고객현황 (N월) 시트</b></td><td>예전에 쓰던 관리 엑셀</td>
           <td>과거 자료를 처음 옮겨올 때만 사용 (금액을 역산해 사용일수를 맞춰줍니다)</td></tr>
       </tbody></table></div>
@@ -2105,6 +2130,7 @@ function tryImportSheets(sheets,fname){
     for(let hr=0;hr<Math.min(8,aoa.length);hr++){
       const h=aoa[hr]||[];
       const hn=h.map(normH);
+      if(hn.includes('적용기간시작일')&&hn.includes('평균사용시간')){importAdaptMgmt(aoa.slice(hr),h,fname);return true;}
       if(hn.includes('관리코드')&&hn.includes('청구번호')&&hn.includes('청구시작일')&&hn.includes('청구구분')){importMonthlyClaims(aoa.slice(hr),h,fname);return true;}
       if(hn.includes('관리번호')&&(hn.includes('주민(외국인)번호')||hn.includes('현금발급번호'))){importIdMatch(aoa.slice(hr),fname);return true;}
       if(hn.includes('관리코드')&&hn.includes('계약시작일')&&hn.includes('성명')){importCustomerInfo(aoa.slice(hr),h,fname);return true;}
@@ -2114,6 +2140,81 @@ function tryImportSheets(sheets,fname){
     }
   }
   return false;
+}
+/* ===== LMTS 순응후관리 가져오기 =====
+   순응통과(20%) 환자의 적용기간·평균사용시간. 공단 청구 화면에 평균사용시간을 입력해야 하므로
+   해당 월(ov.avgMin·ov.adapt)에 넣고, 적용기간시작일은 차트의 순응통과일과 대조한다. */
+async function importAdaptMgmt(aoa,h,fname){
+  const hn=h.map(normH),col=k=>hn.indexOf(k);
+  const iC=col('관리코드'),iN=col('성명'),iStaff=col('담당자'),iRx=col('처방'),iClaim=col('청구여부'),iEx=col('예외기간'),
+        iS=col('적용기간시작일'),iE=col('적용기간종료일'),iCalc=col('산정일수'),iUse=col('사용일수'),iAvg=col('평균사용시간'),
+        iCum=col('누적사용시간'),iBase=col('월말통과기준'),iNeed=col('월말기준필요시간'),iLast=col('최종자료일');
+  const g=(row,i)=>i>=0?row[i]:'';
+  const recs=[];
+  for(let r=1;r<aoa.length;r++){
+    const row=aoa[r];
+    const code=String(g(row,iC)||'').trim(),name=String(g(row,iN)||'').trim();
+    if(!code&&!name)continue;
+    const endRaw=String(g(row,iE)||'').trim();
+    recs.push({code,name,staff:String(g(row,iStaff)||'').trim(),rx:String(g(row,iRx)||'').trim(),
+      claim:String(g(row,iClaim)||'').trim(),ex:String(g(row,iEx)||'').trim(),
+      start:ymd8(g(row,iS)),end:ymd8(g(row,iE)),endRaw,
+      calcDays:Number(g(row,iCalc))||0,useDays:Number(g(row,iUse))||0,
+      avgMin:parseHM(g(row,iAvg)),cumMin:parseHM(g(row,iCum)),baseMin:parseHM(g(row,iBase)),needMin:parseHM(g(row,iNeed)),
+      last:ymd8(g(row,iLast))});
+  }
+  if(!recs.length){showMsg('안내',`${fname}: 순응후관리 자료를 찾지 못했습니다.`);return;}
+  /* 대상 월: 각 행의 산정기간 끝(적용기간시작일 + 산정일수 − 1)이 속한 달의 다수결.
+     최종자료일은 기기 동기화 날짜라 하루 이틀 다음 달로 넘어갈 수 있어 보조 기준으로만 쓴다 */
+  const endOf=x=>(x.start&&x.calcDays>0)?addDays(x.start,x.calcDays-1):(x.last?addDays(x.last,-1):null);
+  const cnt={};recs.forEach(x=>{const e=endOf(x);if(e){const m=e.slice(0,7);cnt[m]=(cnt[m]||0)+1;}});
+  const implied=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||(a<b?1:-1))[0]||null;
+  const lastD=recs.map(endOf).filter(e=>e&&e.startsWith(implied||'')).sort().pop();
+  let ym=curYM();
+  if(implied&&implied!==ym){
+    const ok=await confirmModal('순응후관리 — 대상 월 확인',
+      `이 파일은 ${implied.replace('-','년 ')}월분으로 보입니다 (산정기간 끝 ${lastD}).\n지금 선택된 청구 월은 ${ym.replace('-','년 ')}월입니다.\n\n`
+      +`파일 기준 ${implied.replace('-','년 ')}월에 평균사용시간을 넣을까요?\n(취소하면 넣지 않습니다 — 청구 월을 바꾼 뒤 다시 넣어주세요)`,
+      `${Number(implied.slice(5))}월에 넣기`);
+    if(!ok)return;ym=implied;
+  }
+  const rep=[],miss=[],under=[];let nOk=0,nSame=0,nDiff=0,nSet=0;
+  for(const rec of recs){
+    const fx=findPatientEx(rec.code,rec.name);
+    const issue=matchIssue(fx,rec.name,rec.code||'코드없음');
+    if(issue){rep.push(issue);continue;}
+    const p=fx.p;
+    if(!p){miss.push(`${rec.name}(${rec.code||'코드없음'})`);continue;}
+    if(rec.staff&&!p.staff)p.staff=rec.staff;
+    /* 적용기간시작일 = 순응통과일 대조 (차트 값 우선) */
+    let passNote='';
+    if(rec.start){
+      if(!p.passDate){applyPassDate(p,rec.start);nSet++;passNote=`순응통과일 ${rec.start} 설정(비어있었음, 처방시작일 연동)`;}
+      else if(p.passDate===rec.start){nSame++;passNote=`순응통과일 ${rec.start} 일치 ✓`;}
+      else{nDiff++;passNote=`⚠️ 순응통과일 차트 ${p.passDate} ↔ LMTS 적용기간시작일 ${rec.start} — 차트 값 유지(LMTS가 맞으면 환자 관리에서 변경)`;}
+    }
+    /* 평균사용시간 → 해당 월 (기존 값과 다르면 알림) */
+    const prev=getOv(ym,p.id).avgMin;
+    const avgNote=(rec.avgMin!=null&&prev!=null&&prev!==''&&Number(prev)!==rec.avgMin)?` (이전 ${hm(Number(prev))} → 교체)`:'';
+    setOv(ym,p.id,{avgMin:rec.avgMin!=null?String(rec.avgMin):getOv(ym,p.id).avgMin,
+      adapt:{start:rec.start,end:rec.end,endRaw:rec.endRaw,calcDays:rec.calcDays,useDays:rec.useDays,cumMin:rec.cumMin,
+        baseMin:rec.baseMin,needMin:rec.needMin,last:rec.last,rx:rec.rx,claim:rec.claim,ex:rec.ex}});
+    nOk++;
+    const c=calcPatientMonth(p,ym,getOv(ym,p.id));
+    if(c.active&&c.ruleHit)under.push(`${p.name} ${hm(rec.avgMin)}`);
+    rep.push(`${passNote.startsWith('⚠️')?'':'✓ '}${p.name}(${p.mgmtCode||'-'}): ${passNote} · 평균 ${hm(rec.avgMin)}${avgNote}`
+      +` · 적용 ${rec.start||'—'}~${rec.end||rec.endRaw||'—'} · 산정 ${rec.calcDays}일/사용 ${rec.useDays}일 · 누적 ${hm(rec.cumMin)}`
+      +(rec.baseMin!=null?` · 월말기준 ${hm(rec.baseMin)}(부족 ${hm(rec.needMin||0)})`:'')
+      +(rec.ex?` · 예외기간 ${rec.ex}`:'')+(rec.claim?` · 청구여부 ${rec.claim}`:''));
+  }
+  persist();renderAll();
+  showMsg('순응후관리 가져오기 완료',
+    `${fname}\n${ym.replace('-','년 ')}월 청구에 ${nOk}명 반영${lastD?` (산정기간 끝 ${lastD} 기준)`:''}\n`
+    +`순응통과일 대조 — 일치 ${nSame} · 차이 ${nDiff} · 새로 설정 ${nSet}`
+    +`\n\n${rep.join('\n')}`
+    +(under.length?`\n\n⚠️ 하루 평균 2시간 미만 → 이 달 전액 본인부담으로 자동 판정됨 (월별 표에서 [해제] 가능):\n· ${under.join(' · ')}`:'')
+    +(miss.length?`\n\n차트에 없는 사람(먼저 월청구자료·고객정보를 가져오세요): ${miss.join(', ')}`:'')
+    +`\n\n※ 평균사용시간은 청구입력 보조창(📋)의 "순응 후 사용현황"에서 클릭 복사할 수 있습니다.`);
 }
 /* ===== 국세청 승인번호 가져오기 =====
    현금영수증 매출내역: 승인번호 + 신분확인뒷4자리(주민번호 뒤 4자리) + 총금액
