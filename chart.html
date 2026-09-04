@@ -551,7 +551,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.05.4';
+const APP_VERSION='2026.09.05.5';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -708,11 +708,19 @@ function calcPatientMonth(p,ym,ov){
   let d2=(ov.d2===''||ov.d2==null)?autoD2:Number(ov.d2);
   /* 해외일: 출·입국 날짜가 있으면 그걸로 계산, 없으면 직접 입력값 */
   const abroadRaw=hasTrips(ov)?abroadDaysIn(ov.trips,s,e):Number(ov.abroad||0);
-  const abroad=Math.max(0,Math.min(abroadRaw,d1+d2));
-  /* 해외일은 뒤 구간부터 차감 */
-  let A=abroad,e2=d2,e1=d1;
-  const t2=Math.min(e2,A);e2-=t2;A-=t2;
-  const t1=Math.min(e1,A);e1-=t1;
+  let t1,t2;
+  const cut0=(pass&&pass>s&&pass<=e&&d2>0)?pass:null;
+  if(hasTrips(ov)&&cut0){
+    /* 출·입국 날짜를 알면 구간 날짜대로 배분 — 순응중 기간의 해외일은 순응중 구간에서 뺀다 */
+    t1=Math.min(d1,abroadDaysIn(ov.trips,s,addDays(cut0,-1)));
+    t2=Math.min(d2,abroadDaysIn(ov.trips,cut0,e));
+  }else{
+    /* 일수만 알면 뒤 구간부터 차감 */
+    let A=Math.max(0,Math.min(abroadRaw,d1+d2));
+    t2=Math.min(d2,A);A-=t2;t1=Math.min(d1,A);
+  }
+  const abroad=t1+t2;
+  const e1=d1-t1,e2=d2-t2;
   const mask=(ov.mask!==undefined)?!!ov.mask:(p.rentStart>=mS&&p.rentStart<=mE);
   const segs=[{d:e1,r:r1}];
   if(d2>0||e2>0)segs.push({d:e2,r:r2});
@@ -2608,7 +2616,10 @@ async function importMonthlyClaims(aoa,h,fname){
   const report=[];let nNew=0,nMonth=0,nAmtOk=0,nAmtBad=0,nPassChg=0,nPassKeep=0,nPassSet=0,nPay=0,nPaid=0,nRx=0;
   for(const key of Object.keys(groups).sort()){
     const g=groups[key];
-    const rentRows=g.A.filter(a=>a.days>0&&a.start).sort((x,y)=>x.start<y.start?-1:1);
+    /* 해외 체류(급여 정지) 청구행: 청구조건 EXC / 이슈 '해외' / 개인부담율 100% — 임대 요율 행과 분리 */
+    const isExc=a=>/^EXC/i.test(a.cond||'')||/해외/.test(a.issue||'')||a.rate>=0.99;
+    const rentAll=g.A.filter(a=>a.days>0&&a.start).sort((x,y)=>x.start<y.start?-1:1);
+    const excRows=rentAll.filter(isExc),rentRows=rentAll.filter(a=>!isExc(a));
     const fx=findPatientEx(g.code,g.name);
     let p=fx.p;
     const issue=matchIssue(fx,g.name,g.code);
@@ -2656,6 +2667,18 @@ async function importMonthlyClaims(aoa,h,fname){
     if(d50&&d20){ov.d1=d50;ov.d2=d20;}
     else if(d50||d20){ov.d1=d50||d20;ov.d2=0;}
     else{ov.d1=null;ov.d2=null;} /* 청구행 없음 → 자동계산으로 복귀 */
+    /* 해외(EXC) 행 → 그 기간을 여행으로 등록(전액 본인부담), 구간 일수에는 해외일을 포함시켜 계산이 날짜대로 차감하게 */
+    if(excRows.length){
+      const trips=excRows.filter(a=>a.start&&a.end).map(a=>({dep:addDays(a.start,-1),arr:addDays(a.end,1)}));
+      if(trips.length)ov.trips=trips;
+      const cut=(r20&&d50)?r20.start:null;
+      let ab1=0,ab2=0;
+      for(const a of excRows){if(cut&&a.start>=cut)ab2+=a.days;else ab1+=a.days;}
+      if(d50&&d20){ov.d1=d50+ab1;ov.d2=d20+ab2;}
+      else{ov.d1=(d50||d20||0)+ab1+ab2;ov.d2=0;}
+      if(!trips.length)ov.abroad=String(ab1+ab2);
+      notes.push(`해외(EXC) ${ab1+ab2}일 [${excRows.map(a=>`${(a.start||'').slice(5)}~${(a.end||'').slice(5)}`).join(', ')}] → 전액 본인부담으로 반영 (실자료 형식 미확인 — 검산 결과 확인)`);
+    }
     /* 마스크가 실린 청구행(구간): B행의 현금번호·계산서번호 순번 */
     if(g.B.length&&d50&&d20){
       const sq=seqOf(g.B[0].cashNo)||seqOf(g.B[0].billNo)||0;
@@ -2688,10 +2711,17 @@ async function importMonthlyClaims(aoa,h,fname){
     /* ── 금액 검산: 우리 계산 = LMTS 청구행 금액? (구간별 기준/본인/공단, 마스크) ── */
     if(ext&&c.active){
       const bad=[];
-      for(const a of rentRows){const u=unitOf(a);if(!u)continue;
-        if(u.base!==a.amt||u.rentBonin!==a.bonin||u.rentGong!==a.gong)bad.push(`${a.rate===0.5?'50%':'20%'} 계산 ${won(u.base)}/${won(u.rentBonin)}/${won(u.rentGong)} ↔ LMTS ${won(a.amt)}/${won(a.bonin)}/${won(a.gong)}`);}
+      /* 같은 요율의 청구행이 여러 개(해외로 쪼개진 경우)면 합쳐서 구간과 비교 — 행별 일할이라 10원 단위 차이 가능 */
+      for(const rate of [0.5,0.2]){
+        const rs=rentRows.filter(a=>Math.abs(a.rate-rate)<0.001);if(!rs.length)continue;
+        const u=unitOf(rs[0]);if(!u)continue;
+        const A=rs.reduce((x,a)=>x+a.amt,0),Bn=rs.reduce((x,a)=>x+a.bonin,0),Gg=rs.reduce((x,a)=>x+a.gong,0);
+        if(u.base!==A||u.rentBonin!==Bn||u.rentGong!==Gg)bad.push(`${rate===0.5?'50%':'20%'} 계산 ${won(u.base)}/${won(u.rentBonin)}/${won(u.rentGong)} ↔ LMTS ${won(A)}/${won(Bn)}/${won(Gg)}${rs.length>1?' (청구행 '+rs.length+'개 합산 — 행별 일할 차이 가능)':''}`);
+      }
       for(const b of g.B){const u=c.units.find(x=>x.mask)||c.units[0];
         if(u.maskBonin!==b.bonin||u.maskGong!==b.gong)bad.push(`마스크 계산 ${won(u.maskBonin)}/${won(u.maskGong)} ↔ LMTS ${won(b.bonin)}/${won(b.gong)}`);}
+      if(excRows.length){const ex=excRows.reduce((a2,x)=>a2+x.bonin,0),exG=excRows.reduce((a2,x)=>a2+x.gong,0),mine=c.units.reduce((a2,u)=>a2+u.abAmt,0);
+        if(ex!==mine||exG!==0)bad.push(`해외(EXC) 본인부담 계산 ${won(mine)} ↔ LMTS ${won(ex)}${exG?` (공단 ${won(exG)}?)`:''} — 해외 분리 청구는 행별 일할이라 10원 단위 차이 가능`);}
       if(bad.length){nAmtBad++;notes.push(`⚠️ 금액 불일치 — ${bad.join(' · ')}`);}
       else{nAmtOk++;notes.push(`금액 일치 ✓ 본인 ${won(c.bonin)}/공단 ${won(c.gong)}`);}
     }
@@ -3689,9 +3719,13 @@ window.__selftest=function(){
       if(cm.units[1].mask&&!cm.units[0].mask&&cm.bonin===49720&&cm.gong===134270&&cm.units[1].bonin===28190)ok6++;else console.warn('FAIL6-3',cm.units);
       const c1=calcPatientMonth(p,'2026-07',{mask:true,maskSeg:1});  /* 마스크 앞 구간 지정 */
       if(c1.units[0].mask&&c1.units[0].bonin===40530&&c1.bonin===49720)ok6++;else console.warn('FAIL6-4',c1.units);
+      /* 해외일 날짜 배분: 7/5~7/8 해외(4일)는 순응중 구간에서 차감, 일수만 주면 뒤 구간부터 */
+      const ca=calcPatientMonth(p,'2026-07',{mask:false,trips:[{dep:'2026-07-04',arr:'2026-07-09'}]});
+      const cb=calcPatientMonth(p,'2026-07',{mask:false,abroad:'4'});
+      if(ca.units[0].abroadDays===4&&ca.units[0].rentDays===11&&ca.units[1].abroadDays===0&&ca.units[0].bonin===27270&&cb.units[1].abroadDays===4&&cb.units[0].abroadDays===0)ok6++;else console.warn('FAIL6-5',ca.units,cb.units);
     }finally{state=saved;}
   }
-  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/4`;
+  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/5`;
   console.log(msg);
   return {ok,ok2,ok3,ok4,msg};
 };
