@@ -535,7 +535,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.04.5';
+const APP_VERSION='2026.09.05';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1342,6 +1342,16 @@ function openClaimView(pid,k){
       ${ov.adapt?row('최종자료일',dot(ov.adapt.last)):''}
       ${ov.adapt?row('청구여부 · 예외기간(순응중·후 혼재)',`${ov.adapt.claim||'—'} · ${ov.adapt.ex||'—'}`,ov.adapt.claim):''}
       ${ov.adapt&&ov.adapt.start&&p.passDate&&ov.adapt.start!==p.passDate?`<div class="cvl">⚠️ 대조</div><div class="cvv empty" style="color:var(--red)">적용기간시작일 ${dot(ov.adapt.start)} ≠ 순응통과일 ${dot(p.passDate)}</div>`:''}
+    </div>`:''}
+    ${ov.lmts?`<div class="cvsec">LMTS 청구자료 <small style="font-weight:400;color:var(--muted);font-size:.74rem">월청구자료관리 — 대조·참고</small></div>
+    <div class="cvgrid">
+      ${row('처방유형 / 통과여부',`${ov.lmts.rxType||'—'} / ${ov.lmts.pass||'—'}`,ov.lmts.rxType)}
+      ${ov.lmts.avgText?row('평균시간(LMTS 표기)',ov.lmts.avgText,hmColon(parseHM(ov.lmts.avgText))):''}
+      ${row('결제수단 / 확정',`${ov.lmts.pay||'—'} / ${ov.lmts.conf||'—'}`,ov.lmts.pay)}
+      ${row('공단수금 / 개인수금',`${ov.lmts.gp||'—'} / ${ov.lmts.sp||'—'}`)}
+      ${(()=>{const rr=(ov.lmts.rows||[]).find(x=>x.kind==='A'&&(!u.multi||Math.abs(x.rate-u.rate)<0.001));return rr?row('계산서번호 / 현금번호',`${rr.billNo||'—'} / ${rr.cashNo||'—'}`,rr.billNo)+row('LMTS 금액 (기준/본인/공단)',`${won(rr.amt)} / ${won(rr.bonin)} / ${won(rr.gong)}`,rr.amt):'';})()}
+      ${ov.lmts.last?row('최종자료일',dot(ov.lmts.last)):''}
+      ${ov.lmts.issue?row('이슈',ov.lmts.issue):''}
     </div>`:''}
     <div class="cvsec">기기대여정보</div>
     <div class="cvgrid">
@@ -2553,13 +2563,25 @@ function matchIssue(fx,name,code){
   if(fx.ambiguous)return `⚠️ ${name}(${code}): 같은 이름의 환자가 여러 명 — 환자 정보에 차트번호를 입력한 뒤 다시 가져오세요 (건너뜀)`;
   return null; /* 신규 등록 대상 */
 }
-function importMonthlyClaims(aoa,h,fname){
+/* ===== LMTS 월청구자료관리 가져오기 =====
+   기본 형식(관리코드·청구번호·청구구분·일수·개인부담율·품목…) + 확장 형식(2026-09~: 처방유형·통과여부·평균시간·
+   사용기간금액·본인부담액·공단부담액·결제수단·공단수금·개인수금·계산서번호·현금번호…)을 모두 처리.
+   LMTS는 실제 청구 사실이므로 일수·마스크·평균·결제수단은 LMTS 기준, 순응통과일은 혼재 달에 한해 선택 대조 */
+async function importMonthlyClaims(aoa,h,fname){
   const hn=h.map(normH);
   const col=k=>hn.indexOf(k);
+  const g0=(row,i)=>i>=0?row[i]:'';
   const iC=col('관리코드'),iN=col('성명'),iBill=col('청구번호'),iKind=col('청구구분'),
         iS=col('청구시작일'),iE=col('청구종료일'),iD=col('일수'),
         iItem=col('품목명'),iSpec=col('품목규격'),iRate=col('개인부담율'),
-        iUse=col('사용시간(분)'),iAvg=col('평균분'),iStaff=col('담당직원');
+        iUse=col('사용시간(분)'),iAvg=col('평균분'),iStaff=col('담당직원'),
+        iRxT=col('처방유형'),iPass=col('통과여부'),iAvgT=col('평균시간'),iConf=col('확정여부'),
+        iBase=col('기본금액'),iAmt=col('사용기간금액'),iBonin=col('본인부담액'),iGong=col('공단부담액'),
+        iPay=col('결제수단'),iCashNo=col('현금번호'),iBillNo=col('계산서번호'),iGP=col('공단수금'),iSP=col('개인수금'),
+        iLast=col('최종자료일'),iIssue=col('이슈'),iCond=col('청구조건');
+  const ext=iAmt>=0&&iBonin>=0&&iGong>=0;               /* 금액 열이 있는 확장 형식 */
+  const num=v=>Number(String(v??'').replace(/[^\d.-]/g,''))||0;
+  const seqOf=v=>{const m=String(v||'').match(/_[AB]_(\d+)/);return m?Number(m[1]):0;};
   /* (관리코드+월)별로 A/B행 그룹핑 */
   const groups={};
   for(let r=1;r<aoa.length;r++){
@@ -2572,17 +2594,22 @@ function importMonthlyClaims(aoa,h,fname){
     const ym=`20${bm[1]}-${bm[2]}`;
     const key=code+'|'+ym;
     groups[key]=groups[key]||{code,name,ym,A:[],B:[],staff:String(iStaff>=0?row[iStaff]||'':'').trim()};
-    const rec={start:ymd8(row[iS]),end:ymd8(row[iE]),days:Number(row[iD])||0,
-      useMin:Number(row[iUse])||0,avgMin:Number(row[iAvg])||0,
+    const rec={bill,seq:seqOf(bill),start:ymd8(row[iS]),end:ymd8(row[iE]),days:Number(row[iD])||0,
+      useMin:Number(row[iUse])||0,avgMin:Number(row[iAvg])||0,avgText:String(g0(row,iAvgT)||'').trim(),
       item:String(row[iItem]||'').replace(/\(\d{6}-\d{6}\)\s*$/,'').trim(),spec:String(row[iSpec]||'').trim(),
-      rate:Number(row[iRate])||0};
+      rate:Number(row[iRate])||0,
+      rxType:String(g0(row,iRxT)||'').trim(),pass:String(g0(row,iPass)||'').trim(),conf:String(g0(row,iConf)||'').trim(),
+      base:num(g0(row,iBase)),amt:num(g0(row,iAmt)),bonin:num(g0(row,iBonin)),gong:num(g0(row,iGong)),
+      pay:String(g0(row,iPay)||'').trim().toUpperCase(),cashNo:String(g0(row,iCashNo)||'').trim(),billNo:String(g0(row,iBillNo)||'').trim(),
+      gp:String(g0(row,iGP)||'').trim().toUpperCase(),sp:String(g0(row,iSP)||'').trim().toUpperCase(),
+      last:ymd8(g0(row,iLast)),issue:String(g0(row,iIssue)||'').trim(),cond:String(g0(row,iCond)||'').trim()};
     const kind=String(row[iKind]||'').trim().toUpperCase();
     (kind==='B'?groups[key].B:groups[key].A).push(rec);
   }
-  const report=[];let nNew=0,nMonth=0;
+  const report=[];let nNew=0,nMonth=0,nAmtOk=0,nAmtBad=0,nPassChg=0,nPassKeep=0,nPassSet=0,nPay=0,nPaid=0,nRx=0;
   for(const key of Object.keys(groups).sort()){
     const g=groups[key];
-    const rentRows=g.A.filter(a=>a.days>0&&a.start);
+    const rentRows=g.A.filter(a=>a.days>0&&a.start).sort((x,y)=>x.start<y.start?-1:1);
     const fx=findPatientEx(g.code,g.name);
     let p=fx.p;
     const issue=matchIssue(fx,g.name,g.code);
@@ -2591,39 +2618,94 @@ function importMonthlyClaims(aoa,h,fname){
       const first=rentRows[0]||g.A[0]||{};
       p={id:uid(),name:g.name,mgmtCode:g.code,rrn:'',phone:'',addr:'',cashIdNum:'',cashUse:'0',
         device:'자동형',model:first.item||'프리즈마 SMART max',sn:first.spec||'',
-        payMethod:'cash',rentStart:first.start||ymFirst(g.ym),rentEnd:null,
+        payMethod:first.pay==='CARD'?'card':'cash',rentStart:first.start||ymFirst(g.ym),rentEnd:null,
         rxStart:first.start||null,rxEnd:null,passDate:null,hospital:'',doctor:'',docName:'',docLicense:'',docSpecNo:'',branch:'',memo:'',pressure:defaultPressure(),staff:''};
       state.patients.push(p);nNew++;
-      report.push(`✚ ${g.name}(${g.code}) 신규 등록 · 임대시작 ${p.rentStart}`
+      report.push(`✚ ${g.name}(${g.code}) 신규 등록 · 계약시작 ${p.rentStart}${first.pay==='CARD'?' · 카드 결제':''}`
         +(fx.codeConflict?` · ⚠️ 같은 이름의 기존 환자(${fx.codeConflict})와 별도 등록됨 — 동일인이면 병합 필요`:''));
     }else if(!p.mgmtCode){p.mgmtCode=g.code;}
     if(g.staff&&!p.staff)p.staff=g.staff;
-    /* 임대시작일 앞당김 / 모델·SN 보강 */
+    /* 계약시작일 앞당김 / 모델·SN 보강 */
     for(const a of rentRows){
       if(a.start&&a.start<p.rentStart)p.rentStart=a.start;
       if(a.item&&!p.model)p.model=a.item;
       if(a.spec&&!p.sn)p.sn=a.spec;
     }
-    /* 순응통과(20%) 시작일: 비어 있을 때만 설정 (수기 수정 보존) */
-    const r20=rentRows.filter(a=>Math.abs(a.rate-0.2)<0.001).sort((x,y)=>x.start<y.start?-1:1)[0];
-    if(r20&&!p.passDate)applyPassDate(p,r20.start);
-    /* 월별 일수/마스크 반영 — LMTS 자료가 해당 월의 기준 */
-    const d50=rentRows.filter(a=>Math.abs(a.rate-0.5)<0.001).reduce((s,a)=>s+a.days,0);
-    const d20=rentRows.filter(a=>Math.abs(a.rate-0.2)<0.001).reduce((s,a)=>s+a.days,0);
+    const notes=[];
+    const r50=rentRows.filter(a=>Math.abs(a.rate-0.5)<0.001),r20s=rentRows.filter(a=>Math.abs(a.rate-0.2)<0.001);
+    const r20=r20s[0];
+    /* ── 순응통과일: 순응중·순응후가 같이 있는 달은 20% 청구행 시작일이 LMTS 공식 순응통과일 → 다르면 선택 ── */
+    if(r20){
+      if(!p.passDate){applyPassDate(p,r20.start);nPassSet++;notes.push(`순응통과일 ${r20.start} 설정`);}
+      else if(r50.length&&p.passDate!==r20.start){
+        const ok=await confirmModal('순응통과일이 다릅니다 — 어느 값으로?',
+          `${g.name}(${g.code}) · ${g.ym.replace('-','년 ')}월\n\n차트 순응통과일:        ${p.passDate}\nLMTS 20% 청구 시작일: ${r20.start}${r20.rxType?` (처방유형 ${r20.rxType}${r20.pass?' · 통과여부 '+r20.pass:''})`:''}\n\nLMTS 값(${r20.start})으로 바꿀까요?\n바꾸면 처방시작일이 함께 연동되고, 이 환자의 월별 수기 일수는 자동계산으로 돌아갑니다.\n[취소]를 누르면 차트 값을 유지합니다.`,'LMTS 값으로 변경');
+        if(ok){const old=p.passDate;applyPassDate(p,r20.start);
+          for(const ymk in state.months){const o=state.months[ymk]&&state.months[ymk][p.id];if(o){delete o.d1;delete o.d2;}}
+          nPassChg++;notes.push(`순응통과일 ${old} → ${r20.start} 변경(LMTS)`);}
+        else{nPassKeep++;notes.push(`⚠️ 순응통과일 차트 ${p.passDate} ↔ LMTS ${r20.start} — 차트 값 유지(선택)`);}
+      }
+    }
+    /* ── 월별 일수/마스크/평균 — LMTS 자료가 해당 월의 기준 ── */
+    const d50=r50.reduce((s2,a)=>s2+a.days,0),d20=r20s.reduce((s2,a)=>s2+a.days,0);
     const ov={mask:g.B.length>0};
-    /* 하루 평균 사용시간(분) — LMTS 평균분이 있으면 그 값, 없으면 사용시간÷일수 */
     const useMin=rentRows.reduce((s2,a)=>s2+(a.useMin||0),0);
-    const avgLmts=Math.max(...rentRows.map(a=>a.avgMin||0),0);
+    const avgLmts=Math.max(...rentRows.map(a=>a.avgMin||parseHM(a.avgText)||0),0);
     const totDays=rentRows.reduce((s2,a)=>s2+a.days,0);
     if(avgLmts>0)ov.avgMin=String(Math.round(avgLmts));
     else if(useMin>0&&totDays>0)ov.avgMin=String(Math.round(useMin/totDays));
     if(d50&&d20){ov.d1=d50;ov.d2=d20;}
     else if(d50||d20){ov.d1=d50||d20;ov.d2=0;}
     else{ov.d1=null;ov.d2=null;} /* 청구행 없음 → 자동계산으로 복귀 */
+    /* 마스크가 실린 청구행(구간): B행의 현금번호·계산서번호 순번 */
+    if(g.B.length&&d50&&d20){
+      const sq=seqOf(g.B[0].cashNo)||seqOf(g.B[0].billNo)||0;
+      const idx=sq?rentRows.findIndex(a=>a.seq===sq):-1;
+      if(idx>=0)ov.maskSeg=idx+1;
+    }
+    /* ── 결제수단 (CMS=자동이체·현금영수증 / CARD=카드) → 이 달 결제 방식 ── */
+    const pay=(rentRows[0]||g.B[0]||{}).pay||'';
+    if(pay){
+      const lm=pay==='CARD'?'card':'cash';
+      const eff=getOv(g.ym,p.id).payMethod||p.payMethod;
+      if(eff!==lm){ov.payMethod=lm;nPay++;notes.push(`결제 ${eff==='card'?'카드':'현금영수증'} → ${lm==='card'?'카드':'현금영수증'}(LMTS ${pay}, 이 달만)`);}
+    }
+    /* LMTS 요약 (보조창 표시·재처방 신호용) */
+    const lastA=rentRows[rentRows.length-1]||g.A[0]||{};
+    ov.lmts={rxType:lastA.rxType||'',pass:lastA.pass||'',avgText:lastA.avgText||'',conf:lastA.conf||'',pay,
+      gp:lastA.gp||'',sp:lastA.sp||'',last:lastA.last||null,issue:g.A.map(a=>a.issue).filter(Boolean).join(' ')||'',cond:lastA.cond||'',
+      rows:g.A.concat(g.B).map(a=>({bill:a.bill,seq:a.seq,kind:g.B.includes(a)?'B':'A',rate:a.rate,start:a.start,end:a.end,days:a.days,amt:a.amt,bonin:a.bonin,gong:a.gong,billNo:a.billNo,cashNo:a.cashNo}))};
     setOv(g.ym,p.id,ov);nMonth++;
+    /* ── 재처방 신호: 처방유형이 AF1 → AF2/AF3… 로 바뀜 ── */
+    const prevM=getOv(ymAdd(g.ym,-1),p.id).lmts;
+    if(/^AF[2-9]/.test(lastA.rxType||'')&&prevM&&prevM.rxType&&prevM.rxType!==lastA.rxType){nRx++;notes.push(`처방유형 ${prevM.rxType} → ${lastA.rxType} (재처방) — 처방시작·종료일 갱신 확인`);}
+    /* ── 수금(입금) 표시: 공단수금/개인수금 Y ── */
+    const c=calcPatientMonth(p,g.ym,getOv(g.ym,p.id));
+    const unitOf=a=>c.active?(c.units.find(u=>Math.abs(u.rate-a.rate)<0.001)||c.units[0]):null;
+    for(const a of rentRows){const u=unitOf(a);if(!u)continue;
+      if(a.gp==='Y'&&!uGet(getOv(g.ym,p.id),u.k,'taxPaid')){uSet(g.ym,p.id,u.k,{taxPaid:true});nPaid++;}
+      if(a.sp==='Y'&&!uGet(getOv(g.ym,p.id),u.k,'cashPaid')){uSet(g.ym,p.id,u.k,{cashPaid:true});nPaid++;}
+    }
+    /* ── 금액 검산: 우리 계산 = LMTS 청구행 금액? (구간별 기준/본인/공단, 마스크) ── */
+    if(ext&&c.active){
+      const bad=[];
+      for(const a of rentRows){const u=unitOf(a);if(!u)continue;
+        if(u.base!==a.amt||u.rentBonin!==a.bonin||u.rentGong!==a.gong)bad.push(`${a.rate===0.5?'50%':'20%'} 계산 ${won(u.base)}/${won(u.rentBonin)}/${won(u.rentGong)} ↔ LMTS ${won(a.amt)}/${won(a.bonin)}/${won(a.gong)}`);}
+      for(const b of g.B){const u=c.units.find(x=>x.mask)||c.units[0];
+        if(u.maskBonin!==b.bonin||u.maskGong!==b.gong)bad.push(`마스크 계산 ${won(u.maskBonin)}/${won(u.maskGong)} ↔ LMTS ${won(b.bonin)}/${won(b.gong)}`);}
+      if(bad.length){nAmtBad++;notes.push(`⚠️ 금액 불일치 — ${bad.join(' · ')}`);}
+      else{nAmtOk++;notes.push(`금액 일치 ✓ 본인 ${won(c.bonin)}/공단 ${won(c.gong)}`);}
+    }
+    const segTxt=(d50&&d20)?`50%×${d50}일+20%×${d20}일`:(d20?`20%×${d20}일`:`50%×${d50}일`);
+    const rx=lastA.rxType?` · ${lastA.rxType}${lastA.pass?'/'+lastA.pass:''}${lastA.avgText?' 평균 '+lastA.avgText:''}`:'';
+    report.push(`${notes.some(n=>n.startsWith('⚠️'))?'':'✓ '}${g.name}(${g.code}): ${segTxt}${ov.mask?' + 마스크':''}${rx}${pay?' · '+pay:''}${notes.length?' · '+notes.join(' · '):''}`);
   }
   persist();renderAll();
-  showMsg('월청구자료 가져오기 완료',`${fname}\n신규 환자 ${nNew}명 · 월 청구행 ${nMonth}건 반영\n※ 일수·마스크는 LMTS 자료 기준으로 설정됩니다.\n\n`+report.slice(0,30).join('\n'));
+  showMsg('월청구자료 가져오기 완료',`${fname}\n신규 환자 ${nNew}명 · 월 청구행 ${nMonth}건 반영`
+    +(ext?`\n금액 검산 — 일치 ${nAmtOk} · 불일치 ${nAmtBad}`:'')
+    +((nPassSet||nPassChg||nPassKeep)?`\n순응통과일 — 새로 설정 ${nPassSet} · LMTS로 변경 ${nPassChg} · 차트 유지 ${nPassKeep}`:'')
+    +(nPay?`\n결제 방식 이 달 조정 ${nPay}건 (LMTS 결제수단 기준)`:'')+(nPaid?`\n수금 표시 ${nPaid}건`:'')+(nRx?`\n재처방 신호 ${nRx}건`:'')
+    +`\n※ 일수·마스크·평균사용시간·결제수단은 LMTS 자료 기준으로 설정됩니다.\n\n`+report.slice(0,40).join('\n')+(report.length>40?`\n… 외 ${report.length-40}건`:''));
 }
 function importIdMatch(aoa,fname){
   const hn=aoa[0].map(normH);
