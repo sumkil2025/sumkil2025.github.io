@@ -535,7 +535,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.04.4';
+const APP_VERSION='2026.09.04.5';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -2059,7 +2059,7 @@ $('#btnImportHelp').onclick=e=>{
           <td>홈택스 → 발행 후 조회</td>
           <td><b>현금영수증·세금계산서 승인번호</b>를 환자별로 자동 등록 → 공단 청구 화면에 붙여넣기</td></tr>
         <tr><td><b>순응후관리.xlsx</b></td><td>LMTS → 순응후관리</td>
-          <td>순응통과(20%) 환자의 <b>평균사용시간</b>을 해당 청구 월에 입력(보조창에서 복사) · <b>적용기간시작일 ↔ 순응통과일 대조</b> · <b>예외기간(혼재) ↔ 분리 발행 대조</b> · 산정/사용일수·누적시간·월말기준 참고<div class="hint">산정기간 끝으로 대상 월을 판단해 선택 월과 다르면 확인합니다</div></td></tr>
+          <td>순응통과(20%) 환자의 <b>평균사용시간</b>을 해당 청구 월에 입력(보조창에서 복사) · <b>적용기간시작일 ↔ 순응통과일 대조</b>(다르면 환자마다 LMTS로 변경/차트 유지 선택) · <b>예외기간(혼재) ↔ 분리 발행 대조</b> · 산정/사용일수·누적시간·월말기준 참고<div class="hint">산정기간 끝으로 대상 월을 판단해 선택 월과 다르면 확인합니다</div></td></tr>
         <tr><td><b>고객현황 (N월) 시트</b></td><td>예전에 쓰던 관리 엑셀</td>
           <td>과거 자료를 처음 옮겨올 때만 사용 (금액을 역산해 사용일수를 맞춰줍니다)</td></tr>
       </tbody></table></div>
@@ -2178,7 +2178,7 @@ async function importAdaptMgmt(aoa,h,fname){
       `${Number(implied.slice(5))}월에 넣기`);
     if(!ok)return;ym=implied;
   }
-  const rep=[],miss=[],under=[];let nOk=0,nSame=0,nDiff=0,nSet=0,nExDiff=0;
+  const rep=[],miss=[],under=[];let nOk=0,nSame=0,nDiff=0,nSet=0,nExDiff=0,nChg=0;
   for(const rec of recs){
     const fx=findPatientEx(rec.code,rec.name);
     const issue=matchIssue(fx,rec.name,rec.code||'코드없음');
@@ -2191,7 +2191,16 @@ async function importAdaptMgmt(aoa,h,fname){
     if(rec.start){
       if(!p.passDate){applyPassDate(p,rec.start);nSet++;passNote=`순응통과일 ${rec.start} 설정(비어있었음, 처방시작일 연동)`;}
       else if(p.passDate===rec.start){nSame++;passNote=`순응통과일 ${rec.start} 일치 ✓`;}
-      else{nDiff++;passNote=`⚠️ 순응통과일 차트 ${p.passDate} ↔ LMTS 적용기간시작일 ${rec.start} — 차트 값 유지(LMTS가 맞으면 환자 관리에서 변경)`;}
+      else{
+        /* 순응후관리의 적용기간시작일은 LMTS 공식 판정값 — 어느 쪽을 쓸지 환자마다 선택 (기본: LMTS) */
+        const ok=await confirmModal('순응통과일이 다릅니다 — 어느 값으로?',
+          `${p.name}(${p.mgmtCode||'-'})\n\n차트 순응통과일:        ${p.passDate}\nLMTS 적용기간시작일:  ${rec.start}\n\nLMTS 값(${rec.start})으로 바꿀까요?\n바꾸면 처방시작일이 함께 연동되고, 이 환자의 월별 수기 일수는 자동계산으로 돌아갑니다.\n[취소]를 누르면 차트 값을 유지합니다.`,'LMTS 값으로 변경');
+        if(ok){
+          const old=p.passDate;applyPassDate(p,rec.start);
+          for(const ymk in state.months){const o=state.months[ymk]&&state.months[ymk][p.id];if(o){delete o.d1;delete o.d2;}}
+          nChg++;passNote=`순응통과일 ${old} → ${rec.start} 변경(LMTS · 처방시작일 연동 · 수기 일수 초기화)`;
+        }else{nDiff++;passNote=`⚠️ 순응통과일 차트 ${p.passDate} ↔ LMTS ${rec.start} — 차트 값 유지(선택)`;}
+      }
     }
     /* 평균사용시간 → 해당 월 (기존 값과 다르면 알림) */
     const prev=getOv(ym,p.id).avgMin;
@@ -2217,7 +2226,7 @@ async function importAdaptMgmt(aoa,h,fname){
   persist();renderAll();
   showMsg('순응후관리 가져오기 완료',
     `${fname}\n${ym.replace('-','년 ')}월 청구에 ${nOk}명 반영${lastD?` (산정기간 끝 ${lastD} 기준)`:''}\n`
-    +`순응통과일 대조 — 일치 ${nSame} · 차이 ${nDiff} · 새로 설정 ${nSet}`+(nExDiff?` · ⚠️ 예외기간(혼재) 불일치 ${nExDiff}`:'')
+    +`순응통과일 대조 — 일치 ${nSame} · LMTS로 변경 ${nChg} · 차트 유지 ${nDiff} · 새로 설정 ${nSet}`+(nExDiff?` · ⚠️ 예외기간(혼재) 불일치 ${nExDiff}`:'')
     +`\n\n${rep.join('\n')}`
     +(under.length?`\n\n⚠️ 하루 평균 2시간 미만 → 이 달 전액 본인부담으로 자동 판정됨 (월별 표에서 [해제] 가능):\n· ${under.join(' · ')}`:'')
     +(miss.length?`\n\n차트에 없는 사람(먼저 월청구자료·고객정보를 가져오세요): ${miss.join(', ')}`:'')
