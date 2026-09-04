@@ -535,7 +535,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.04.3';
+const APP_VERSION='2026.09.04.4';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1340,7 +1340,7 @@ function openClaimView(pid,k){
       ${ov.adapt?row('누적사용시간',hm(ov.adapt.cumMin),ov.adapt.cumMin):''}
       ${ov.adapt&&ov.adapt.baseMin!=null?row('월말 통과기준 / 부족시간',`${hm(ov.adapt.baseMin)} / ${hm(ov.adapt.needMin||0)}`,ov.adapt.baseMin):''}
       ${ov.adapt?row('최종자료일',dot(ov.adapt.last)):''}
-      ${ov.adapt?row('청구여부 · 예외기간',`${ov.adapt.claim||'—'} · ${ov.adapt.ex||'—'}`,ov.adapt.claim):''}
+      ${ov.adapt?row('청구여부 · 예외기간(순응중·후 혼재)',`${ov.adapt.claim||'—'} · ${ov.adapt.ex||'—'}`,ov.adapt.claim):''}
       ${ov.adapt&&ov.adapt.start&&p.passDate&&ov.adapt.start!==p.passDate?`<div class="cvl">⚠️ 대조</div><div class="cvv empty" style="color:var(--red)">적용기간시작일 ${dot(ov.adapt.start)} ≠ 순응통과일 ${dot(p.passDate)}</div>`:''}
     </div>`:''}
     <div class="cvsec">기기대여정보</div>
@@ -2059,7 +2059,7 @@ $('#btnImportHelp').onclick=e=>{
           <td>홈택스 → 발행 후 조회</td>
           <td><b>현금영수증·세금계산서 승인번호</b>를 환자별로 자동 등록 → 공단 청구 화면에 붙여넣기</td></tr>
         <tr><td><b>순응후관리.xlsx</b></td><td>LMTS → 순응후관리</td>
-          <td>순응통과(20%) 환자의 <b>평균사용시간</b>을 해당 청구 월에 입력(보조창에서 복사) · <b>적용기간시작일 ↔ 순응통과일 대조</b> · 산정/사용일수·누적시간·월말기준 참고<div class="hint">최종자료일로 대상 월을 판단해 선택 월과 다르면 확인합니다</div></td></tr>
+          <td>순응통과(20%) 환자의 <b>평균사용시간</b>을 해당 청구 월에 입력(보조창에서 복사) · <b>적용기간시작일 ↔ 순응통과일 대조</b> · <b>예외기간(혼재) ↔ 분리 발행 대조</b> · 산정/사용일수·누적시간·월말기준 참고<div class="hint">산정기간 끝으로 대상 월을 판단해 선택 월과 다르면 확인합니다</div></td></tr>
         <tr><td><b>고객현황 (N월) 시트</b></td><td>예전에 쓰던 관리 엑셀</td>
           <td>과거 자료를 처음 옮겨올 때만 사용 (금액을 역산해 사용일수를 맞춰줍니다)</td></tr>
       </tbody></table></div>
@@ -2178,7 +2178,7 @@ async function importAdaptMgmt(aoa,h,fname){
       `${Number(implied.slice(5))}월에 넣기`);
     if(!ok)return;ym=implied;
   }
-  const rep=[],miss=[],under=[];let nOk=0,nSame=0,nDiff=0,nSet=0;
+  const rep=[],miss=[],under=[];let nOk=0,nSame=0,nDiff=0,nSet=0,nExDiff=0;
   for(const rec of recs){
     const fx=findPatientEx(rec.code,rec.name);
     const issue=matchIssue(fx,rec.name,rec.code||'코드없음');
@@ -2202,15 +2202,22 @@ async function importAdaptMgmt(aoa,h,fname){
     nOk++;
     const c=calcPatientMonth(p,ym,getOv(ym,p.id));
     if(c.active&&c.ruleHit)under.push(`${p.name} ${hm(rec.avgMin)}`);
+    /* 예외기간 = 그 달에 순응중·순응후가 혼재(분리 발행) — 차트의 분리 여부와 대조 */
+    let exNote='';
+    if(rec.ex){
+      const exYes=/^(y|yes|true|1|예)/i.test(rec.ex),split=!!(c.active&&c.units.length>1);
+      if(exYes!==split){nExDiff++;exNote=` · ⚠️ 예외기간 ${rec.ex}(혼재)인데 차트는 ${split?'분리 발행':'단일 구간'} — 순응통과일·계약기간 확인`;}
+      else exNote=` · 예외기간 ${rec.ex} ↔ 차트 ${split?'혼재(분리 발행)':'단일'} 일치`;
+    }
     rep.push(`${passNote.startsWith('⚠️')?'':'✓ '}${p.name}(${p.mgmtCode||'-'}): ${passNote} · 평균 ${hm(rec.avgMin)}${avgNote}`
       +` · 적용 ${rec.start||'—'}~${rec.end||rec.endRaw||'—'} · 산정 ${rec.calcDays}일/사용 ${rec.useDays}일 · 누적 ${hm(rec.cumMin)}`
       +(rec.baseMin!=null?` · 월말기준 ${hm(rec.baseMin)}(부족 ${hm(rec.needMin||0)})`:'')
-      +(rec.ex?` · 예외기간 ${rec.ex}`:'')+(rec.claim?` · 청구여부 ${rec.claim}`:''));
+      +exNote+(rec.claim?` · 청구여부 ${rec.claim}`:''));
   }
   persist();renderAll();
   showMsg('순응후관리 가져오기 완료',
     `${fname}\n${ym.replace('-','년 ')}월 청구에 ${nOk}명 반영${lastD?` (산정기간 끝 ${lastD} 기준)`:''}\n`
-    +`순응통과일 대조 — 일치 ${nSame} · 차이 ${nDiff} · 새로 설정 ${nSet}`
+    +`순응통과일 대조 — 일치 ${nSame} · 차이 ${nDiff} · 새로 설정 ${nSet}`+(nExDiff?` · ⚠️ 예외기간(혼재) 불일치 ${nExDiff}`:'')
     +`\n\n${rep.join('\n')}`
     +(under.length?`\n\n⚠️ 하루 평균 2시간 미만 → 이 달 전액 본인부담으로 자동 판정됨 (월별 표에서 [해제] 가능):\n· ${under.join(' · ')}`:'')
     +(miss.length?`\n\n차트에 없는 사람(먼저 월청구자료·고객정보를 가져오세요): ${miss.join(', ')}`:'')
