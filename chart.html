@@ -152,24 +152,26 @@
   .cvsec{font-weight:800;color:var(--navy);margin:16px 0 6px;border-bottom:2px solid var(--line);padding-bottom:4px;font-size:.9rem}
   .cvsec:first-child{margin-top:0}
   .cvgrid{display:grid;grid-template-columns:130px 1fr 130px 1fr;gap:2px 10px;font-size:.86rem;align-items:center}
-  .cvl{color:var(--muted);font-weight:700;padding:4px 0;font-size:.78rem}
+  .cvl{color:var(--muted);font-weight:700;padding:4px 8px;font-size:.78rem;background:#f5f7fb;display:flex;align-items:center;border-right:1px solid #e4e9f1}
   .cvv{padding:4px 8px;border-radius:6px;cursor:pointer;font-variant-numeric:tabular-nums;font-weight:600}
   /* 청구입력 보조창 — 공단 화면과 같은 3열(좌·중·우) 격자 */
   .modal.cvmodal{width:1080px}   /* .modal 규칙이 뒤에 있어 구체성으로 이김 */
   .cvh1{font-size:1.02rem;font-weight:800;color:var(--navy);margin:20px 0 2px;padding-bottom:6px;border-bottom:2px solid var(--navy)}
-  .cv3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 16px;font-size:.86rem;align-items:start}
-  .cvi{display:grid;grid-template-columns:128px minmax(0,1fr);align-items:center;min-height:32px;column-gap:6px}
+  /* 공단 화면처럼 연한 격자선: 1px 간격의 바탕색이 선이 됨 (셀마다 흰 배경) */
+  .cv3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;font-size:.86rem;align-items:stretch;background:#dde3ec;border:1px solid #dde3ec;border-radius:6px;overflow:hidden}
+  .cvi{display:grid;grid-template-columns:128px minmax(0,1fr);align-items:stretch;min-height:34px;column-gap:0;background:#fff}
   .cvi.span3{grid-column:1/-1}
-  .cvi.blank{min-height:32px}
-  .cvd{display:flex;align-items:center;flex-wrap:wrap;gap:2px 4px;min-width:0;font-variant-numeric:tabular-nums}
-  .cvaux{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;margin:6px 0 2px;padding:6px 10px;background:#f6f8fd;border-radius:8px;font-size:.8rem}
+  .cvi.blank{min-height:34px;background:#fff}
+  .cvd{display:flex;align-items:center;flex-wrap:wrap;gap:2px 4px;min-width:0;padding:2px 6px;font-variant-numeric:tabular-nums}
+  .cvaux{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;margin:0;padding:6px 10px;background:#f6f8fd;font-size:.8rem}
   .cvaux>b{color:var(--muted);font-size:.74rem;margin-right:2px}
   .cvai{display:inline-flex;align-items:center;gap:4px}
   .cvdet{display:flex;flex-direction:column;gap:3px}
   .cvdet .cvai{flex-wrap:wrap}
   .cvdet .cvl{min-width:0;width:auto;margin-right:2px}
   .cvv.warn{background:#fff3e0;color:#b45309;font-weight:700}
-  .cvai .cvl{padding:0}
+  .cvai .cvl{padding:0;background:none;border:0;display:inline}
+  .cvi.span3 .cvl{margin-left:0}
   .cvtbl{font-size:.83rem}
   .cvempty{color:#c0c6d4;font-size:.85rem;padding:6px 8px}
   @media (max-width:1000px){.cv3{grid-template-columns:repeat(2,minmax(0,1fr))}.cvi.blank{display:none}}
@@ -555,7 +557,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.05.10';
+const APP_VERSION='2026.09.05.11';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1367,7 +1369,7 @@ function openClaimView(pid,k){
     </div>
     <div class="cvsec">기기대여정보</div>
     <div class="cv3">
-      ${raw('양압기 관리번호',`${chip(mgmtNo,mgmtNo)}<span class="cvl" style="margin-left:14px">모델명</span>${chip(p.model,p.model)}`,'span3')}
+      ${raw('양압기 관리번호',`${chip(mgmtNo,mgmtNo)}<span class="cvl" style="margin-left:14px;background:none;border:0;display:inline;padding:0 4px">모델명</span>${chip(p.model,p.model)}`,'span3')}
       ${item('계약금액',won(rentBase),rentBase)}${item('산정기준',won(rentBase),rentBase)}${item('양압기 종류',devLabel,devLabel)}
       ${item('본인부담',won(rentBonin),rentBonin)}${item('실본인부담','')}${item('공단부담',won(u.rentGong),u.rentGong)}
       ${item('회수일','')}${item('제조년월',dot(p.mfgYm))}${blank}
