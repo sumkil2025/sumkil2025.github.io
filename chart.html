@@ -551,7 +551,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.05.7';
+const APP_VERSION='2026.09.05.8';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1296,14 +1296,16 @@ function openClaimView(pid,k){
   }
   /* 처방 구분·기간: 순응중 구간 = 최초 처방(재처방 전일까지) / 순응후 구간 = 현재 처방(재처방일부터) */
   const post=u.rate===0.2;
-  const rxS=post?((p.rxStart&&(!p.passDate||p.rxStart>=p.passDate))?p.rxStart:(p.passDate||p.rxStart||p.rentStart)):(p.passDate?p.rentStart:(p.rxStart||p.rentStart));
+  const rxS=post?((p.rxStart&&(!p.passDate||p.rxStart>=p.passDate))?p.rxStart:(p.passDate||p.rxStart||p.rentStart)):(p.adaptStart||(p.passDate?p.rentStart:(p.rxStart||p.rentStart)));
   const rxStale=post&&!!p.rxEnd&&!!rxS&&p.rxEnd<rxS;   /* 처방종료일이 재처방 이전 값 */
-  const rxE=post?(rxStale?null:p.rxEnd):((p.passDate&&rxS&&p.passDate>rxS)?addDays(p.passDate,-1):p.rxEnd);
+  /* 순응중 처방의 기간 = 처방전에 적힌 순응기간(90일): LMTS 순응중 관리의 순응시작~종료 > 재처방 전 처방종료일 > 계약시작+89일 */
+  const preEnd=p.adaptEnd||p.rxEndPrev||((p.passDate&&p.rxEnd&&p.rxEnd>p.passDate&&rxS)?addDays(rxS,89):p.rxEnd);
+  const rxE=post?(rxStale?null:p.rxEnd):preEnd;
   const rxKind=post?'순응기간 후 처방':'순응기간 중 처방';
   const devLabel={'수동형':'수동형(CPAP)','자동형':'자동형(APAP)','이중형':'이중형(BiPAP)'}[p.device]||p.device;
   const rrnF=digits(p.rrn).slice(0,6),rrnB=digits(p.rrn).slice(6);
   const rentBase=u.base+u.abAmt,rentBonin=u.rentBonin+u.abAmt;
-  const ca=uGet(ov,u.k,'cashApprove'),ta=uGet(ov,u.k,'taxApprove'),cd=uGet(ov,u.k,'claimed'),taD=uGet(ov,u.k,'taxDate'),caD=uGet(ov,u.k,'cashDate');
+  const ca=uGet(ov,u.k,'cashApprove'),ta=uGet(ov,u.k,'taxApprove'),cd=uGet(ov,u.k,'claimed'),taD=uGet(ov,u.k,'taxDate'),caD=uGet(ov,u.k,'cashDate'),taI=uGet(ov,u.k,'taxIssue');
   /* 분리 발행인데 두 구간의 현금영수증 승인번호가 같으면 = 월 합산 한 장 발행 → 합계는 월 본인부담 */
   const caSum=multi&&ca&&c.units.every(x=>uGet(ov,x.k,'cashApprove')===ca);
   const segTitle=multi?` <span class="badge ${u.rate===.5?'b50':'b20'}">구간${u.k} · ${u.rate===.5?'순응중 50%':'순응후 20%'}</span>`:'';
@@ -1338,7 +1340,7 @@ function openClaimView(pid,k){
       ${item('상병',`${cl.sickCode||''} ${cl.sickName||''}`.trim(),cl.sickCode)}${item('상세항목','')}${item('마스크 최초지급월',firstMask?dot(firstMask):'')}
       ${item('의사면허번호/의사명',docLic?`${docLic} ${docName}`:docName,docLic||docName)}${item('요양기관',`${cl.hospCode||''} ${p.hospital||cl.hospName||''}`.trim(),cl.hospCode)}${item('진료구분','')}
       ${blank}${item('전문의번호',p.docSpecNo||cl.specNo)}${item('전문과목',cl.specialty)}
-      ${aux('숨길이 추가정보',[['처방압력',p.pressure||''],['순응 판정 · 연속 30일 사용기간',p.adaptWinStart?`${dot(p.adaptWinStart)} ~ ${dot(p.adaptWinEnd||addDays(p.adaptWinStart,29))}`:'',dot(p.adaptWinStart)],['4시간 이상 사용일수',p.adaptDays4h!=null?p.adaptDays4h+'일':'',p.adaptDays4h],['순응판정일(LMTS)',dot(p.adaptJudge)],['순응통과(20% 시작)일',dot(p.passDate)]])}
+      ${aux('숨길이 추가정보',[['처방압력',p.pressure||''],['순응기간(순응중 처방)',p.adaptStart?`${dot(p.adaptStart)} ~ ${dot(p.adaptEnd||addDays(p.adaptStart,89))}`:'',dot(p.adaptStart)],['순응 판정 · 연속 30일 사용기간',p.adaptWinStart?`${dot(p.adaptWinStart)} ~ ${dot(p.adaptWinEnd||addDays(p.adaptWinStart,29))}`:'',dot(p.adaptWinStart)],['4시간 이상 사용일수',p.adaptDays4h!=null?p.adaptDays4h+'일':'',p.adaptDays4h],['순응판정일(LMTS)',dot(p.adaptJudge)],['순응통과(20% 시작)일',dot(p.passDate)],['PSG 검사일',dot(p.psgDate)],['진료예정일(재처방)',dot(p.nextVisit)],['순응 상태(LMTS)',p.adaptStatus||'']])}
       ${rxStale?`<div class="cvaux" style="color:var(--red)">⚠️ 처방종료일(${dot(p.rxEnd)})이 재처방 시작일보다 앞입니다 — 고객정보 가져오기(처방종료일 자동 갱신) 또는 환자 관리에서 처방종료일을 갱신하세요</div>`:''}
     </div>
     <div class="cvsec">청구정보</div>
@@ -1363,9 +1365,9 @@ function openClaimView(pid,k){
       :`<div class="cvempty">${multi&&c.mask?'이 구간 소모품 청구 없음 (다른 구간 문서에 포함)':'이 달 소모품 청구 없음'}</div>`}
     ${(p.maskType||p.maskDate||ov.maskSpec)?`<div class="cvaux"><b>마스크 정보(LMTS)</b>${p.maskType?`<span class="cvai"><span class="cvl">종류</span>${chip(p.maskType,p.maskType)}</span>`:''}${p.maskDate?`<span class="cvai"><span class="cvl">구매일</span>${chip(dot(p.maskDate),dot(p.maskDate))}</span>`:''}${ov.maskSpec?`<span class="cvai"><span class="cvl">규격</span>${chip(ov.maskSpec,ov.maskSpec)}</span>`:''}</div>`:''}
     <div class="cvsec">국세청자료</div>
-    ${(ca||ta||taD||caD)?`<div class="tblwrap"><table class="grid cvtbl"><thead><tr><th>순번</th><th>문서종류</th><th>작성일자(발행일)</th><th>승인번호</th><th class="num">합계금액</th></tr></thead><tbody>
-      ${(ta||taD)?`<tr><td>1</td><td>전자세금계산서</td><td>${chip(dot(taD),dot(taD))}</td><td>${chip(ta,ta)}</td><td class="num">${chip(won(u.gong),u.gong)}</td></tr>`:''}
-      ${(ca||caD)?`<tr><td>${(ta||taD)?2:1}</td><td>현금영수증${caSum?' <span class="badge warn" title="구간별로 2장 발행해야 합니다">⚠️ 월 합산 1장</span>':''}</td><td>${chip(dot(caD),dot(caD))}</td><td>${chip(ca,ca)}</td><td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>`:''}
+    ${(ca||ta||taD||caD||taI)?`<div class="tblwrap"><table class="grid cvtbl"><thead><tr><th>순번</th><th>문서종류</th><th>발급일(세금계산서) · 작성일자(현금영수증)</th><th>승인번호</th><th class="num">합계금액</th></tr></thead><tbody>
+      ${(ta||taD||taI)?`<tr><td>1</td><td>전자세금계산서</td><td>${taI?`${chip(dot(taI),dot(taI))}<span class="hint"> 발급${taD&&taD!==taI?` · 작성 ${dot(taD)}`:''}</span>`:(taD?`${chip(dot(taD),dot(taD))}<span class="hint"> 작성일자 — 발급일은 홈택스 매출전자세금계산서목록 가져오기</span>`:chip(''))}</td><td>${chip(ta,ta)}</td><td class="num">${chip(won(u.gong),u.gong)}</td></tr>`:''}
+      ${(ca||caD)?`<tr><td>${(ta||taD||taI)?2:1}</td><td>현금영수증${caSum?' <span class="badge warn" title="구간별로 2장 발행해야 합니다">⚠️ 월 합산 1장</span>':''}</td><td>${chip(dot(caD),dot(caD))}${caD?'<span class="hint"> 작성</span>':''}</td><td>${chip(ca,ca)}</td><td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>`:''}
       </tbody></table></div>`:`<div class="cvempty">등록된 국세청자료 없음</div>`}
     ${(c.avgMin!=null||ad||lm)?`<div class="cvsec">숨길이 참고자료 <small style="font-weight:400;color:var(--muted);font-size:.74rem">LMTS 순응후관리 · 월청구자료 — 대조용</small></div>
       <div class="cv3">
@@ -1877,7 +1879,11 @@ function openPatModal(id){
       <div><label>순응 판정 · 연속 30일 사용기간(시작)</label><input type="date" id="f_awS" value="${p.adaptWinStart||''}"></div>
       <div><label>연속 30일 사용기간(종료) <span style="font-weight:400">(비우면 시작+29일)</span></label><input type="date" id="f_awE" value="${p.adaptWinEnd||''}"></div>
       <div><label>4시간 이상 사용일수</label><input type="number" id="f_aw4" min="0" max="31" value="${p.adaptDays4h??''}" placeholder="예: 24"></div>
-      <div><label>순응판정일 <span style="font-weight:400">(LMTS 고객정보 참고값)</span></label><input type="date" id="f_awJ" value="${p.adaptJudge||''}"></div>
+      <div><label>순응판정일 <span style="font-weight:400">(LMTS 고객정보·순응중 관리)</span></label><input type="date" id="f_awJ" value="${p.adaptJudge||''}"></div>
+      <div><label>순응기간 시작 <span style="font-weight:400">(순응중 처방 · LMTS 순응중 관리)</span></label><input type="date" id="f_adS" value="${p.adaptStart||''}"></div>
+      <div><label>순응기간 종료 <span style="font-weight:400">(비우면 시작+89일)</span></label><input type="date" id="f_adE" value="${p.adaptEnd||''}"></div>
+      <div><label>PSG 검사일</label><input type="date" id="f_psg" value="${p.psgDate||''}"></div>
+      <div><label>진료예정일 <span style="font-weight:400">(재처방 방문 예정)</span></label><input type="date" id="f_nv" value="${p.nextVisit||''}"></div>
       <div><label>임대 병원</label><input id="f_hospital" value="${esc(p.hospital||'')}"></div>
       <div><label>의사 프리셋 선택</label><select id="f_docSel">
         <option value="">직접 입력</option>
@@ -1950,6 +1956,7 @@ function openPatModal(id){
       passDate:$('#f_pass').value||null,
       adaptWinStart:$('#f_awS').value||null,adaptWinEnd:$('#f_awE').value||($('#f_awS').value?addDays($('#f_awS').value,29):null),
       adaptDays4h:$('#f_aw4').value===''?null:Number($('#f_aw4').value),adaptJudge:$('#f_awJ').value||null,
+      adaptStart:$('#f_adS').value||null,adaptEnd:$('#f_adE').value||null,psgDate:$('#f_psg').value||null,nextVisit:$('#f_nv').value||null,
       hospital:$('#f_hospital').value.trim(),
       docName:$('#f_docName').value.trim(),docLicense:digits($('#f_docLic').value),docSpecNo:$('#f_docSpec').value.trim(),
       branch:$('#f_branch').value.trim(),memo:$('#f_memo').value.trim(),
@@ -2080,7 +2087,9 @@ $('#btnImportHelp').onclick=e=>{
           <td>[LMTS 대사]로 이동 → 계산액과 <b>실제 발행액 대조</b>. [📥 월별 청구에 반영]을 누르면 이 자료만으로 환자·일수·요율·마스크가 채워집니다</td></tr>
         <tr><td><b>매출내역(YYYYMMDD~).xls</b><br><b>매출전자세금계산서목록.xls</b></td>
           <td>홈택스 → 발행 후 조회</td>
-          <td><b>현금영수증·세금계산서 승인번호</b>를 환자별로 자동 등록 → 공단 청구 화면에 붙여넣기</td></tr>
+          <td><b>현금영수증·세금계산서 승인번호</b>를 환자별·구간별로 자동 등록 → 공단 청구 화면에 붙여넣기. 세금계산서는 <b>발급일자</b>(+품목 기간으로 구간 판별), 현금영수증은 <b>작성일자(매출일시)</b>도 함께 저장<div class="hint">현금영수증 신분확인 뒤4자리는 연락처 뒤 4자리로도 찾습니다 · 월 합산 1장이면 ⚠️ 표시</div></td></tr>
+        <tr><td><b>순응중 관리.xlsx</b></td><td>LMTS → 순응중 관리</td>
+          <td><b>연속 30일 통과기간(통과시작~종료)·4시간 이상 사용일·순응판정일</b> · 순응기간(순응시작~종료 = 순응중 처방기간) · PSG 검사일 · 상태(순응중/통과/실패) → 환자 정보에 저장, 보조창 처방정보 아래에 표시<div class="hint">공단 순응후 처방 청구에 필요한 값의 공식 출처</div></td></tr>
         <tr><td><b>순응후관리.xlsx</b></td><td>LMTS → 순응후관리</td>
           <td>순응통과(20%) 환자의 <b>평균사용시간</b>을 해당 청구 월에 입력(보조창에서 복사) · <b>적용기간시작일 ↔ 순응통과일 대조</b>(다르면 환자마다 LMTS로 변경/차트 유지 선택) · <b>예외기간(혼재) ↔ 분리 발행 대조</b> · 산정/사용일수·누적시간·월말기준 참고<div class="hint">산정기간 끝으로 대상 월을 판단해 선택 월과 다르면 확인합니다</div></td></tr>
         <tr><td><b>고객현황 (N월) 시트</b></td><td>예전에 쓰던 관리 엑셀</td>
@@ -2154,6 +2163,7 @@ function tryImportSheets(sheets,fname){
       const h=aoa[hr]||[];
       const hn=h.map(normH);
       if(hn.includes('적용기간시작일')&&hn.includes('평균사용시간')){importAdaptMgmt(aoa.slice(hr),h,fname);return true;}
+      if(hn.includes('통과시작일')&&hn.includes('4시간사용일')){importAdaptProgress(aoa.slice(hr),h,fname);return true;}
       if(hn.includes('관리코드')&&hn.includes('청구번호')&&hn.includes('청구시작일')&&hn.includes('청구구분')){importMonthlyClaims(aoa.slice(hr),h,fname);return true;}
       if(hn.includes('관리번호')&&(hn.includes('주민(외국인)번호')||hn.includes('현금발급번호'))){importIdMatch(aoa.slice(hr),fname);return true;}
       if(hn.includes('관리코드')&&hn.includes('계약시작일')&&hn.includes('성명')){importCustomerInfo(aoa.slice(hr),h,fname);return true;}
@@ -2163,6 +2173,60 @@ function tryImportSheets(sheets,fname){
     }
   }
   return false;
+}
+/* ===== LMTS 순응중 관리 가져오기 =====
+   순응기간(순응시작~순응종료 90일)·연속 30일 통과기간(통과시작~통과종료)·4시간 사용일·PSG 검사일·상태(순응중/순응통과/실패).
+   공단 순응후 처방 청구에 필요한 "연속 30일 중 4시간 이상 사용일수"의 공식 출처 (2026-09-05 실자료). */
+function importAdaptProgress(aoa,h,fname){
+  const hn=h.map(normH),col=k=>hn.indexOf(k);
+  const iC=col('관리코드'),iN=col('성명'),iSt=col('상태'),iRx=col('최종처방전'),iStaff=col('담당자'),
+        iS=col('순응시작일'),iE=col('순응종료일'),iLeft=col('남은일수'),i4h=col('4시간사용일'),iNeed=col('필요일수'),
+        iMin=col('최단통과일'),iLast=col('최종자료일'),iWS=col('통과시작일'),iWE=col('통과종료일'),
+        iFail=col('순응실패일'),iRetry=col('재도전가능일'),iPsg=col('PSG검사일');
+  const g=(row,i)=>i>=0?row[i]:'';
+  const recs=[];
+  for(let r=1;r<aoa.length;r++){
+    const row=aoa[r];const code=String(g(row,iC)||'').trim(),name=String(g(row,iN)||'').trim();
+    if(!code&&!name)continue;
+    const d4=String(g(row,i4h)??'').trim();
+    recs.push({code,name,status:String(g(row,iSt)||'').trim(),rx:String(g(row,iRx)||'').trim(),staff:String(g(row,iStaff)||'').trim(),
+      start:ymd8(g(row,iS)),end:ymd8(g(row,iE)),left:Number(g(row,iLeft))||0,days4h:d4===''?null:(Number(d4)||0),
+      need:Number(g(row,iNeed))||0,minPass:ymd8(g(row,iMin)),last:ymd8(g(row,iLast)),ws:ymd8(g(row,iWS)),we:ymd8(g(row,iWE)),
+      fail:ymd8(g(row,iFail)),retry:ymd8(g(row,iRetry)),psg:ymd8(g(row,iPsg))});
+  }
+  if(!recs.length){showMsg('안내',`${fname}: 순응중 관리 자료를 찾지 못했습니다.`);return;}
+  const rep=[],miss=[];let nOk=0,nPass=0,nIng=0,nFail=0;
+  for(const rec of recs){
+    const fx=findPatientEx(rec.code,rec.name);
+    const issue=matchIssue(fx,rec.name,rec.code||'코드없음');
+    if(issue){rep.push(issue);continue;}
+    const p=fx.p;
+    if(!p){miss.push(`${rec.name}(${rec.code||'코드없음'})`);continue;}
+    if(rec.staff&&!p.staff)p.staff=rec.staff;
+    const chg=[];
+    const set=(f,v,label)=>{if(v==null||v==='')return;if(p[f]!==v){if(p[f]!=null&&p[f]!==''&&label)chg.push(`${label} ${p[f]} → ${v}`);p[f]=v;}};
+    set('adaptStart',rec.start,'순응시작일');set('adaptEnd',rec.end,'순응종료일');
+    set('adaptWinStart',rec.ws,'통과기간 시작');set('adaptWinEnd',rec.we,'통과기간 종료');
+    set('adaptDays4h',rec.days4h,'4시간 사용일');
+    set('psgDate',rec.psg,'PSG 검사일');
+    p.adaptStatus=rec.status||'';p.adaptRxType=rec.rx||'';
+    p.adaptLeft=rec.left;p.adaptNeed=rec.need;p.adaptMinPass=rec.minPass;p.adaptFail=rec.fail;p.adaptRetry=rec.retry;p.adaptLast=rec.last;
+    const passed=/통과/.test(rec.status);
+    if(passed&&rec.we)set('adaptJudge',rec.we,'순응판정일');
+    let note='';
+    if(passed){nPass++;
+      note=`순응통과 · 통과기간 ${rec.ws||'—'}~${rec.we||'—'} · 4시간 이상 ${rec.days4h??'—'}일`
+        +(/^AF/i.test(rec.rx)?(p.passDate?` · 재처방(${rec.rx}) 순응통과일 ${p.passDate}`:` · ⚠️ 재처방(${rec.rx})인데 차트 순응통과일이 비어있음 — 월청구자료관리 가져오기로 확정하세요`)
+          :` · 아직 재처방 전(${rec.rx||'ING'}) — 재처방일이 순응통과(20% 시작)일이 됩니다`);
+    }else if(/실패/.test(rec.status)){nFail++;note=`⚠️ 순응실패${rec.fail?' '+rec.fail:''}${rec.retry?' · 재도전 가능 '+rec.retry:''}`;}
+    else{nIng++;note=`순응중 · 4시간 이상 ${rec.days4h??'—'}일 · 필요 ${rec.need}일 · 남은 ${rec.left}일${rec.minPass?' · 최단통과 '+rec.minPass:''}`;}
+    rep.push(`${note.includes('⚠️')?'':'✓ '}${p.name}(${p.mgmtCode||'-'}): ${note} · 순응기간 ${rec.start||'—'}~${rec.end||'—'}${rec.psg?' · PSG '+rec.psg:''}${chg.length?' · 변경: '+chg.join(', '):''}`);
+    nOk++;
+  }
+  persist();renderAll();
+  showMsg('순응중 관리 가져오기 완료',`${fname}\n${nOk}명 반영 — 순응통과 ${nPass} · 순응중 ${nIng}${nFail?' · 실패 '+nFail:''}${miss.length?' · 미등록 '+miss.length+'명':''}`
+    +`\n※ 통과기간(연속 30일)·4시간 이상 사용일·순응판정일·순응기간·PSG 검사일은 환자 정보에 저장되어 청구입력 보조창 처방정보 아래에 표시됩니다.`
+    +`\n\n${rep.join('\n')}`+(miss.length?`\n\n[미등록 — 고객정보·월청구자료를 먼저 넣으세요]\n· ${miss.join(', ')}`:''));
 }
 /* ===== LMTS 순응후관리 가져오기 =====
    순응통과(20%) 환자의 적용기간·평균사용시간. 공단 청구 화면에 평균사용시간을 입력해야 하므로
@@ -2274,17 +2338,33 @@ function importApproval(kind,aoa,h,fname){
       recs.push({app,last4:digits(row[iLast4]).slice(-4),amt:num(row[iTot]),when:String(row[iDate]||''),date:ymd8(String(row[iDate]||'').slice(0,10))});
     }
   }else{
-    const iRrn=col('공급받는자사업자등록번호'),iName=hn.lastIndexOf('상호'),iDate=col('작성일자'),iTot=col('합계금액'),iItem=col('품목명');
+    const iRrn=col('공급받는자사업자등록번호'),iName=hn.lastIndexOf('상호'),iDate=col('작성일자'),iIssue=col('발급일자'),iTot=col('합계금액'),iItem=col('품목명'),iCls=col('전자세금계산서분류');
     for(let r=1;r<aoa.length;r++){
       const row=aoa[r],app=String(row[iApp]||'').trim();
       if(!app)continue;
       const item=String(row[iItem]||'');
       const m=item.match(/^([A-Za-z]\d+)_/);
+      /* 품목명의 임대기간 (260825-260831) → 청구 구간 판별 (금액보다 정확) */
+      const rg=item.match(/\((\d{6})-(\d{6})\)/),d6=x=>`20${x.slice(0,2)}-${x.slice(2,4)}-${x.slice(4,6)}`;
       recs.push({app,rrn:digits(row[iRrn]),name:String(row[iName]||'').trim(),
-        amt:num(row[iTot]),date:ymd8(row[iDate]),code:m?m[1]:''});
+        amt:num(row[iTot]),date:ymd8(row[iDate]),issue:iIssue>=0?ymd8(row[iIssue]):null,code:m?m[1]:'',cls:String(iCls>=0?row[iCls]||'':''),
+        s:rg?d6(rg[1]):null,e:rg?d6(rg[2]):null,mask:/마스크|카라|나잘|mask/i.test(item)});
     }
   }
   if(!recs.length){showMsg('안내',`${fname}: 승인번호 자료를 찾지 못했습니다.`);return;}
+  /* 수정세금계산서 취소분(음수 금액)은 같은 사람·같은 금액의 원본과 상쇄 → 둘 다 등록 대상에서 제외 (실자료 2026-08: 월 합산 원본 4건 → 취소 4건 → 구간별 재발행) */
+  const cancelled=[];
+  if(kind==='tax'){
+    const key=r=>r.rrn||r.name;
+    for(const n of recs.filter(r=>r.amt<0)){
+      const cands=recs.filter(r=>r!==n&&!r.cancel&&r.amt===-n.amt&&key(r)===key(n))
+        .sort((a,b)=>(/수정/.test(a.cls)?1:0)-(/수정/.test(b.cls)?1:0)||((a.issue||a.date||'')<(b.issue||b.date||'')?-1:1));
+      n.cancel=true;
+      if(cands.length){cands[0].cancel=true;cancelled.push(`· ${n.name||n.rrn}: 원본 ${won(cands[0].amt)} (승인 ${cands[0].app}) ↔ 취소 ${won(n.amt)} (승인 ${n.app})`);}
+      else cancelled.push(`· ${n.name||n.rrn}: 취소분 ${won(n.amt)} (승인 ${n.app}) — 원본이 이 파일에 없음`);
+    }
+  }
+  const live=recs.filter(r=>!r.cancel);
   const field=kind==='cash'?'cashApprove':'taxApprove';
   const label=kind==='cash'?'현금영수증':'세금계산서';
   const amtKey=kind==='cash'?'bonin':'gong';
@@ -2293,7 +2373,7 @@ function importApproval(kind,aoa,h,fname){
   const cands=[sel,ymAdd(sel,-1),ymAdd(sel,-2),ymAdd(sel,1)];
   const unitsOf=(p,ym)=>{const c=calcPatientMonth(p,ym,getOv(ym,p.id));return c.active?c.units:[];};
   let nOk=0;const done=[],miss=[],dup=[],warn=[];
-  for(const rec of recs){
+  for(const rec of live){
     /* ① 환자 찾기 */
     let cand=[],via='';
     if(kind==='tax'){
@@ -2307,7 +2387,11 @@ function importApproval(kind,aoa,h,fname){
     /* ② 월·구간 찾기 — 금액이 맞는 청구 단위 */
     const months=(kind==='tax'&&rec.date)?[rec.date.slice(0,7),...cands]:cands;
     /* 구간 금액이 맞으면 그 구간에. 현금영수증이 월 합산 한 장으로 잘못 발행됐으면(구간 합계 = 금액) 기록은 하되 경고 */
-    const findUnit=(p,ym)=>{const us=unitsOf(p,ym);const u=us.find(x=>x[amtKey]===rec.amt);
+    const findUnit=(p,ym)=>{const us=unitsOf(p,ym);
+      /* 세금계산서: 품목의 임대기간이 구간과 같으면 그 구간 (금액이 달라도 기록하고 경고) */
+      if(kind==='tax'&&rec.s&&rec.e&&!rec.mask){const ur=us.find(x=>x.s===rec.s&&x.e===rec.e);
+        if(ur)return {p,ym,k:ur.k,multi:ur.multi,ks:[ur.k],amtDiff:ur[amtKey]!==rec.amt?ur[amtKey]:null};}
+      const u=us.find(x=>x[amtKey]===rec.amt);
       if(u)return {p,ym,k:u.k,multi:u.multi,ks:[u.k]};
       if(kind==='cash'&&us.length>1&&us.reduce((a,x)=>a+x.bonin,0)===rec.amt)return {p,ym,k:0,multi:true,ks:us.map(x=>x.k),sum:true};
       return null;};
@@ -2337,8 +2421,9 @@ function importApproval(kind,aoa,h,fname){
     for(const kk of hit.ks){
       const prev=uGet(getOv(hit.ym,hit.p.id),kk,field);
       if(prev&&prev!==rec.app)dup.push(`· ${hit.p.name} ${hit.ym}${hit.multi?` 구간${kk}`:''}: ${prev} → ${rec.app}`);
-      uSet(hit.ym,hit.p.id,kk,{[field]:rec.app,...(rec.date?{[kind==='cash'?'cashDate':'taxDate']:rec.date}:{})});
+      uSet(hit.ym,hit.p.id,kk,{[field]:rec.app,...(rec.date?{[kind==='cash'?'cashDate':'taxDate']:rec.date}:{}),...(kind==='tax'&&rec.issue?{taxIssue:rec.issue}:{})});
     }
+    if(hit.amtDiff!=null)warn.push(`· ${hit.p.name} (${hit.ym}${hit.multi?` 구간${hit.k}`:''}): 세금계산서 합계 ${won(rec.amt)} ↔ 차트 공단부담 ${won(hit.amtDiff)} — 기간(${rec.s.slice(5)}~${rec.e.slice(5)})은 맞지만 금액이 다릅니다`);
     if(hit.sum)warn.push(`· ${hit.p.name} (${hit.ym}): 현금영수증이 월 합산 1장(${won(rec.amt)})으로 발행됨 — 순응중·순응후 구간별 2장이어야 합니다. 승인 ${rec.app}은 두 구간에 기록해 두었습니다`);
     else done.push(`✓ ${hit.p.name} (${hit.ym}${hit.multi?` 구간${hit.k} ${hit.k===1?'순응중':'순응후'}`:''}) ${rec.app}${via&&via!=='주민번호'&&via!=='주민번호 뒤4자리'?` [${via}]`:''}`);
     nOk++;
@@ -2351,8 +2436,9 @@ function importApproval(kind,aoa,h,fname){
   }
   persist();renderAll();
   showMsg(`${label} 승인번호 가져오기`,
-    `${fname}\n${recs.length}건 중 ${nOk}건 등록`+(miss.length?` · 미매칭 ${miss.length}건`:'')+(warn.length?` · ⚠️ 발행 방식 확인 ${warn.length}건`:'')
+    `${fname}\n${recs.length}건 중 ${nOk}건 등록`+(cancelled.length?` · 취소 상쇄 ${cancelled.length}쌍 제외`:'')+(miss.length?` · 미매칭 ${miss.length}건`:'')+(warn.length?` · ⚠️ 발행 방식 확인 ${warn.length}건`:'')
     +`\n\n${done.join('\n')}`
+    +(cancelled.length?`\n\n[수정(취소) 세금계산서 — 원본과 상쇄되어 제외]\n${cancelled.join('\n')}`:'')
     +(warn.length?`\n\n[⚠️ 발행 방식 확인]\n${warn.join('\n')}`:'')
     +(dup.length?`\n\n[기존 값 교체]\n${dup.join('\n')}`:'')
     +(miss.length?`\n\n[확인 필요]\n${miss.join('\n')}`:'')
@@ -2366,7 +2452,8 @@ function importCustomerInfo(aoa,h,fname){
   const iC=col('관리코드'),iN=col('성명'),iB=col('생년월일'),iCS=col('계약시작일'),iCE=col('계약종료일'),
         iRxE=col('처방종료일'),iDoc=col('의료진명'),iModel=col('모델명'),iSN=col('시리얼'),
         iA1=col('주소1'),iA2=col('주소2'),iP1=col('휴대폰1'),iPassD=col('순응판정일'),iStaff=col('담당자'),
-        iPress=col('설정압력'),iMT=col('마스크종류'),iMD=col('마스크구매일'),iMM=col('마스크구독월');
+        iPress=col('설정압력'),iMT=col('마스크종류'),iMD=col('마스크구매일'),iMM=col('마스크구독월'),
+        iPsg=col('PSG검사일'),iNext=col('진료예정일'),iLastV=col('최근진료일');
   /* 1차: 관리코드별로 행 수집 (한 환자가 여러 계약 행일 수 있음) */
   const groups={};
   for(let r=1;r<aoa.length;r++){
@@ -2383,7 +2470,8 @@ function importCustomerInfo(aoa,h,fname){
       ph:digits(row[iP1]),pdte:iPassD>=0?ymd8(row[iPassD]):null,
       staff:String(iStaff>=0?row[iStaff]||'':'').trim(),
       press:String(iPress>=0?row[iPress]||'':'').trim(),mt:String(iMT>=0?row[iMT]||'':'').trim(),
-      md:iMD>=0?ymd8(row[iMD]):null,mm:String(iMM>=0?row[iMM]||'':'').trim()
+      md:iMD>=0?ymd8(row[iMD]):null,mm:String(iMM>=0?row[iMM]||'':'').trim(),
+      psg:iPsg>=0?ymd8(row[iPsg]):null,nv:iNext>=0?ymd8(row[iNext]):null,lv:iLastV>=0?ymd8(row[iLastV]):null
     });
   }
   let nNew=0,nUpd=0,nRrn=0,nBr=0,nDif=0;const warns=[],brLines=[];
@@ -2416,6 +2504,7 @@ function importCustomerInfo(aoa,h,fname){
     for(const x of g.rows){
       if(x.birth)last.birth=x.birth; if(x.rxe)last.rxe=x.rxe;
       if(x.press)last.press=x.press; if(x.mt)last.mt=x.mt; if(x.md)last.md=x.md; if(x.mm)last.mm=x.mm;
+      if(x.psg)last.psg=x.psg; if(x.nv)last.nv=x.nv; if(x.lv)last.lv=x.lv;
       if(x.model)last.model=x.model; if(x.sn)last.sn=x.sn;
       if(x.addr)last.addr=x.addr;    if(x.ph)last.ph=x.ph;
       if(x.doc[0]&&!p.docName){
@@ -2438,7 +2527,10 @@ function importCustomerInfo(aoa,h,fname){
     }
     /* 처방종료일은 재처방 때 LMTS가 제자리에서 갱신하므로 LMTS 기준 (사용자 확인 2026-09-05) */
     const rxeL=(latest&&latest.rxe)||last.rxe;
-    if(rxeL&&p.rxEnd!==rxeL){const old=p.rxEnd;p.rxEnd=rxeL;if(old)warns.push(`${g.name}: 처방종료일 ${old} → ${rxeL} 갱신(LMTS${p.passDate&&rxeL>p.passDate?' · 재처방':''})`);}
+    if(rxeL&&p.rxEnd!==rxeL){const old=p.rxEnd;p.rxEnd=rxeL;
+      if(old&&old<rxeL&&!p.rxEndPrev)p.rxEndPrev=old;   /* 순응중(최초) 처방의 종료일 보관 → 순응중 구간 처방기간 표시용 */
+      if(old)warns.push(`${g.name}: 처방종료일 ${old} → ${rxeL} 갱신(LMTS${p.passDate&&rxeL>p.passDate?' · 재처방':''})`);}
+    if(last.psg&&!p.psgDate)p.psgDate=last.psg; if(last.nv)p.nextVisit=last.nv; if(last.lv)p.lastVisit=last.lv;
     /* 설정압력 → 처방압력 (LMTS 기준) */
     if(last.press){const pv=last.press.replace(/\s/g,'').replace('~','-');if(p.pressure!==pv){const old=p.pressure;p.pressure=pv;if(old&&old!==defaultPressure())warns.push(`${g.name}: 처방압력 ${old} → ${pv} (LMTS 설정압력)`);}}
     if(last.mt)p.maskType=last.mt; if(last.md)p.maskDate=last.md; if(last.mm)p.maskMonth=last.mm;
