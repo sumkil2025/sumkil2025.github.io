@@ -165,6 +165,10 @@
   .cvaux{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;margin:6px 0 2px;padding:6px 10px;background:#f6f8fd;border-radius:8px;font-size:.8rem}
   .cvaux>b{color:var(--muted);font-size:.74rem;margin-right:2px}
   .cvai{display:inline-flex;align-items:center;gap:4px}
+  .cvdet{display:flex;flex-direction:column;gap:3px}
+  .cvdet .cvai{flex-wrap:wrap}
+  .cvdet .cvl{min-width:0;width:auto;margin-right:2px}
+  .cvv.warn{background:#fff3e0;color:#b45309;font-weight:700}
   .cvai .cvl{padding:0}
   .cvtbl{font-size:.83rem}
   .cvempty{color:#c0c6d4;font-size:.85rem;padding:6px 8px}
@@ -551,7 +555,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.05.8';
+const APP_VERSION='2026.09.05.9';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1288,7 +1292,7 @@ function openClaimView(pid,k){
   const dot=s=>s?String(s).replaceAll('-','.'):'';
   const docName=p.docName||(p.doctor||'').replace(/\(.*\)/,'').trim();
   const docLic=p.docLicense||((p.doctor||'').match(/\((\d+)\)/)||[])[1]||'';
-  const mgmtNo=(p.mfgYm&&p.sn)?p.mfgYm.replace('-','')+p.sn:'';
+  const mgmtNo=p.sn||'';   /* 공단 양압기 관리번호 = 기기 시리얼(S/N) — 사용자 확인 2026-09-05 */
   let firstMask='';
   for(const kk of Object.keys(state.months).sort()){
     const o=state.months[kk]&&state.months[kk][p.id];
@@ -1319,6 +1323,16 @@ function openClaimView(pid,k){
   const aux=(title,items)=>`<div class="cvaux"><b>${title}</b>${items.map(([l,v,cp])=>`<span class="cvai"><span class="cvl">${l}</span>${chip(v,cp)}</span>`).join('')}</div>`;
   const avgH=c.avgMin!=null?Math.floor(c.avgMin/60):null;
   const ad=ov.adapt||null,lm=ov.lmts||null;
+  /* 상세항목 = 공단 팝업 "압력처방 및 순응도 평가": 1. 압력 처방(기기별) / 2. 연이은 30일 사용기간·4시간 이상 사용일수(순응기간 후 최초 처방 시 기재) */
+  const prs=String(p.pressure||'').replace(/\s/g,'').split(/[-~\/]/).filter(Boolean);
+  const pressHtml=p.device==='이중형'?`<span class="cvl">EPAP</span>${chip(prs[0]||'',prs[0])}<span class="cvl">IPAP</span>${chip(prs[1]||'',prs[1])}`
+    :p.device==='수동형'?`<span class="cvl">CPAP</span>${chip(prs[0]||'',prs[0])}`
+    :`<span class="cvl">APAP</span>${chip(prs[0]||'',prs[0])}<span class="hint">~</span>${chip(prs[1]||prs[0]||'',prs[1]||prs[0])}`;
+  const d4=p.adaptDays4h;
+  const detailHtml=`<div class="cvdet"><span class="cvai">${pressHtml}<span class="hint">cmH₂O</span></span>`
+    +(post?`<span class="cvai"><span class="cvl">연이은 30일</span>${p.adaptWinStart?range(p.adaptWinStart,p.adaptWinEnd||addDays(p.adaptWinStart,29)):'<span class="cvv empty">— 순응중 관리.xlsx</span>'}</span>`
+      +`<span class="cvai"><span class="cvl">4시간 이상</span>${d4!=null?chip(d4+'일',d4,d4<21?'warn':''):'<span class="cvv empty">—</span>'}${d4!=null&&d4<21?'<span class="hint" style="color:var(--red)">21일 미만 — 재처방 불가</span>':''}</span>`:'')
+    +`</div>`;
   const lmRow=lm?(lm.rows||[]).find(x=>x.kind==='A'&&(!multi||Math.abs(x.rate-u.rate)<0.001)):null;
   $('#modalHost').innerHTML=`<div class="modalBack" id="cvBack"><div class="modal cvmodal">
     <h3>📋 공단 청구 입력 — ${esc(p.name)} · ${ym.replace('-','년 ')}월${segTitle}
@@ -1337,7 +1351,7 @@ function openClaimView(pid,k){
     <div class="cv3">
       ${item('처방전등록번호','')}${item('처방전발행일',dot(rxS))}${item('처방구분',rxKind,rxKind)}
       ${raw('처방기간',range(rxS,rxE))}${item('양압기 종류',devLabel,devLabel)}${item('직전 처방기간 평균 사용시간','')}
-      ${item('상병',`${cl.sickCode||''} ${cl.sickName||''}`.trim(),cl.sickCode)}${item('상세항목','')}${item('마스크 최초지급월',firstMask?dot(firstMask):'')}
+      ${item('상병',`${cl.sickCode||''} ${cl.sickName||''}`.trim(),cl.sickCode)}${raw('상세항목',detailHtml)}${item('마스크 최초지급월',firstMask?dot(firstMask):'')}
       ${item('의사면허번호/의사명',docLic?`${docLic} ${docName}`:docName,docLic||docName)}${item('요양기관',`${cl.hospCode||''} ${p.hospital||cl.hospName||''}`.trim(),cl.hospCode)}${item('진료구분','')}
       ${blank}${item('전문의번호',p.docSpecNo||cl.specNo)}${item('전문과목',cl.specialty)}
       ${aux('숨길이 추가정보',[['처방압력',p.pressure||''],['순응기간(순응중 처방)',p.adaptStart?`${dot(p.adaptStart)} ~ ${dot(p.adaptEnd||addDays(p.adaptStart,89))}`:'',dot(p.adaptStart)],['순응 판정 · 연속 30일 사용기간',p.adaptWinStart?`${dot(p.adaptWinStart)} ~ ${dot(p.adaptWinEnd||addDays(p.adaptWinStart,29))}`:'',dot(p.adaptWinStart)],['4시간 이상 사용일수',p.adaptDays4h!=null?p.adaptDays4h+'일':'',p.adaptDays4h],['순응판정일(LMTS)',dot(p.adaptJudge)],['순응통과(20% 시작)일',dot(p.passDate)],['PSG 검사일',dot(p.psgDate)],['진료예정일(재처방)',dot(p.nextVisit)],['순응 상태(LMTS)',p.adaptStatus||'']])}
@@ -1357,7 +1371,6 @@ function openClaimView(pid,k){
       ${item('계약금액',won(rentBase),rentBase)}${item('산정기준',won(rentBase),rentBase)}${item('양압기 종류',devLabel,devLabel)}
       ${item('본인부담',won(rentBonin),rentBonin)}${item('실본인부담','')}${item('공단부담',won(u.rentGong),u.rentGong)}
       ${item('회수일','')}${item('제조년월',dot(p.mfgYm))}${blank}
-      ${aux('보조정보',[['S/N',p.sn]].concat(!mgmtNo&&p.sn?[['안내','환자 정보에 제조년월을 넣으면 관리번호 자동생성 (제조년월+S/N)']]:[]))}
     </div>
     <div class="cvsec">소모품구입정보</div>
     ${u.mask?`<div class="tblwrap"><table class="grid cvtbl"><thead><tr><th>구분</th><th>제품</th><th>소모품</th><th class="num">세트/개</th><th class="num">구입금액</th><th class="num">산정기준</th><th class="num">본인부담</th><th class="num">실부담</th><th class="num">공단부담</th></tr></thead>
@@ -1365,10 +1378,11 @@ function openClaimView(pid,k){
       :`<div class="cvempty">${multi&&c.mask?'이 구간 소모품 청구 없음 (다른 구간 문서에 포함)':'이 달 소모품 청구 없음'}</div>`}
     ${(p.maskType||p.maskDate||ov.maskSpec)?`<div class="cvaux"><b>마스크 정보(LMTS)</b>${p.maskType?`<span class="cvai"><span class="cvl">종류</span>${chip(p.maskType,p.maskType)}</span>`:''}${p.maskDate?`<span class="cvai"><span class="cvl">구매일</span>${chip(dot(p.maskDate),dot(p.maskDate))}</span>`:''}${ov.maskSpec?`<span class="cvai"><span class="cvl">규격</span>${chip(ov.maskSpec,ov.maskSpec)}</span>`:''}</div>`:''}
     <div class="cvsec">국세청자료</div>
-    ${(ca||ta||taD||caD||taI)?`<div class="tblwrap"><table class="grid cvtbl"><thead><tr><th>순번</th><th>문서종류</th><th>발급일(세금계산서) · 작성일자(현금영수증)</th><th>승인번호</th><th class="num">합계금액</th></tr></thead><tbody>
-      ${(ta||taD||taI)?`<tr><td>1</td><td>전자세금계산서</td><td>${taI?`${chip(dot(taI),dot(taI))}<span class="hint"> 발급${taD&&taD!==taI?` · 작성 ${dot(taD)}`:''}</span>`:(taD?`${chip(dot(taD),dot(taD))}<span class="hint"> 작성일자 — 발급일은 홈택스 매출전자세금계산서목록 가져오기</span>`:chip(''))}</td><td>${chip(ta,ta)}</td><td class="num">${chip(won(u.gong),u.gong)}</td></tr>`:''}
-      ${(ca||caD)?`<tr><td>${(ta||taD||taI)?2:1}</td><td>현금영수증${caSum?' <span class="badge warn" title="구간별로 2장 발행해야 합니다">⚠️ 월 합산 1장</span>':''}</td><td>${chip(dot(caD),dot(caD))}${caD?'<span class="hint"> 작성</span>':''}</td><td>${chip(ca,ca)}</td><td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>`:''}
-      </tbody></table></div>`:`<div class="cvempty">등록된 국세청자료 없음</div>`}
+    ${(()=>{const card=(ov.payMethod||p.payMethod)==='card',taxDate=taD||taI;
+      return `<div class="tblwrap"><table class="grid cvtbl"><thead><tr><th>순번</th><th>문서종류</th><th>작성일자</th><th>승인번호</th><th class="num">합계금액</th></tr></thead><tbody>
+      <tr><td>1</td><td>전자세금계산서</td><td>${taxDate?`${chip(dot(taxDate),dot(taxDate))}${taI&&taI!==taxDate?`<span class="hint"> (발급 ${dot(taI)})</span>`:''}`:'<span class="cvv empty">—</span><span class="hint"> LMTS 세금계산서내역 대사 또는 홈택스 목록 가져오기</span>'}</td><td>${ta?chip(ta,ta):'<span class="cvv empty">승인번호 없음</span>'}</td><td class="num">${chip(won(u.gong),u.gong)}</td></tr>
+      <tr><td>2</td><td>현금영수증${caSum?' <span class="badge warn" title="구간별로 2장 발행해야 합니다">⚠️ 월 합산 1장</span>':''}</td>${card?`<td colspan="2"><span class="cvv empty">카드 결제 — 현금영수증 해당 없음</span></td>`:`<td>${caD?chip(dot(caD),dot(caD)):'<span class="cvv empty">—</span>'}</td><td>${ca?chip(ca,ca):`<span class="cvv empty">승인번호 없음</span><span class="hint"> 홈택스 매출내역(현금영수증) 가져오기 — 본인부담 ${won(u.bonin)}원 · 연락처/주민번호 뒤4자리로 자동 매칭</span>`}</td>`}<td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>
+      </tbody></table></div>`;})()}
     ${(c.avgMin!=null||ad||lm)?`<div class="cvsec">숨길이 참고자료 <small style="font-weight:400;color:var(--muted);font-size:.74rem">LMTS 순응후관리 · 월청구자료 — 대조용</small></div>
       <div class="cv3">
       ${(c.avgMin!=null||ad)?aux('순응 후 사용현황',[['일평균 사용시간',c.avgMin!=null?`${hmColon(c.avgMin)} (${c.avgMin}분)`:'',c.avgMin!=null?hmColon(c.avgMin):null]]
@@ -1464,7 +1478,7 @@ const DEVICES=['수동형','자동형','이중형'];
 /* 환자 표에서 켜고 끌 수 있는 열 (#·차트번호·성명·버튼은 항상 표시) */
 const PAT_COLS=[
   {k:'rrn',t:'주민번호'},{k:'phone',t:'연락처'},{k:'device',t:'기기·모델명'},
-  {k:'pressure',t:'처방압력'},{k:'sn',t:'S/N'},{k:'mfg',t:'제조년월'},{k:'rentStart',t:'계약시작일'},{k:'rentEnd',t:'계약종료일'},
+  {k:'pressure',t:'처방압력'},{k:'sn',t:'S/N'},{k:'rentStart',t:'계약시작일'},{k:'rentEnd',t:'계약종료일'},
   {k:'rxs',t:'처방시작일'},{k:'rx',t:'처방종료일'},{k:'pass',t:'순응통과일'},{k:'pay',t:'결제'},
   {k:'branch',t:'지사'},{k:'staff',t:'담당자'},{k:'status',t:'상태'}];
 /* 담당자 목록 (등록된 환자에서 자동 수집) */
@@ -1562,7 +1576,7 @@ function renderPatients(){
   const two=!!state.settings.patTwoLine;
   $('#btnPatTwoLine').classList.toggle('primary',two);
   $('#btnPatTwoLine').textContent=two?'⇕ 두 줄 ✓':'⇕ 두 줄';
-  const L2={device:1,mfg:1,rentStart:1,rentEnd:1,rxs:1,rx:1,pass:1};
+  const L2={device:1,rentStart:1,rentEnd:1,rxs:1,rx:1,pass:1};
   const c1=(k,html)=>on(k)&&(!two||!L2[k])?html:'';
   const nCols1=3+1+PAT_COLS.filter(c=>on(c.k)&&(!two||!L2[c.k])).length;
   const body=pats.filter(p=>!staffFilter||(staffFilter==='(미지정)'?!(p.staff||'').trim():(p.staff||'').trim()===staffFilter))
@@ -1577,7 +1591,6 @@ function renderPatients(){
         ${on('rx')?`<label><b>처방종료</b><input type="date" class="inline pdate" value="${p.rxEnd||''}" data-pf="rxEnd" data-id="${p.id}" title="처방종료일 — 재처방(처방전 재발행) 시 새 종료일로 갱신"></label>`:''}
         ${on('pass')?`<label><b>순응통과</b><input type="date" class="inline pdate ${p.passDate?'on':''}" value="${p.passDate||''}" data-pf="passDate" data-id="${p.id}" title="순응통과(재처방) 시작일 — 이 날부터 본인부담 20% · 비우면 순응중(50%) · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 되돌아갑니다"></label>`:''}
         ${on('device')?`<span><b>기기</b>${esc(p.device)}${p.model?` · ${esc(p.model)}`:''}</span>`:''}
-        ${on('mfg')?`<label><b>제조년월</b><input type="month" class="inline pdate" value="${p.mfgYm||''}" data-pf="mfgYm" data-id="${p.id}" title="관리번호 자동생성용"></label>`:''}
         ${p.addr?`<span title="${esc(p.addr)}">📍 ${esc(p.addr.length>26?p.addr.slice(0,26)+'…':p.addr)}</span>`:''}
       </div></td></tr>`:'';
       return `<tr>
@@ -1589,7 +1602,6 @@ function renderPatients(){
       ${c1('device',`<td>${esc(p.device)}${p.model?` <span class="hint">${esc(p.model)}</span>`:''}</td>`)}
       ${cell('pressure',`<td><input class="inline" style="width:58px" value="${esc(p.pressure||'')}" data-pf="pressure" data-id="${p.id}" placeholder="4-15" title="처방압력 (예: 4-15) — 직접 수정 가능"></td>`)}
       ${cell('sn',`<td><input class="inline" style="width:72px" value="${esc(p.sn||'')}" data-pf="sn" data-id="${p.id}" title="직접 수정 가능"></td>`)}
-      ${c1('mfg',`<td><input type="month" class="inline pdate" style="width:118px" value="${p.mfgYm||''}" data-pf="mfgYm" data-id="${p.id}" title="기기 제조년월 — 공단 양압기 관리번호(제조년월+S/N) 자동생성용${p.mfgYm&&p.sn?` · 관리번호 ${p.mfgYm.replace('-','')}${p.sn}`:''}"></td>`)}
       ${c1('rentStart',`<td><input type="date" class="inline pdate" value="${p.rentStart||''}" data-pf="rentStart" data-id="${p.id}" title="계약시작일 — 청구 일할계산 기준 · 비울 수 없음 · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 복귀 (처방 시작일도 함께 따라감)"></td>`)}
       ${c1('rentEnd',`<td><input type="date" class="inline pdate" value="${p.rentEnd||''}" data-pf="rentEnd" data-id="${p.id}" title="계약종료일(반납·해지) — 비우면 사용중 · 이 날까지만 청구 계산 · 바꾸면 월별 수기 일수 자동계산 복귀"></td>`)}
       ${c1('rxs',`<td><input type="date" class="inline pdate" value="${p.rxStart||''}" data-pf="rxStart" data-id="${p.id}" title="처방시작일 = 현재 처방(최근 재처방일). 재처방 받으면 종료일과 함께 갱신 · 순응통과일은 바꾸지 마세요 (첫 재처방일로 고정)"></td>`)}
@@ -1608,7 +1620,7 @@ function renderPatients(){
   $('#patTable').innerHTML=`
     <thead><tr><th>#</th>${th('mgmtCode','차트번호')}${th('name','성명')}
     ${cell('rrn','<th>주민번호</th>')}${cell('phone','<th>연락처</th>')}${c1('device',th('device','기기'))}
-    ${cell('pressure','<th>처방압력</th>')}${cell('sn','<th>S/N</th>')}${c1('mfg','<th>제조년월</th>')}${c1('rentStart',th('rentStart','계약시작'))}${c1('rentEnd',th('rentEnd','계약종료'))}
+    ${cell('pressure','<th>처방압력</th>')}${cell('sn','<th>S/N</th>')}${c1('rentStart',th('rentStart','계약시작'))}${c1('rentEnd',th('rentEnd','계약종료'))}
     ${c1('rxs',th('rxs','처방시작'))}${c1('rx',th('rx','처방종료'))}${c1('pass',th('pass','순응통과'))}${cell('pay',th('pay','결제'))}
     ${cell('branch',th('branch','지사'))}${cell('staff',th('staff','담당자'))}${cell('status',th('status','상태'))}<th></th></tr></thead>
     <tbody>${body||`<tr><td colspan="${nCols}" style="text-align:center;color:var(--muted);padding:26px">등록된 환자가 없습니다.</td></tr>`}</tbody>`;
@@ -1863,7 +1875,7 @@ function openPatModal(id){
       <div><label>모델명</label><input id="f_model" value="${esc(p.model||'')}"></div>
       <div><label>처방압력 <span style="font-weight:400">(cmH₂O, 예: 4-15)</span></label><input id="f_pressure" value="${esc(p.pressure!==undefined?p.pressure:defaultPressure())}" placeholder="4-15"></div>
       <div><label>S/N (기기번호)</label><input id="f_sn" value="${esc(p.sn||'')}"></div>
-      <div><label>기기 제조년월 <span style="font-weight:400">(공단 관리번호 자동생성용)</span></label><input type="month" id="f_mfg" value="${p.mfgYm||''}"></div>
+      <div><label>기기 제조년월 <span style="font-weight:400">(참고 · 관리번호는 S/N)</span></label><input type="month" id="f_mfg" value="${p.mfgYm||''}"></div>
       <div><label>결제 방식</label>
         <div class="seg2" id="f_pay">
           <button type="button" data-v="cash" class="${p.payMethod!=='card'?'on':''}">현금영수증</button>
