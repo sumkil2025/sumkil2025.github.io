@@ -555,7 +555,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.05.9';
+const APP_VERSION='2026.09.05.10';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -2097,9 +2097,9 @@ $('#btnImportHelp').onclick=e=>{
         <tr><td><b>현금영수증내역_YYYYMM.xlsx</b><br><b>세금계산서내역_YYYYMM.xlsx</b></td>
           <td>LMTS → 발행 내역</td>
           <td>[LMTS 대사]로 이동 → 계산액과 <b>실제 발행액 대조</b>. [📥 월별 청구에 반영]을 누르면 이 자료만으로 환자·일수·요율·마스크가 채워집니다</td></tr>
-        <tr><td><b>매출내역(YYYYMMDD~).xls</b><br><b>매출전자세금계산서목록.xls</b></td>
+        <tr><td><b>현금영수증발급결과상세조회(…).xls</b><div class="hint">(매출내역(…).xls도 가능)</div><br><b>매출전자세금계산서목록.xls</b></td>
           <td>홈택스 → 발행 후 조회</td>
-          <td><b>현금영수증·세금계산서 승인번호</b>를 환자별·구간별로 자동 등록 → 공단 청구 화면에 붙여넣기. 세금계산서는 <b>발급일자</b>(+품목 기간으로 구간 판별), 현금영수증은 <b>작성일자(매출일시)</b>도 함께 저장<div class="hint">현금영수증 신분확인 뒤4자리는 연락처 뒤 4자리로도 찾습니다 · 월 합산 1장이면 ⚠️ 표시</div></td></tr>
+          <td><b>현금영수증·세금계산서 승인번호</b>를 환자별·구간별로 자동 등록 → 공단 청구 화면에 붙여넣기. 세금계산서는 <b>발급일자</b>(+품목 기간으로 구간 판별), 현금영수증은 <b>작성일자(매출일시)</b>도 함께 저장<div class="hint">현금영수증은 <b>발급결과상세조회</b> 파일이 좋습니다 — 메모의 이름·청구월(예: 이성행 양압기 대여료 2026.08)로 바로 찾음. 매출내역 파일은 이름이 없어 연락처/주민번호 뒤 4자리로만 찾습니다 · 월 합산 1장이면 ⚠️ 표시</div></td></tr>
         <tr><td><b>순응중 관리.xlsx</b></td><td>LMTS → 순응중 관리</td>
           <td><b>연속 30일 통과기간(통과시작~종료)·4시간 이상 사용일·순응판정일</b> · 순응기간(순응시작~종료 = 순응중 처방기간) · PSG 검사일 · 상태(순응중/통과/실패) → 환자 정보에 저장, 보조창 처방정보 아래에 표시<div class="hint">공단 순응후 처방 청구에 필요한 값의 공식 출처</div></td></tr>
         <tr><td><b>순응후관리.xlsx</b></td><td>LMTS → 순응후관리</td>
@@ -2181,6 +2181,7 @@ function tryImportSheets(sheets,fname){
       if(hn.includes('관리코드')&&hn.includes('계약시작일')&&hn.includes('성명')){importCustomerInfo(aoa.slice(hr),h,fname);return true;}
       /* 국세청 홈택스 — 발급 후 받는 승인번호 자료 */
       if(hn.includes('승인번호')&&hn.includes('신분확인뒷4자리')){importApproval('cash',aoa.slice(hr),h,fname);return true;}
+      if(hn.includes('승인번호')&&hn.includes('발급수단')&&(hn.includes('총거래금액')||hn.includes('발급결과'))){importApproval('cash',aoa.slice(hr),h,fname);return true;}
       if(hn.includes('승인번호')&&hn.includes('공급받는자사업자등록번호')){importApproval('tax',aoa.slice(hr),h,fname);return true;}
     }
   }
@@ -2341,13 +2342,23 @@ function importApproval(kind,aoa,h,fname){
   const num=v=>Number(String(v).replace(/[^\d.-]/g,''))||0;
   const recs=[];
   if(kind==='cash'){
-    const iLast4=col('신분확인뒷4자리'),iTot=col('총금액'),iDate=col('매출일시'),iKindCol=col('거래구분');
+    /* 홈택스 두 형식: ① 매출내역(신분확인뒷4자리·총금액·매출일시) ② 발급결과상세조회(발급수단 '010****0109'·총거래금액·거래일시·발급결과·메모 '이름 양압기 대여료 2026.08') — ②가 이름·청구월이 있어 매칭이 확실 */
+    const iLast4=col('신분확인뒷4자리')>=0?col('신분확인뒷4자리'):col('발급수단'),
+          iTot=col('총금액')>=0?col('총금액'):col('총거래금액'),
+          iDate=col('매출일시')>=0?col('매출일시'):col('거래일시'),
+          iKindCol=col('거래구분'),iRes=col('발급결과'),iMemo=col('메모');
     for(let r=1;r<aoa.length;r++){
       const row=aoa[r],app=String(row[iApp]||'').trim();
       if(!app)continue;
       const st=String(iKindCol>=0?row[iKindCol]||'':'');
       if(st.includes('취소'))continue;               /* 취소거래 제외 */
-      recs.push({app,last4:digits(row[iLast4]).slice(-4),amt:num(row[iTot]),when:String(row[iDate]||''),date:ymd8(String(row[iDate]||'').slice(0,10))});
+      const res=String(iRes>=0?row[iRes]||'':'');
+      if(res&&/실패|오류|거부/.test(res))continue;     /* 발급 실패분 제외 */
+      const memo=String(iMemo>=0?row[iMemo]||'':'').trim();
+      const nm=(memo.match(/^([가-힣]{2,5})(?=\s|$)/)||[])[1]||'';
+      const ymm=memo.match(/(20\d{2})[.\-\/](\d{1,2})/);
+      recs.push({app,last4:digits(row[iLast4]).slice(-4),amt:num(row[iTot]),when:String(row[iDate]||''),date:ymd8(String(row[iDate]||'').slice(0,10)),
+        name:nm,ym:ymm?`${ymm[1]}-${ymm[2].padStart(2,'0')}`:null,memo});
     }
   }else{
     const iRrn=col('공급받는자사업자등록번호'),iName=hn.lastIndexOf('상호'),iDate=col('작성일자'),iIssue=col('발급일자'),iTot=col('합계금액'),iItem=col('품목명'),iCls=col('전자세금계산서분류');
@@ -2393,11 +2404,13 @@ function importApproval(kind,aoa,h,fname){
       if(!cand.length&&rec.code){cand=state.patients.filter(p=>p.mgmtCode===rec.code);via='차트번호';}
       if(!cand.length&&rec.name){cand=state.patients.filter(p=>p.name===rec.name);via='이름';}
     }else{
-      cand=state.patients.filter(p=>digits(p.rrn).length===13&&digits(p.rrn).slice(-4)===rec.last4);via='주민번호 뒤4자리';
-      if(!cand.length){cand=state.patients.filter(p=>digits(p.phone).length>=10&&digits(p.phone).slice(-4)===rec.last4);via='연락처 뒤4자리';}
+      if(rec.name){cand=state.patients.filter(p=>p.name===rec.name);via='메모 이름';
+        if(cand.length>1&&rec.last4)cand=cand.filter(p=>digits(p.phone).slice(-4)===rec.last4||digits(p.rrn).slice(-4)===rec.last4);}
+      if(!cand.length&&rec.last4){cand=state.patients.filter(p=>digits(p.rrn).length===13&&digits(p.rrn).slice(-4)===rec.last4);via='주민번호 뒤4자리';}
+      if(!cand.length&&rec.last4){cand=state.patients.filter(p=>digits(p.phone).length>=10&&digits(p.phone).slice(-4)===rec.last4);via='연락처 뒤4자리';}
     }
-    /* ② 월·구간 찾기 — 금액이 맞는 청구 단위 */
-    const months=(kind==='tax'&&rec.date)?[rec.date.slice(0,7),...cands]:cands;
+    /* ② 월·구간 찾기 — 금액이 맞는 청구 단위 (메모에 청구월이 있으면 그 달부터) */
+    const months=rec.ym?[rec.ym,...cands.filter(m=>m!==rec.ym)]:((kind==='tax'&&rec.date)?[rec.date.slice(0,7),...cands]:cands);
     /* 구간 금액이 맞으면 그 구간에. 현금영수증이 월 합산 한 장으로 잘못 발행됐으면(구간 합계 = 금액) 기록은 하되 경고 */
     const findUnit=(p,ym)=>{const us=unitsOf(p,ym);
       /* 세금계산서: 품목의 임대기간이 구간과 같으면 그 구간 (금액이 달라도 기록하고 경고) */
@@ -2427,7 +2440,7 @@ function importApproval(kind,aoa,h,fname){
       const who=cand.length?cand[0].name:(rec.name||`뒤4자리 ${rec.last4||''}`);
       miss.push(cand.length
         ?`· ${who} — 승인 ${rec.app} (${won(rec.amt)}원): 금액이 맞는 청구월·구간을 찾지 못함`
-        :`· ${who} — 승인 ${rec.app} (${won(rec.amt)}원): 해당 환자를 찾지 못함${kind==='cash'?' (주민번호 13자리 입력 필요)':''}`);
+        :`· ${who} — 승인 ${rec.app} (${won(rec.amt)}원): 해당 환자를 찾지 못함${kind==='cash'?(rec.name?' (메모의 이름과 차트 이름이 다름)':' (연락처 또는 주민번호 13자리 입력 필요)'):''}`);
       continue;
     }
     for(const kk of hit.ks){
