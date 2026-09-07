@@ -561,7 +561,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.07.1';
+const APP_VERSION='2026.09.07.2';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -603,6 +603,8 @@ const parseHM=v=>{
   if(typeof v==='number')return Math.round(v);
   const s=String(v).trim(),h=s.match(/(\d+)\s*시간/),m=s.match(/(\d+)\s*분/);
   if(h||m)return (h?+h[1]:0)*60+(m?+m[1]:0);
+  const c=s.match(/^(\d{1,3}):(\d{1,2})$/);if(c)return +c[1]*60+ +c[2];   /* 1:59 → 119분 */
+  if(!/\d/.test(s))return null;                                            /* '—' 등 숫자 없음 = 결측 */
   const n=Number(s.replace(/[^\d.]/g,''));return isNaN(n)?null:Math.round(n);
 };
 const hm=m=>m==null?'':`${Math.floor(m/60)}시간${String(m%60).padStart(2,'0')}분`;
@@ -716,6 +718,10 @@ function calcPatientMonth(p,ym,ov){
   }else{ r1=(pass&&pass<=s)?.2:.5; r2=.2; autoD1=days; autoD2=0; }
   let d1=(ov.d1===''||ov.d1==null)?autoD1:Number(ov.d1);
   let d2=(ov.d2===''||ov.d2==null)?autoD2:Number(ov.d2);
+  if(!(d1>=0))d1=0;if(!(d2>=0))d2=0;d1=Math.floor(d1);d2=Math.floor(d2);
+  /* 수기 일수 합계가 이 달 임대일수를 넘으면 초과분을 잘라내고 경고 — 과다 산정 방지 */
+  let dayWarn=null;
+  if(d1+d2>days){dayWarn=`구간 일수 합계 ${d1+d2}일 > 이 달 임대일수 ${days}일 — ${days}일로 계산`;const over=d1+d2-days;if(d2>=over)d2-=over;else{d1-=(over-d2);d2=0;}}
   /* 해외일: 출·입국 날짜가 있으면 그걸로 계산, 없으면 직접 입력값 */
   const abroadRaw=hasTrips(ov)?abroadDaysIn(ov.trips,s,e):Number(ov.abroad||0);
   let t1,t2;
@@ -768,7 +774,7 @@ function calcPatientMonth(p,ym,ov){
   c.rentBase=sum('base');c.rentBonin=sum('rentBonin');c.rentGong=sum('rentGong');c.abAmt=sum('abAmt');
   c.bonin=sum('bonin');c.gong=sum('gong');c.total=sum('total');
   if(selfFull)c.selfFull=true;
-  return {active:true,s,e,days,N,B,split:(d2>0),d1,d2,r1,r2,autoD1,autoD2,abroad,mask,maskSeg,units,cut,
+  return {active:true,dayWarn,s,e,days,N,B,split:(d2>0),d1,d2,r1,r2,autoD1,autoD2,abroad,mask,maskSeg,units,cut,
     fullMonth,postAdapt,avgMin,age,exempt,ruleHit,...c};
 }
 
@@ -851,9 +857,9 @@ function ensureDefaults(){
     }
   }
 }
-let persistTimer=null,persistDirty=false;
+let persistTimer=null,persistDirty=false,persistVer=0,persistBusy=false;
 function persist(){
-  persistDirty=true;
+  persistDirty=true;persistVer++;          /* 변경 번호 — 암호화 도중 들어온 입력을 '저장됨'으로 오인하지 않게 */
   clearTimeout(persistTimer);
   persistTimer=setTimeout(flushPersist,300);
 }
@@ -861,6 +867,7 @@ let quotaWarned=false;
 async function flushPersist(){
   clearTimeout(persistTimer);
   if(!persistDirty||!cryptoKey||!state)return;
+  if(persistBusy){persistTimer=setTimeout(flushPersist,120);return;}   /* 한 번에 하나씩 */
   /* 저장소가 외부에서 지워졌어도(사이트 데이터 삭제 등) 복구 가능한 형태로 재작성 */
   let store=null;
   try{store=JSON.parse(localStorage.getItem(LSKEY)||'null');}catch(e){}
@@ -868,10 +875,19 @@ async function flushPersist(){
     if(!saltMeta)return;
     store={v:1,salt:saltMeta.salt,iter:saltMeta.iter,check:saltMeta.check};
   }
+  /* 다른 창에서 비밀번호를 바꿨으면(암호화 정보 불일치) 옛 키로 덮어쓰지 않는다 — 새 비밀번호로 열어야 함 */
+  if(saltMeta&&store.check&&JSON.stringify(store.check)!==JSON.stringify(saltMeta.check)){
+    if(!quotaWarned){quotaWarned=true;showMsg('⚠️ 저장 중단 — 비밀번호가 다른 창에서 변경됨','다른 창에서 비밀번호가 바뀌어 이 창의 변경분은 저장하지 않습니다.\n이 창을 닫고 새 비밀번호로 다시 여세요. (지금 화면의 값이 꼭 필요하면 [설정 → 암호화 백업 내려받기]로 먼저 파일 보관)');}
+    throw new Error('key-changed');
+  }
+  persistBusy=true;
+  const ver=persistVer;
   try{
     store.data=await encObj(cryptoKey,state);
     localStorage.setItem(LSKEY,JSON.stringify(store));
-    persistDirty=false;quotaWarned=false;
+    if(persistVer===ver)persistDirty=false;                  /* 암호화 중 새 입력이 있었으면 dirty 유지 → 곧 다시 저장 */
+    else persistTimer=setTimeout(flushPersist,50);
+    quotaWarned=false;
   }catch(e){
     /* 조용히 실패하면 자료가 사라진 줄도 모른다 — 반드시 알린다 (안내창은 줄서기라 다른 창을 지우지 않음) */
     if(!quotaWarned){
@@ -887,9 +903,16 @@ async function flushPersist(){
         +`\n\n백업을 받기 전에는 창을 닫지 마세요.`);
     }
     throw e;
-  }
+  }finally{persistBusy=false;}
 }
 window.addEventListener('pagehide',()=>{flushPersist();});
+/* 다른 창에서 비밀번호가 바뀌면(저장소의 암호화 정보 변경) 이 창은 저장 없이 잠근다 */
+window.addEventListener('storage',e=>{
+  if(e.key!==LSKEY||!state||!saltMeta)return;
+  try{const st=JSON.parse(e.newValue||'null');
+    if(st&&st.check&&JSON.stringify(st.check)!==JSON.stringify(saltMeta.check)){forceLock=true;showMsg('다른 창에서 비밀번호 변경','다른 창에서 비밀번호가 바뀌었습니다. 이 창은 저장하지 않고 잠급니다 — 새 비밀번호로 다시 여세요.');lockApp();}
+  }catch(x){}
+});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushPersist();});
 
 function armAutolock(){
@@ -904,11 +927,19 @@ function commitActiveEdit(){
   const ae=document.activeElement;
   if(ae&&ae.dataset&&ae.dataset.pf&&ae.blur)ae.blur();
 }
+let forceLock=false;
 async function lockApp(){
   commitActiveEdit();
-  try{await flushPersist();}
-  catch(e){armAutolock();return;}   /* 저장 안 된 채 잠그면 방금 입력분이 사라진다 — 경고창을 보게 두고 잠금 중단 */
+  if(!forceLock){
+    try{await flushPersist();}
+    catch(e){armAutolock();return;}   /* 저장 안 된 채 잠그면 방금 입력분이 사라진다 — 경고창을 보게 두고 잠금 중단 */
+  }
+  forceLock=false;
   $('#dlgHost').innerHTML='';$('#modalHost').innerHTML='';   /* 열린 창 정리 — 잠금 뒤 이전 세션 데이터 조작 방지 */
+  /* 화면에 남은 평문(환자표·미리보기·대사 결과)도 비운다 — 잠금은 가리기가 아니라 지우기 */
+  ['#patTable','#monthTable','#cashPrev','#cardPrev','#taxPrev','#reconOut','#monthChips'].forEach(id=>{const el=$(id);if(el)el.innerHTML='';});
+  if($('#patSearch'))$('#patSearch').value='';
+  reconState.cash=null;reconState.tax=null;
   cryptoKey=null;state=null;saltMeta=null;
   $('#app').classList.add('hidden');
   $('#lockScreen').classList.remove('hidden');
@@ -1047,6 +1078,7 @@ function renderMonth(){
       ${(c.split||c.d2>0||(p.passDate&&p.passDate>c.s&&p.passDate<=c.e))?`
         <span class="badge ${c.r2===.5?'b50':'b20'}">${c.r2===.5?'50%':'20%'}</span>
         <input type="number" min="0" max="31" value="${c.d2}" data-f="d2" data-id="${p.id}" title="자동: ${c.autoD2}일">`:''}
+      ${c.dayWarn?`<span class="badge warn" title="${esc(c.dayWarn)}">⚠️ 일수 초과</span>`:''}
     `;
     const yearMaskDup=maskDupWarn(p.id,ym,c.mask);
     const pr=state.settings.prices,maskGong=pr.maskBase-pr.maskBonin;
@@ -2342,7 +2374,7 @@ function importApproval(kind,aoa,h,fname){
   const hn=h.map(normH),col=k=>hn.indexOf(k);
   const iApp=col('승인번호');
   const num=v=>Number(String(v).replace(/[^\d.-]/g,''))||0;
-  const recs=[];
+  const recs=[],cancelApps=new Set(),cancelRows=[];
   if(kind==='cash'){
     /* 홈택스 두 형식: ① 매출내역(신분확인뒷4자리·총금액·매출일시) ② 발급결과상세조회(발급수단 '010****0109'·총거래금액·거래일시·발급결과·메모 '이름 양압기 대여료 2026.08') — ②가 이름·청구월이 있어 매칭이 확실 */
     const iLast4=col('신분확인뒷4자리')>=0?col('신분확인뒷4자리'):col('발급수단'),
@@ -2353,8 +2385,8 @@ function importApproval(kind,aoa,h,fname){
       const row=aoa[r],app=String(row[iApp]||'').trim();
       if(!app)continue;
       const st=String(iKindCol>=0?row[iKindCol]||'':'');
-      if(st.includes('취소'))continue;               /* 취소거래 제외 */
       const res=String(iRes>=0?row[iRes]||'':'');
+      if(st.includes('취소')){cancelApps.add(app);cancelRows.push({app,amt:num(row[iTot])});continue;}   /* 취소거래: 같은 승인번호의 원거래를 무효화 */
       if(res&&/실패|오류|거부/.test(res))continue;     /* 발급 실패분 제외 */
       const memo=String(iMemo>=0?row[iMemo]||'':'').trim();
       const nm=(memo.match(/^([가-힣]{2,5})(?=\s|$)/)||[])[1]||'';
@@ -2376,43 +2408,81 @@ function importApproval(kind,aoa,h,fname){
         s:rg?d6(rg[1]):null,e:rg?d6(rg[2]):null,mask:/마스크|카라|나잘|mask/i.test(item)});
     }
   }
-  if(!recs.length){showMsg('안내',`${fname}: 승인번호 자료를 찾지 못했습니다.`);return;}
-  /* 수정세금계산서 취소분(음수 금액)은 같은 사람·같은 금액의 원본과 상쇄 → 둘 다 등록 대상에서 제외 (실자료 2026-08: 월 합산 원본 4건 → 취소 4건 → 구간별 재발행) */
+  if(!recs.length&&!cancelRows.length){showMsg('안내',`${fname}: 승인번호 자료를 찾지 못했습니다.`);return;}
+  const field=kind==='cash'?'cashApprove':'taxApprove';
+  const label=kind==='cash'?'현금영수증':'세금계산서';
+  const amtKey=kind==='cash'?'bonin':'gong';
+  /* 차트에 이미 기록된 승인번호를 무효화 (취소 자료 반영) */
+  const revoked=[];
+  const revokeApp=(app,why)=>{
+    for(const ymk of Object.keys(state.months))for(const pid of Object.keys(state.months[ymk]||{})){
+      const ov=state.months[ymk][pid];const p=state.patients.find(x=>x.id===pid);
+      for(const kk of [1,2]){
+        if(uGet(ov,kk,field)===app){
+          uSet(ymk,pid,kk,{[field]:'',...(kind==='cash'?{cashDate:null}:{taxDate:null,taxIssue:null})});
+          revoked.push(`· ${p?p.name:pid} (${ymk}${ov.seg2?` 구간${kk}`:''}): 승인 ${app} 제거 — ${why}`);
+        }
+      }
+    }
+  };
+  /* 현금영수증: 취소거래 승인번호 = 원거래 승인번호 → 파일 안의 원거래도, 차트에 남은 기록도 무효 */
   const cancelled=[];
+  if(kind==='cash'){
+    for(const app of cancelApps){
+      const orig=recs.filter(r=>r.app===app);orig.forEach(r=>r.cancel=true);
+      revokeApp(app,'취소거래');
+      cancelled.push(`· 승인 ${app}: 취소거래${orig.length?` (이 파일의 원거래 ${won(orig[0].amt)} 함께 제외)`:''}`);
+    }
+  }
+  /* 세금계산서: 수정세금계산서 취소분(음수)은 같은 사람·같은 금액의 원본과 상쇄 → 둘 다 제외, 차트에 남은 원본 승인번호도 제거 */
   if(kind==='tax'){
     const key=r=>r.rrn||r.name;
     for(const n of recs.filter(r=>r.amt<0)){
       const cands=recs.filter(r=>r!==n&&!r.cancel&&r.amt===-n.amt&&key(r)===key(n))
         .sort((a,b)=>(/수정/.test(a.cls)?1:0)-(/수정/.test(b.cls)?1:0)||((a.issue||a.date||'')<(b.issue||b.date||'')?-1:1));
       n.cancel=true;
-      if(cands.length){cands[0].cancel=true;cancelled.push(`· ${n.name||n.rrn}: 원본 ${won(cands[0].amt)} (승인 ${cands[0].app}) ↔ 취소 ${won(n.amt)} (승인 ${n.app})`);}
-      else cancelled.push(`· ${n.name||n.rrn}: 취소분 ${won(n.amt)} (승인 ${n.app}) — 원본이 이 파일에 없음`);
+      if(cands.length){cands[0].cancel=true;revokeApp(cands[0].app,'수정세금계산서로 취소됨');cancelled.push(`· ${n.name||n.rrn}: 원본 ${won(cands[0].amt)} (승인 ${cands[0].app}) ↔ 취소 ${won(n.amt)} (승인 ${n.app})`);}
+      else{
+        /* 원본이 이 파일에 없으면 차트에서 같은 사람·같은 금액으로 기록된 승인번호를 찾아 제거 */
+        let hitP=null;
+        for(const ymk of Object.keys(state.months))for(const pid of Object.keys(state.months[ymk]||{})){
+          const p=state.patients.find(x=>x.id===pid);if(!p)continue;
+          if(!((n.rrn&&digits(p.rrn)===n.rrn)||(n.name&&p.name===n.name)))continue;
+          const c=calcPatientMonth(p,ymk,getOv(ymk,p.id));if(!c.active)continue;
+          for(const u of c.units){const ap=uGet(getOv(ymk,p.id),u.k,field);if(ap&&u.gong===-n.amt){hitP=ap;}}
+        }
+        if(hitP){revokeApp(hitP,`취소분 ${won(n.amt)} (승인 ${n.app})과 상쇄`);cancelled.push(`· ${n.name||n.rrn}: 취소분 ${won(n.amt)} (승인 ${n.app}) — 차트의 승인 ${hitP} 제거`);}
+        else cancelled.push(`· ${n.name||n.rrn}: 취소분 ${won(n.amt)} (승인 ${n.app}) — 원본을 파일·차트에서 찾지 못함 (수기 확인)`);
+      }
     }
   }
   const live=recs.filter(r=>!r.cancel);
-  const field=kind==='cash'?'cashApprove':'taxApprove';
-  const label=kind==='cash'?'현금영수증':'세금계산서';
-  const amtKey=kind==='cash'?'bonin':'gong';
   const sel=curYM();
-  /* 후보 월: 선택 월 → 전달 → 그 전달 (현금영수증엔 청구월 정보가 없어 금액으로 찾는다) */
+  /* 후보 월: 선택 월 → 전달 → 그 전달 → 다음 달 (청구월 정보가 없는 옛 현금영수증 형식에서만 사용) */
   const cands=[sel,ymAdd(sel,-1),ymAdd(sel,-2),ymAdd(sel,1)];
   const unitsOf=(p,ym)=>{const c=calcPatientMonth(p,ym,getOv(ym,p.id));return c.active?c.units:[];};
   let nOk=0;const done=[],miss=[],dup=[],warn=[];
   for(const rec of live){
-    /* ① 환자 찾기 */
-    let cand=[],via='';
+    /* ① 환자 찾기 — 문서에 적힌 식별정보(주민번호·차트번호·이름·뒤4자리)로만. 식별정보가 있는데 아무와도 안 맞으면 금액으로 추정하지 않는다 */
+    let cand=[],via='',hasId=false;
     if(kind==='tax'){
+      hasId=!!(rec.rrn||rec.code||rec.name);
       if(rec.rrn){cand=state.patients.filter(p=>digits(p.rrn)===rec.rrn);via='주민번호';}
       if(!cand.length&&rec.code){cand=state.patients.filter(p=>p.mgmtCode===rec.code);via='차트번호';}
       if(!cand.length&&rec.name){cand=state.patients.filter(p=>p.name===rec.name);via='이름';}
     }else{
+      hasId=!!rec.name;
       if(rec.name){cand=state.patients.filter(p=>p.name===rec.name);via='메모 이름';
         if(cand.length>1&&rec.last4)cand=cand.filter(p=>digits(p.phone).slice(-4)===rec.last4||digits(p.rrn).slice(-4)===rec.last4);}
-      if(!cand.length&&rec.last4){cand=state.patients.filter(p=>digits(p.rrn).length===13&&digits(p.rrn).slice(-4)===rec.last4);via='주민번호 뒤4자리';}
-      if(!cand.length&&rec.last4){cand=state.patients.filter(p=>digits(p.phone).length>=10&&digits(p.phone).slice(-4)===rec.last4);via='연락처 뒤4자리';}
+      if(!cand.length&&rec.last4){
+        /* 옛 형식의 '신분확인 뒤4자리'는 실자료상 휴대폰 번호 → 연락처 우선, 없으면 주민번호. 둘 다 맞는 사람이 여럿이면 뒤에서 보류 */
+        const byPhone=state.patients.filter(p=>digits(p.phone).length>=10&&digits(p.phone).slice(-4)===rec.last4);
+        const byRrn=state.patients.filter(p=>digits(p.rrn).length===13&&digits(p.rrn).slice(-4)===rec.last4);
+        cand=byPhone.length?byPhone:byRrn;via=byPhone.length?'연락처 뒤4자리':'주민번호 뒤4자리';
+      }
     }
-    /* ② 월·구간 찾기 — 금액이 맞는 청구 단위 (메모에 청구월이 있으면 그 달부터) */
-    const months=rec.ym?[rec.ym,...cands.filter(m=>m!==rec.ym)]:((kind==='tax'&&rec.date)?[rec.date.slice(0,7),...cands]:cands);
+    /* ② 월·구간 찾기 — 청구월이 문서에 있으면 그 달만 (세금계산서=작성일자의 달·그 전달, 현금영수증 메모=청구월) */
+    const months=rec.ym?[rec.ym]:((kind==='tax'&&rec.date)?[rec.date.slice(0,7),ymAdd(rec.date.slice(0,7),-1)]:cands);
     /* 구간 금액이 맞으면 그 구간에. 현금영수증이 월 합산 한 장으로 잘못 발행됐으면(구간 합계 = 금액) 기록은 하되 경고 */
     const findUnit=(p,ym)=>{const us=unitsOf(p,ym);
       /* 세금계산서: 품목의 임대기간이 구간과 같으면 그 구간 (금액이 달라도 기록하고 경고) */
@@ -2422,13 +2492,17 @@ function importApproval(kind,aoa,h,fname){
       if(u)return {p,ym,k:u.k,multi:u.multi,ks:[u.k]};
       if(kind==='cash'&&us.length>1&&us.reduce((a,x)=>a+x.bonin,0)===rec.amt)return {p,ym,k:0,multi:true,ks:us.map(x=>x.k),sum:true};
       return null;};
+    /* 후보마다 첫 일치 구간을 모으고, 서로 다른 환자에게서 일치가 나오면 자동 확정하지 않는다 */
+    let hits=[];
+    for(const p of cand){for(const ym of months){const h=findUnit(p,ym);if(h){hits.push(h);break;}}}
     let hit=null;
-    for(const p of cand){
-      for(const ym of months){const h=findUnit(p,ym);if(h){hit=h;break;}}
-      if(hit)break;
+    if(hits.length===1)hit=hits[0];
+    else if(hits.length>1){
+      miss.push(`· 승인 ${rec.app} (${won(rec.amt)}원): ${via}가 같은 환자가 여럿 — ${hits.map(x=>`${x.p.name}(${x.ym})`).join(', ')} · 어느 분인지 확인 후 월별 표에서 직접 입력`);
+      continue;
     }
-    /* ③ 폴백 — 주민번호가 없어도 그 달에 금액이 유일하면 그 사람으로 확정 */
-    if(!hit){
+    /* ③ 폴백 — 식별정보가 전혀 없는 옛 현금영수증 형식만: 그 달에 금액이 유일하면 그 사람으로 */
+    if(!hit&&!hasId&&!cand.length){
       const pairs=[];
       for(const ym of months)for(const p of state.patients){
         if(kind==='cash'&&(getOv(ym,p.id).payMethod||p.payMethod)==='card')continue;   /* 카드결제자는 현금영수증 대상 아님 */
@@ -2436,13 +2510,12 @@ function importApproval(kind,aoa,h,fname){
       }
       const uniq=[...new Map(pairs.map(x=>[x.p.id+'|'+x.ym+'|'+x.ks.join(),x])).values()];
       if(uniq.length===1){hit=uniq[0];via='금액 일치(단독)';}
-      else if(uniq.length>1&&cand.length){hit=null;}
     }
     if(!hit){
-      const who=cand.length?cand[0].name:(rec.name||`뒤4자리 ${rec.last4||''}`);
+      const who=cand.length?cand.map(p=>p.name).join('/'):(rec.name||`뒤4자리 ${rec.last4||''}`);
       miss.push(cand.length
-        ?`· ${who} — 승인 ${rec.app} (${won(rec.amt)}원): 금액이 맞는 청구월·구간을 찾지 못함`
-        :`· ${who} — 승인 ${rec.app} (${won(rec.amt)}원): 해당 환자를 찾지 못함${kind==='cash'?(rec.name?' (메모의 이름과 차트 이름이 다름)':' (연락처 또는 주민번호 13자리 입력 필요)'):''}`);
+        ?`· ${who} — 승인 ${rec.app} (${won(rec.amt)}원): ${months.join('·')}에 금액이 맞는 구간이 없음`
+        :`· ${who} — 승인 ${rec.app} (${won(rec.amt)}원): 해당 환자를 찾지 못함${kind==='cash'?(rec.name?' (메모의 이름과 차트 이름이 다름)':' (연락처 또는 주민번호 13자리 입력 필요)'):' (주민번호·이름이 차트와 다름)'}`);
       continue;
     }
     for(const kk of hit.ks){
@@ -2452,7 +2525,7 @@ function importApproval(kind,aoa,h,fname){
     }
     if(hit.amtDiff!=null)warn.push(`· ${hit.p.name} (${hit.ym}${hit.multi?` 구간${hit.k}`:''}): 세금계산서 합계 ${won(rec.amt)} ↔ 차트 공단부담 ${won(hit.amtDiff)} — 기간(${rec.s.slice(5)}~${rec.e.slice(5)})은 맞지만 금액이 다릅니다`);
     if(hit.sum)warn.push(`· ${hit.p.name} (${hit.ym}): 현금영수증이 월 합산 1장(${won(rec.amt)})으로 발행됨 — 순응중·순응후 구간별 2장이어야 합니다. 승인 ${rec.app}은 두 구간에 기록해 두었습니다`);
-    else done.push(`✓ ${hit.p.name} (${hit.ym}${hit.multi?` 구간${hit.k} ${hit.k===1?'순응중':'순응후'}`:''}) ${rec.app}${via&&via!=='주민번호'&&via!=='주민번호 뒤4자리'?` [${via}]`:''}`);
+    else done.push(`✓ ${hit.p.name} (${hit.ym}${hit.multi?` 구간${hit.k} ${hit.k===1?'순응중':'순응후'}`:''}) ${rec.app}${via&&via!=='주민번호'&&via!=='메모 이름'?` [${via}]`:''}`);
     nOk++;
   }
   /* 카드 결제자 안내 — 현금영수증이 없는 게 정상 */
@@ -2463,12 +2536,13 @@ function importApproval(kind,aoa,h,fname){
   }
   persist();renderAll();
   showMsg(`${label} 승인번호 가져오기`,
-    `${fname}\n${recs.length}건 중 ${nOk}건 등록`+(cancelled.length?` · 취소 상쇄 ${cancelled.length}쌍 제외`:'')+(miss.length?` · 미매칭 ${miss.length}건`:'')+(warn.length?` · ⚠️ 발행 방식 확인 ${warn.length}건`:'')
+    `${fname}\n${recs.length}건 중 ${nOk}건 등록`+(cancelled.length?` · 취소 ${cancelled.length}건 처리`:'')+(revoked.length?` · 차트 승인번호 제거 ${revoked.length}건`:'')+(miss.length?` · 확인 필요 ${miss.length}건`:'')+(warn.length?` · ⚠️ 발행 방식 확인 ${warn.length}건`:'')
     +`\n\n${done.join('\n')}`
-    +(cancelled.length?`\n\n[수정(취소) 세금계산서 — 원본과 상쇄되어 제외]\n${cancelled.join('\n')}`:'')
+    +(cancelled.length?`\n\n[취소·수정 문서 — 등록 대상에서 제외]\n${cancelled.join('\n')}`:'')
+    +(revoked.length?`\n\n[차트에서 제거된 승인번호]\n${revoked.join('\n')}`:'')
     +(warn.length?`\n\n[⚠️ 발행 방식 확인]\n${warn.join('\n')}`:'')
     +(dup.length?`\n\n[기존 값 교체]\n${dup.join('\n')}`:'')
-    +(miss.length?`\n\n[확인 필요]\n${miss.join('\n')}`:'')
+    +(miss.length?`\n\n[확인 필요 — 자동 등록하지 않음]\n${miss.join('\n')}`:'')
     +cardNote
     +`\n\n※ 승인번호는 [월별 청구] 표와 청구입력 보조창(📋)에서 확인·복사할 수 있습니다.`);
 }
@@ -2682,7 +2756,7 @@ const ymd8=v=>{
   if(!m){const d8=s.replace(/\D/g,'');if(d8.length===8)m=[0,d8.slice(0,4),d8.slice(4,6),d8.slice(6,8)];}
   if(!m)return null;
   const y=+m[1],mo=+m[2],dd=+m[3];
-  if(y<1900||y>2100||mo<1||mo>12||dd<1||dd>31)return null; /* 생년월일(1900년대) 포함 */
+  if(y<1900||y>2100||mo<1||mo>12||dd<1||dd>new Date(Date.UTC(y,mo,0)).getUTCDate())return null; /* 실제 달력 일수(윤년 포함) 검사 · 생년월일(1900년대) 포함 */
   return `${y}-${String(mo).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
 };
 /* 동명이인 안전 매칭: 관리코드 우선(이름도 대조), 이름은 유일할 때만 */
@@ -2786,6 +2860,9 @@ async function importMonthlyClaims(aoa,h,fname){
     const notes=[];
     const r50=rentRows.filter(a=>Math.abs(a.rate-0.5)<0.001),r20s=rentRows.filter(a=>Math.abs(a.rate-0.2)<0.001);
     const r20=r20s[0];
+    /* 지원하지 않는 부담율(차상위 경감·특례 등)은 자동 반영하지 않는다 — 50/20% 모델로 계산하면 틀린 금액이 나온다 */
+    const badRate=rentRows.filter(a=>!(Math.abs(a.rate-0.5)<0.001||Math.abs(a.rate-0.2)<0.001));
+    if(badRate.length){report.push(`⚠️ ${g.name}(${g.code}): 지원하지 않는 개인부담율 ${[...new Set(badRate.map(a=>Math.round(a.rate*100)+'%'))].join(', ')} — 이 달은 반영하지 않음 (차상위·특례 등은 수기 처리 후 확인)`);continue;}
     /* ── 순응통과일: 순응중·순응후가 같이 있는 달은 20% 청구행 시작일이 LMTS 공식 순응통과일 → 다르면 선택 ── */
     if(r20){
       if(!p.passDate){applyPassDate(p,r20.start);nPassSet++;notes.push(`순응통과일 ${r20.start} 설정`);}
@@ -2802,11 +2879,17 @@ async function importMonthlyClaims(aoa,h,fname){
     const d50=r50.reduce((s2,a)=>s2+a.days,0),d20=r20s.reduce((s2,a)=>s2+a.days,0);
     const ov={mask:g.B.length>0};
     if(g.B.length){if(g.B[0].item)ov.maskItem=g.B[0].item;if(g.B[0].spec)ov.maskSpec=g.B[0].spec;}
-    const useMin=rentRows.reduce((s2,a)=>s2+(a.useMin||0),0);
-    const avgLmts=Math.max(...rentRows.map(a=>a.avgMin||parseHM(a.avgText)||0),0);
-    const totDays=rentRows.reduce((s2,a)=>s2+a.days,0);
-    if(avgLmts>0)ov.avgMin=String(Math.round(avgLmts));
-    else if(useMin>0&&totDays>0)ov.avgMin=String(Math.round(useMin/totDays));
+    /* 평균사용시간: 순응후(20%) 행의 값이 기준 — '00시간00분'(0분)도 실제 값이라 그대로 반영. 순응중 행의 0은 '자료 없음' */
+    const postRows=rentRows.filter(a=>Math.abs(a.rate-0.2)<0.001);
+    const avgVals=postRows.map(a=>a.avgText!==''?parseHM(a.avgText):(a.avgMin>0?a.avgMin:null)).filter(v=>v!=null);
+    if(avgVals.length){const nv=String(Math.round(Math.max(...avgVals)));const pv=getOv(g.ym,p.id).avgMin;
+      if(pv!=null&&pv!==''&&pv!==nv)notes.push(`평균사용시간 ${hm(Number(pv))} → ${hm(Number(nv))}(LMTS)`);ov.avgMin=nv;}
+    else{
+      const useMin=rentRows.reduce((s2,a)=>s2+(a.useMin||0),0),totDays=rentRows.reduce((s2,a)=>s2+a.days,0);
+      const anyAvg=Math.max(...rentRows.map(a=>a.avgMin||parseHM(a.avgText)||0),0);
+      if(anyAvg>0)ov.avgMin=String(Math.round(anyAvg));
+      else if(useMin>0&&totDays>0)ov.avgMin=String(Math.round(useMin/totDays));
+    }
     if(d50&&d20){ov.d1=d50;ov.d2=d20;}
     else if(d50||d20){ov.d1=d50||d20;ov.d2=0;}
     else{ov.d1=null;ov.d2=null;} /* 청구행 없음 → 자동계산으로 복귀 */
@@ -2826,6 +2909,10 @@ async function importMonthlyClaims(aoa,h,fname){
       const overlap=rentRows.filter(a=>excRows.some(x=>a.start&&x.start&&a.start<=x.end&&x.start<=a.end));
       notes.push(`해외(EXC) ${abTot}일 [${excRows.map(a=>`${(a.start||'').slice(5)}~${(a.end||'').slice(5)}`).join(', ')}] → 전액 본인부담으로 반영`
         +(overlap.length?` · ⚠️ LMTS 요율 청구행(${overlap.map(a=>`${a.start.slice(5)}~${a.end.slice(5)} ${a.days}일`).join(', ')})이 해외기간을 아직 포함 — LMTS 확정 후 다시 가져와 검산하세요`:''));
+    }else{
+      /* LMTS 청구행에 해외가 없으면 이전에 들어간 해외 정보도 지운다 (수정된 자료 재입력 시 옛 해외일이 남지 않게) */
+      const prevOv=getOv(g.ym,p.id);
+      if(hasTrips(prevOv)||Number(prevOv.abroad||0)>0){ov.trips=null;ov.abroad=null;notes.push(`해외 정보 삭제 — LMTS 청구행에 해외(EXC) 없음 (이전 ${hasTrips(prevOv)?abroadDaysIn(prevOv.trips,'0000-00-00','9999-99-99')+'일(날짜)':prevOv.abroad+'일'})`);}
     }
     /* 마스크가 실린 청구행(구간): B행의 현금번호·계산서번호 순번 */
     if(g.B.length&&d50&&d20){
@@ -3232,6 +3319,8 @@ function parseReconFile(file){
    현금영수증내역 메모: "A00001_2607_A_1_이성행 양압기 마스크"           → 관리코드·이름·본인부담금·마스크 여부
    순응중·순응후가 같이 있는 달은 청구행이 2개(A_1, A_2) → 세금계산서·현금영수증도 각각 2건 */
 function applyReconToChart(){
+  if(reconState.tax&&reconState.cash&&reconState.tax.ym&&reconState.cash.ym&&reconState.tax.ym!==reconState.cash.ym){
+    showMsg('반영 중단 — 월이 다른 파일',`세금계산서내역은 ${reconState.tax.ym}, 현금영수증내역은 ${reconState.cash.ym} 자료입니다.\n같은 달 파일 두 개를 넣거나, 한 파일만 넣고 반영하세요.`);return;}
   const ym=(reconState.tax&&reconState.tax.ym)||(reconState.cash&&reconState.cash.ym)||curYM();
   if(!ym){showMsg('안내','대상 월을 알 수 없습니다.');return;}
   const N=ymN(ym),prices=state.settings.prices;
@@ -3774,9 +3863,13 @@ $('#btnChangePw').onclick=()=>{
 };
 $('#btnBackup').onclick=async()=>{
   state.settings.lastBackup=fd(new Date());
-  persist();               /* 변경 표시 — 안 하면 flushPersist가 그냥 지나쳐 백업 파일에 옛 데이터가 담긴다 */
-  await flushPersist();
-  const blob=new Blob([localStorage.getItem(LSKEY)],{type:'application/json'});
+  persist();
+  try{await flushPersist();}catch(e){/* 저장공간 부족 등으로 저장이 실패해도 백업은 아래에서 메모리 자료로 직접 만든다 */}
+  let meta=saltMeta;
+  if(!meta){try{const st=JSON.parse(localStorage.getItem(LSKEY)||'null');if(st&&st.salt)meta={salt:st.salt,iter:st.iter,check:st.check};}catch(e){}}
+  if(!meta||!cryptoKey){showMsg('백업 실패','암호화 정보를 찾을 수 없습니다. 비밀번호를 다시 설정한 뒤 시도하세요.');return;}
+  const pack={v:1,salt:meta.salt,iter:meta.iter,check:meta.check,data:await encObj(cryptoKey,state)};
+  const blob=new Blob([JSON.stringify(pack)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=`숨길차트백업_${fd(new Date()).replaceAll('-','')}.sumgilbak`;
@@ -3792,13 +3885,19 @@ $('#restoreFile').onchange=()=>{
       if(!store.salt||!store.check||!store.data)throw 0;
       const pw=await askModal('백업 복원','백업 당시 비밀번호를 입력하세요','', 'password');if(pw==null)return;
       const k=await deriveKey(pw,store.salt,store.iter);
-      await decObj(k,store.check);
-      if(!await confirmModal('백업 복원','현재 데이터를 백업 파일 내용으로 교체합니다. 계속할까요?','교체',true))return;
-      localStorage.setItem(LSKEY,rd.result);
-      cryptoKey=k;state=await decObj(k,store.data);persistDirty=false;
+      const chk=await decObj(k,store.check);
+      if(String(chk).indexOf('SUMGIL_OK')<0)throw 0;
+      /* 저장소를 바꾸기 전에 실제 자료까지 전부 복호화·구조 검사 — 손상된 파일이 정상 자료를 덮어쓰지 않게 */
+      const data=await decObj(k,store.data);
+      if(!data||typeof data!=='object'||!Array.isArray(data.patients)||!data.months||typeof data.months!=='object')throw 0;
+      if(!await confirmModal('백업 복원',`현재 데이터를 백업 파일 내용으로 교체합니다.\n(백업: 환자 ${data.patients.length}명 · 청구월 ${Object.keys(data.months).length}개)\n계속할까요?`,'교체',true))return;
+      try{const cur=localStorage.getItem(LSKEY);if(cur)localStorage.setItem(LSKEY+'.prev',cur);}catch(e){}   /* 직전 자료 1벌 보관 */
+      localStorage.setItem(LSKEY,JSON.stringify({v:1,salt:store.salt,iter:store.iter,check:store.check,data:store.data}));
+      cryptoKey=k;state=data;persistDirty=false;
       saltMeta={salt:store.salt,iter:store.iter,check:store.check};
-      showMsg('완료','복원이 끝났습니다.');renderAll();
-    }catch(e){showMsg('복원 실패','파일 또는 비밀번호를 확인하세요.');}
+      ensureDefaults();
+      showMsg('완료',`복원이 끝났습니다. (환자 ${state.patients.length}명)\n직전 자료는 브라우저에 1벌 보관되어 있습니다.`);renderAll();
+    }catch(e){showMsg('복원 실패','파일 또는 비밀번호를 확인하세요. 현재 자료는 그대로 유지됩니다.');}
     $('#restoreFile').value='';
   };
   rd.readAsText(f);
