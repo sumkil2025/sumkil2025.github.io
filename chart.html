@@ -193,6 +193,12 @@
   .chip .t{font-size:.72rem;color:var(--muted);font-weight:700}
   .chip .v{font-size:1.15rem;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
   .chip .v.pinky{color:var(--pink)}
+  .chip.todo{cursor:pointer;user-select:none}
+  .chip.todo:hover{border-color:var(--blue)}
+  .chip.todo.on{border-color:var(--navy);background:#f3f8ff;box-shadow:inset 0 0 0 2px #dfe8fa}
+  .chip.todo.zero{opacity:.55}
+  .todoWhy{flex-basis:100%;font-size:.8rem;color:var(--muted);line-height:1.7;padding:2px 4px}
+  .cvnav{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}
 
   /* ===== 모달 ===== */
   .modalBack{position:fixed;inset:0;background:rgba(15,25,60,.45);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
@@ -307,6 +313,7 @@
       <select id="mStaffFilter" title="담당자별 보기" style="width:120px"></select>
       <div class="spacer"></div>
       <button class="btn sm" id="btnMonthHelp" title="처음 쓰는 분을 위한 파일 안내 — 어떤 파일을 어디서 받아 넣는지">📖 파일 안내</button>
+      <button class="btn sm hidden" id="btnMonthUndo" style="border-color:var(--amber);color:#b45309">↩ 가져오기 되돌리기</button>
       <button class="btn sm" id="btnMonthApprove" title="홈택스 현금영수증 발급결과 상세조회·매출전자세금계산서목록(승인번호) / LMTS 순응후관리(평균사용시간) 파일 — 내용을 보고 자동 인식">📥 승인번호·순응후관리 가져오기</button>
       <button class="btn sm" id="btnTwoLine" title="한 환자를 두 줄로 표시하면 가로 스크롤이 줄어듭니다">⇕ 두 줄</button>
       <button class="btn sm" id="btnMonthXlsx">📤 월별 표 엑셀 내보내기</button>
@@ -350,6 +357,7 @@
         <div><b>고객현황 (N월)</b><span>예전에 쓰던 관리 엑셀 — 과거 자료 옮길 때</span></div>
       </div>
       <button class="btn sm" id="btnImportHelp" style="margin-top:10px">📖 어떤 파일을 어디서 받나요?</button>
+      <button class="btn sm hidden" id="btnImportUndo" style="margin-top:10px;margin-left:6px;border-color:var(--amber);color:#b45309">↩ 마지막 가져오기 되돌리기</button>
     </div>
     <input type="file" id="importFile" accept=".xlsx,.xls" multiple class="hidden">
     <div class="tblwrap"><table class="grid" id="patTable"></table></div>
@@ -368,6 +376,8 @@
         <option value="phone">휴대폰 번호</option>
         <option value="rrn">주민등록번호</option>
       </select>
+      <label style="font-size:.8rem;font-weight:700;margin-left:10px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="ntsOnlyNew"> 승인번호 없는 건만(미발행)</label>
+      <span id="ntsOnlyNote" class="hint"></span>
     </div>
     <div class="hint">홈택스 업로드 경로 — 현금영수증: 전자(세금)계산서·현금영수증·신용카드 → 현금영수증 발급 → 일괄발급 /
       세금계산서: 전자세금계산서 건별발급 대신 → 일괄발급(100건 이하). 생성 파일은 국세청 표준 양식 시트를 그대로 포함합니다.</div>
@@ -561,7 +571,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.07.3';
+const APP_VERSION='2026.09.08.1';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1052,6 +1062,28 @@ function monthRows(ym){
 }
 
 /* ================== 렌더: 월별 청구 ================== */
+/* 이번 달 할 일 판정 — 환자·월 행마다 어떤 대기 상태인지 (칩 클릭 → 해당 환자만 표시) */
+function todoOf(r){
+  const {p,ov,c}=r,card=(ov.payMethod||p.payMethod)==='card';
+  const need=[],miss=[];let issue=false,claimWait=false,pay=false;
+  if(c.dayWarn)need.push('구간 일수 초과');
+  if(c.units.length>1){const cas=c.units.map(x=>uGet(ov,x.k,'cashApprove'));if(cas.every(Boolean)&&new Set(cas).size===1)need.push('현금영수증 월 합산 1장');}
+  if(digits(p.rrn).length!==13)miss.push('주민번호 13자리');
+  if(!p.docName&&!p.doctor)miss.push('의사');
+  if(!p.branch)miss.push('지사');
+  for(const u of c.units){
+    if(u.frozen&&u.diff)need.push(`구간${u.k} 청구 당시와 계산 다름`);
+    if(u.rate===0.2){if(rxPeriodFor(p,u).stale)need.push('처방종료일 갱신 필요');if(c.avgMin==null)miss.push('순응후 평균사용시간');}
+    const cd=uGet(ov,u.k,'claimed'),ca=uGet(ov,u.k,'cashApprove'),ta=uGet(ov,u.k,'taxApprove');
+    const needC=!card&&u.bonin>0,needT=u.gong>0;
+    const docsOk=(!needC||!!ca)&&(!needT||!!ta);
+    if(!cd){if(!docsOk)issue=true;else if(needT)claimWait=true;}
+    else if((needT&&!uGet(ov,u.k,'taxPaid'))||(needC&&!uGet(ov,u.k,'cashPaid')))pay=true;
+  }
+  return {need:[...new Set(need)],miss:[...new Set(miss)],issue,claimWait,pay};
+}
+const TODO_DEFS=[['need','확인 필요','var(--red)'],['miss','자료 누락','#b45309'],['issue','발행 준비(승인번호 없음)','var(--blue)'],['claimWait','공단 청구 대기','var(--navy)'],['pay','입금 확인','var(--green)']];
+const todoHit=(r,k)=>{const t=r.todo&&r.todo[k];return Array.isArray(t)?t.length>0:!!t;};
 function renderMonth(){
   const ym=curYM();if(!ym)return;
   const [y,m]=ym.split('-');
@@ -1064,8 +1096,10 @@ function renderMonth(){
   $('#mStaffFilter').innerHTML=`<option value="">담당자 전체</option>`
     +list.map(s=>`<option value="${esc(s)}" ${mStaffFilter===s?'selected':''}>${esc(s)}</option>`).join('')
     +`<option value="(미지정)" ${mStaffFilter==='(미지정)'?'selected':''}>(미지정)</option>`;
-  const rows=monthRows(ym).filter(r=>!mStaffFilter
+  const rowsAll=monthRows(ym).filter(r=>!mStaffFilter
     ||(mStaffFilter==='(미지정)'?!(r.p.staff||'').trim():(r.p.staff||'').trim()===mStaffFilter));
+  rowsAll.forEach(r=>{r.todo=todoOf(r);});
+  const rows=mTodoFilter?rowsAll.filter(r=>todoHit(r,mTodoFilter)):rowsAll;
   let tP=0,tG=0,tT=0,nNew=0,maskCnt=0,nSplit=0,nUnits=0,nClaimed=0;
   const mS=ymFirst(ym),mE=ymLast(ym);
   const two=!!state.settings.monthTwoLine;
@@ -1197,7 +1231,11 @@ function renderMonth(){
       <td class="num money g">${won(tG)}</td><td></td>
       <td class="num money">${won(tT)}</td><td colspan="${two?2:6}"></td>
     </tr></tfoot>`:''}`;
+  const todoWhy=r=>{const t=r.todo;return mTodoFilter==='need'?t.need.join(', '):mTodoFilter==='miss'?t.miss.join(', '):mTodoFilter==='issue'?'승인번호 없음':mTodoFilter==='claimWait'?'증빙 완료 · 미청구':'미입금';};
   $('#monthChips').innerHTML=`
+    ${TODO_DEFS.map(([k,label,color])=>{const n=rowsAll.filter(r=>todoHit(r,k)).length;
+      return `<div class="chip todo${mTodoFilter===k?' on':''}${n?'':' zero'}" data-todo="${k}" title="누르면 해당 환자만 표시 (다시 누르면 해제)"><div class="t">${label}</div><div class="v" style="color:${n?color:'var(--muted)'}">${n}<span style="font-size:.8rem;font-weight:600">명</span></div></div>`;}).join('')}
+    ${mTodoFilter?`<div class="todoWhy">🔎 <b>${TODO_DEFS.find(d=>d[0]===mTodoFilter)[1]}</b> ${rows.length}명 — ${rows.slice(0,40).map(r=>`<b>${esc(r.p.name)}</b>: ${esc(todoWhy(r))}`).join(' · ')}${rows.length>40?' …':''} <button class="btn sm" data-todo="${mTodoFilter}" style="margin-left:8px">필터 해제</button></div>`:''}
     ${mStaffFilter?`<div class="chip" style="border-color:var(--blue);background:#f3f8ff">
       <div class="t">담당자 필터</div><div class="v" style="font-size:.95rem">${esc(mStaffFilter)}
       <span class="hint" style="display:block;font-weight:400">국세청 파일은 전체 기준</span></div></div>`:''}
@@ -1476,6 +1514,7 @@ function openClaimView(pid,k){
       <div>${cd
         ?`<span class="badge b20" style="font-size:.82rem">✓ 공단 청구 완료 ${esc(cd)}</span> <button class="btn sm" id="cvUnclaim" title="완료 표시를 되돌립니다 (확인창)">해제…</button>`
         :`<button class="btn" id="cvClaimDone" style="border-color:var(--green);color:var(--green)" title="건강보험공단 요양비 청구를 마쳤을 때 (확인창이 한 번 더 뜹니다)">✅ 공단 청구 완료로 표시…</button>`}</div>
+      <div class="cvnav"><button class="btn sm" id="cvPrev" title="이 달 표 순서로 이전 청구 건">◀ 이전</button><span id="cvPos"></span><button class="btn sm" id="cvNext" title="이 달 표 순서로 다음 청구 건">다음 ▶</button><button class="btn sm" id="cvNextOpen" title="아직 공단 청구 완료가 안 된 다음 건으로">다음 미청구 ▶▶</button></div>
       <button class="btn primary" id="cvClose">닫기</button>
     </div>
   </div></div>`;
@@ -1487,6 +1526,17 @@ function openClaimView(pid,k){
     `${p.name} · ${ym.replace('-','년 ')}월${segTxt}\n\n공단 청구 완료 표시를 해제할까요?`,'해제',true)
     .then(ok=>{if(!ok)return;setClaimed(ym,p,u.k,false);renderMonth();openClaimView(pid,k);});
   $('#cvClose').onclick=()=>$('#modalHost').innerHTML='';
+  /* 이전/다음 청구 건 — 월별 표 순서(구간 포함)로 이동, 창을 닫지 않아도 됨 */
+  {const seq=[];for(const rr of monthRows(ym))for(const uu of rr.c.units)seq.push({pid:rr.p.id,k:uu.multi?uu.k:0,claimed:!!uGet(rr.ov,uu.k,'claimed')});
+   const cur=seq.findIndex(x=>x.pid===pid&&x.k===(multi?u.k:0));
+   const go=i=>{if(i<0||i>=seq.length)return;openClaimView(seq[i].pid,seq[i].k);};
+   $('#cvPos').textContent=`${cur+1} / ${seq.length}`;
+   $('#cvPrev').disabled=cur<=0;$('#cvNext').disabled=cur>=seq.length-1;
+   $('#cvPrev').onclick=()=>go(cur-1);$('#cvNext').onclick=()=>go(cur+1);
+   const nxt=seq.findIndex((x,i)=>i>cur&&!x.claimed),wrap=seq.findIndex(x=>!x.claimed);
+   const target=nxt>=0?nxt:(wrap>=0&&wrap!==cur?wrap:-1);
+   $('#cvNextOpen').disabled=target<0;$('#cvNextOpen').title=target<0?'미청구 건이 더 없습니다':(nxt<0?'처음으로 돌아가 다음 미청구 건':'다음 미청구 건');
+   $('#cvNextOpen').onclick=()=>go(target);}
   $('#cvBack').onclick=e=>{if(e.target.id==='cvBack')$('#modalHost').innerHTML='';};
   $('#cvBack').addEventListener('click',async e=>{
     const v=e.target.closest('.cvv[data-copy]');if(!v)return;
@@ -1514,6 +1564,7 @@ function maskDupWarn(pid,ym,maskNow){
 }
 
 $('#mStaffFilter').addEventListener('change',()=>{mStaffFilter=$('#mStaffFilter').value;renderMonth();});
+$('#monthChips').addEventListener('click',e=>{const ch=e.target.closest('[data-todo]');if(!ch||!state)return;mTodoFilter=(mTodoFilter===ch.dataset.todo)?'':ch.dataset.todo;renderMonth();});
 $('#btnTwoLine').onclick=()=>{
   state.settings.monthTwoLine=!state.settings.monthTwoLine;
   persist();renderMonth();
@@ -1565,7 +1616,7 @@ let staffFilter='';
 let patSort={key:'mgmtCode',dir:1};
 /* 표를 다시 그린 뒤 되돌려줄 포커스 위치 {pf,id} */
 let pendingFocus=null;
-let mStaffFilter='';
+let mStaffFilter='',mTodoFilter='';
 function branchFaxOf(name){
   if(!name)return '';
   const rows=BRANCH_FAX.filter(r=>r.b===name||r.b===name.replace(/지사$/,'')||(r.b+'지사')===name||r.b.includes(name)||name.includes(r.b));
@@ -2190,13 +2241,15 @@ function showImportHelp(){
   setTimeout(()=>$('#hlpOk')&&$('#hlpOk').focus(),0);
 }
 $('#btnImportHelp').onclick=e=>{e.stopPropagation();showImportHelp();};
+$('#btnImportUndo').onclick=e=>{e.stopPropagation();confirmModal('가져오기 되돌리기',`${importUndo?importUndo.files.join(', '):''} 를 넣기 전 상태로 되돌릴까요?\n(그 뒤에 직접 고친 내용도 함께 사라집니다)`,'↩ 되돌리기',true).then(ok=>{if(ok)undoImport();});};
+$('#btnMonthUndo').onclick=()=>$('#btnImportUndo').onclick(new Event('click'));
 $('#btnMonthHelp').onclick=showImportHelp;
 $('#btnNtsHelp').onclick=showImportHelp;
 $('#btnImportChart').onclick=()=>$('#importFile').click();
 $('#btnMonthApprove').onclick=()=>$('#importFile').click();   /* 월별 청구에서도 같은 입구 — 승인번호 파일도 자동 인식 */
 $('#importFile').onchange=()=>{[...$('#importFile').files].forEach(routeFile);$('#importFile').value='';};
 $('#patDrop').addEventListener('click',e=>{      /* 드롭존을 눌러도 파일 선택이 열리게 */
-  if(e.target.closest('#btnImportHelp'))return;
+  if(e.target.closest('#btnImportHelp')||e.target.closest('#btnImportUndo'))return;
   $('#importFile').click();
 });
 ;['dragover','dragleave','drop'].forEach(ev=>$('#patDrop').addEventListener(ev,e=>{
@@ -2223,14 +2276,18 @@ function importAnyFile(file){
       wb.SheetNames.forEach(n=>sheets[n]=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:''}));
     }catch(e){console.warn('sheetjs read fail',e);}
     try{
-      if(sheets&&tryImportSheets(sheets,file.name))return;
+      beginImport(file.name);
+      const done=async r=>{if(r&&r.then)await r;afterImport();};
+      let r=sheets?tryImportSheets(sheets,file.name):null;
+      if(r){await done(r);return;}
       /* 폴백: 구버전 LMTS 파일의 비표준 XML → 자체 파서 */
       try{
         const raw=await rawParseXlsx(buf);
-        if(tryImportSheets(raw,file.name))return;
+        r=tryImportSheets(raw,file.name);
+        if(r){await done(r);return;}
       }catch(e){console.warn('raw parse fail',e);}
       /* 고객현황 (N월) 시트 */
-      if(wb)await importChartWb(wb);
+      if(wb){await importChartWb(wb);afterImport();}
       else showMsg('가져오기 실패',`${file.name}: 파일을 읽을 수 없습니다.\n엑셀에서 [다른 이름으로 저장]한 뒤 다시 시도해보세요.`);
     }catch(e){
       console.error('import fail',e);
@@ -2240,6 +2297,60 @@ function importAnyFile(file){
   rd.onerror=()=>showMsg('가져오기 실패',`${file.name}: 파일을 읽지 못했습니다.`);
   rd.readAsArrayBuffer(file);
 }
+/* ── 가져오기 되돌리기: 파일을 넣기 직전 상태를 1벌 보관(같은 묶음으로 3초 안에 넣은 파일은 하나로) → 결과 요약창에서 [되돌리기] 가능 ── */
+let importUndo=null,importSumTimer=null;
+function beginImport(fname){
+  if(!state)return;
+  if(importUndo&&Date.now()-importUndo.at<3000){importUndo.files.push(fname);return;}
+  importUndo={at:Date.now(),files:[fname],snap:JSON.stringify({patients:state.patients,months:state.months})};
+}
+const FIELD_KO={rrn:'주민번호',phone:'연락처',addr:'주소',birthDate:'생년월일',rentStart:'계약시작일',rentEnd:'계약종료일',rxStart:'처방시작일',rxEnd:'처방종료일',rxEndPrev:'이전 처방종료일',passDate:'순응통과일',pressure:'처방압력',model:'모델',sn:'S/N',device:'기기',mgmtCode:'차트번호',staff:'담당자',branch:'지사',branchFax:'지사팩스',docName:'의사',docLicense:'면허',docSpecNo:'전문의번호',hospital:'병원',doctor:'의사',maskType:'마스크종류',maskDate:'마스크구매일',maskMonth:'마스크구독월',adaptStart:'순응시작일',adaptEnd:'순응종료일',adaptWinStart:'통과기간시작',adaptWinEnd:'통과기간종료',adaptDays4h:'4시간 사용일',adaptJudge:'순응판정일',psgDate:'PSG검사일',nextVisit:'진료예정일',lastVisit:'최근진료일',adaptStatus:'순응상태',adaptRxType:'최종처방전',payMethod:'결제',cashIdNum:'현금영수증번호',cashUse:'용도',memo:'메모',
+  d1:'구간1 일수',d2:'구간2 일수',mask:'마스크',maskSeg:'마스크 구간',maskItem:'마스크 품목',maskSpec:'마스크 규격',abroad:'해외일',trips:'해외 출입국',avgMin:'평균사용시간',selfFull:'전액본인부담',cashApprove:'현금 승인번호',taxApprove:'세금 승인번호',cashDate:'현금 작성일',taxDate:'세금 작성일',taxIssue:'세금 발급일',cashPaid:'현금 입금',taxPaid:'세금 입금',claimed:'청구완료',snap:'청구 스냅샷',seg2:'구간2',lmts:'LMTS 요약',adapt:'LMTS 순응후'};
+const fko=k=>FIELD_KO[k]||k;
+const fmtV=v=>v==null||v===''?'—':(typeof v==='object'?(Array.isArray(v)?`[${v.length}]`:'{…}'):String(v));
+function diffState(before,after){
+  const lines=[];let nP=0,nM=0;
+  const bp=new Map(before.patients.map(x=>[x.id,x])),ap=new Map(after.patients.map(x=>[x.id,x]));
+  for(const [id,a] of ap){const b=bp.get(id);
+    if(!b){lines.push(`✚ ${a.name}: 신규 등록`);nP++;continue;}
+    const ch=[];for(const k of new Set([...Object.keys(a),...Object.keys(b)])){if(k==='id')continue;if(JSON.stringify(a[k]??null)!==JSON.stringify(b[k]??null))ch.push(`${fko(k)} ${fmtV(b[k])} → ${fmtV(a[k])}`);}
+    if(ch.length){nP++;lines.push(`· ${a.name}: ${ch.slice(0,6).join(', ')}${ch.length>6?` 외 ${ch.length-6}`:''}`);}}
+  for(const [id,b] of bp)if(!ap.has(id)){lines.push(`✖ ${b.name}: 삭제`);nP++;}
+  const name=id=>(ap.get(id)||bp.get(id)||{}).name||id;
+  for(const ym of new Set([...Object.keys(after.months||{}),...Object.keys(before.months||{})])){
+    const am=(after.months||{})[ym]||{},bm=(before.months||{})[ym]||{};
+    for(const id of new Set([...Object.keys(am),...Object.keys(bm)])){
+      const a=am[id]||{},b=bm[id]||{},ch=[];
+      for(const k of new Set([...Object.keys(a),...Object.keys(b)])){if(JSON.stringify(a[k]??null)!==JSON.stringify(b[k]??null))ch.push(`${fko(k)} ${fmtV(b[k])} → ${fmtV(a[k])}`);}
+      if(ch.length){nM++;lines.push(`· ${ym} ${name(id)}: ${ch.slice(0,6).join(', ')}${ch.length>6?` 외 ${ch.length-6}`:''}`);}}}
+  return {lines,nP,nM};
+}
+function updateUndoBtn(){
+  const on=!!(importUndo&&state);
+  ['#btnImportUndo','#btnMonthUndo'].forEach(id=>{const b=$(id);if(!b)return;b.classList.toggle('hidden',!on);
+    if(on)b.title=`${importUndo.files.join(', ')} 넣기 전 상태로 되돌립니다 (${new Date(importUndo.at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})})`;});
+}
+function afterImport(){
+  if(!importUndo||!state)return;
+  updateUndoBtn();
+  clearTimeout(importSumTimer);
+  importSumTimer=setTimeout(()=>{
+    if(!importUndo||!state)return;
+    const before=JSON.parse(importUndo.snap),{lines,nP,nM}=diffState(before,{patients:state.patients,months:state.months});
+    if(!lines.length){importUndo=null;updateUndoBtn();return;}
+    confirmModal('가져오기 변경 요약 — 확인 후 필요하면 되돌리기',
+      `${importUndo.files.join(', ')}\n환자 ${nP}명 · 청구월 항목 ${nM}건 변경\n\n${lines.slice(0,40).join('\n')}${lines.length>40?`\n… 외 ${lines.length-40}건`:''}\n\n[취소]를 누르면 이대로 두고, [↩ 되돌리기]를 누르면 이 파일(들)을 넣기 전으로 돌아갑니다.\n(되돌리기는 [환자 관리]·[월별 청구]의 ↩ 버튼으로 나중에도 할 수 있습니다)`,
+      '↩ 되돌리기',true).then(ok=>{if(ok)undoImport();});
+  },1500);
+}
+async function undoImport(){
+  if(!importUndo||!state)return;
+  const before=JSON.parse(importUndo.snap);
+  state.patients=before.patients;state.months=before.months;
+  const files=importUndo.files.join(', ');importUndo=null;
+  persist();renderAll();updateUndoBtn();
+  showMsg('되돌리기 완료',`${files} 를 넣기 전 상태로 돌아갔습니다.`);
+}
 const normH=x=>String(x).replace(/[\s*]/g,'');
 function tryImportSheets(sheets,fname){
   for(const nm of Object.keys(sheets)){
@@ -2247,15 +2358,15 @@ function tryImportSheets(sheets,fname){
     for(let hr=0;hr<Math.min(8,aoa.length);hr++){
       const h=aoa[hr]||[];
       const hn=h.map(normH);
-      if(hn.includes('적용기간시작일')&&hn.includes('평균사용시간')){importAdaptMgmt(aoa.slice(hr),h,fname);return true;}
-      if(hn.includes('통과시작일')&&hn.includes('4시간사용일')){importAdaptProgress(aoa.slice(hr),h,fname);return true;}
-      if(hn.includes('관리코드')&&hn.includes('청구번호')&&hn.includes('청구시작일')&&hn.includes('청구구분')){importMonthlyClaims(aoa.slice(hr),h,fname);return true;}
-      if(hn.includes('관리번호')&&(hn.includes('주민(외국인)번호')||hn.includes('현금발급번호'))){importIdMatch(aoa.slice(hr),fname);return true;}
-      if(hn.includes('관리코드')&&hn.includes('계약시작일')&&hn.includes('성명')){importCustomerInfo(aoa.slice(hr),h,fname);return true;}
+      if(hn.includes('적용기간시작일')&&hn.includes('평균사용시간')){return importAdaptMgmt(aoa.slice(hr),h,fname)||true;}
+      if(hn.includes('통과시작일')&&hn.includes('4시간사용일')){return importAdaptProgress(aoa.slice(hr),h,fname)||true;}
+      if(hn.includes('관리코드')&&hn.includes('청구번호')&&hn.includes('청구시작일')&&hn.includes('청구구분')){return importMonthlyClaims(aoa.slice(hr),h,fname)||true;}
+      if(hn.includes('관리번호')&&(hn.includes('주민(외국인)번호')||hn.includes('현금발급번호'))){return importIdMatch(aoa.slice(hr),fname)||true;}
+      if(hn.includes('관리코드')&&hn.includes('계약시작일')&&hn.includes('성명')){return importCustomerInfo(aoa.slice(hr),h,fname)||true;}
       /* 국세청 홈택스 — 발급 후 받는 승인번호 자료 */
-      if(hn.includes('승인번호')&&hn.includes('신분확인뒷4자리')){importApproval('cash',aoa.slice(hr),h,fname);return true;}
-      if(hn.includes('승인번호')&&hn.includes('발급수단')&&(hn.includes('총거래금액')||hn.includes('발급결과'))){importApproval('cash',aoa.slice(hr),h,fname);return true;}
-      if(hn.includes('승인번호')&&hn.includes('공급받는자사업자등록번호')){importApproval('tax',aoa.slice(hr),h,fname);return true;}
+      if(hn.includes('승인번호')&&hn.includes('신분확인뒷4자리')){return importApproval('cash',aoa.slice(hr),h,fname)||true;}
+      if(hn.includes('승인번호')&&hn.includes('발급수단')&&(hn.includes('총거래금액')||hn.includes('발급결과'))){return importApproval('cash',aoa.slice(hr),h,fname)||true;}
+      if(hn.includes('승인번호')&&hn.includes('공급받는자사업자등록번호')){return importApproval('tax',aoa.slice(hr),h,fname)||true;}
     }
   }
   return false;
@@ -3128,19 +3239,24 @@ async function importChartWb(wb){
 
 /* ================== 국세청 파일 ================== */
 /* 발행 대상 = 청구 단위(구간). 순응중·순응후가 같이 있는 달은 한 환자가 2건 */
-function ntsRows(ym){
+function ntsRows(ym,all){
   const rows=monthRows(ym);
-  const cash=[],card=[],tax=[];
+  const only=!all&&state.settings.ntsOnlyNew!==false;   /* 기본: 승인번호가 이미 있는(발행된) 건은 제외 — 재업로드로 이중발급 방지 */
+  const cash=[],card=[],tax=[];let skipC=0,skipT=0;
   for(const r of rows){
     const{p,ov,c}=r;
     const eff=ov.payMethod||p.payMethod; /* 월별 전환 우선 */
     for(const u of c.units){
       const x={...r,u,k:u.k,multi:c.units.length>1};
-      if(u.bonin>0){(eff==='card'?card:cash).push(x);}
-      if(u.gong>0)tax.push(x);
+      if(u.bonin>0){
+        if(eff==='card')card.push(x);
+        else if(only&&uGet(ov,u.k,'cashApprove'))skipC++;
+        else cash.push(x);
+      }
+      if(u.gong>0){if(only&&uGet(ov,u.k,'taxApprove'))skipT++;else tax.push(x);}
     }
   }
-  return {cash,card,tax};
+  return {cash,card,tax,skipC,skipT,only};
 }
 const segName=u=>u.multi?(u.rate===.5?'(순응중)':'(순응후)'):'';
 function cashMemo(p,u,ym){
@@ -3156,7 +3272,9 @@ function renderNts(){
   $('#ntsMonthLbl').textContent=`대상: ${ym.replace('-','년 ')}월`;
   if(!$('#ntsDate').value||!$('#ntsDate').value.startsWith(ym))$('#ntsDate').value=ymLast(ym);
   $('#ntsIdSrc').value=state.settings.cashIdSrc||'phone';
-  const {cash,card,tax}=ntsRows(ym);
+  $('#ntsOnlyNew').checked=state.settings.ntsOnlyNew!==false;
+  const {cash,card,tax,skipC,skipT,only}=ntsRows(ym);
+  $('#ntsOnlyNote').textContent=only?((skipC||skipT)?`이미 발행된 건 제외 — 현금영수증 ${skipC}건 · 세금계산서 ${skipT}건 (전체를 다시 만들려면 체크 해제)`:'이미 발행된 건 없음'):'⚠️ 발행된 건도 포함해 전체를 만듭니다 — 홈택스에 다시 올리면 이중발급됩니다';
   const idSrc=$('#ntsIdSrc').value;
   const nSplit=new Set([...cash,...card,...tax].filter(r=>r.multi).map(r=>r.p.id)).size;
   /* 현금영수증 미리보기 */
@@ -3220,6 +3338,7 @@ function tplWorkbook(which){
   }
   return wb;
 }
+$('#ntsOnlyNew').addEventListener('change',()=>{state.settings.ntsOnlyNew=$('#ntsOnlyNew').checked;persist();renderNts();});
 $('#btnCashXls').onclick=async()=>{
   const ym=curYM();const{cash}=ntsRows(ym);
   if(!cash.length){showMsg('안내','현금영수증 대상이 없습니다.');return;}
@@ -3363,6 +3482,7 @@ function applyReconToChart(){
     showMsg('반영 중단 — 월이 다른 파일',`세금계산서내역은 ${reconState.tax.ym}, 현금영수증내역은 ${reconState.cash.ym} 자료입니다.\n같은 달 파일 두 개를 넣거나, 한 파일만 넣고 반영하세요.`);return;}
   const ym=(reconState.tax&&reconState.tax.ym)||(reconState.cash&&reconState.cash.ym)||curYM();
   if(!ym){showMsg('안내','대상 월을 알 수 없습니다.');return;}
+  beginImport('LMTS 대사 반영');setTimeout(afterImport,0);
   const N=ymN(ym),prices=state.settings.prices;
   const map={},keyOf=r=>r.code||('이름:'+r.name);
   const slot=k=>map[k]||(map[k]={name:'',code:'',tax:[],cash:[]});
@@ -3952,6 +4072,7 @@ $('#btnWipe').onclick=async()=>{
 /* ================== 전체 렌더 ================== */
 function renderAll(){
   if(!state)return;
+  updateUndoBtn();
   const active=$('#tabs button.on').dataset.tab;
   if(active==='month')renderMonth();
   if(active==='patients')renderPatients();
