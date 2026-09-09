@@ -571,7 +571,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.09.1';
+const APP_VERSION='2026.09.09.2';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1474,11 +1474,12 @@ function openClaimView(pid,k){
     </div>
     <div class="cvsec">청구정보</div>
     <div class="cv3">
-      ${item('사업자등록번호',fmtBiz(st.supplier.regno),digits(st.supplier.regno))}${item('업체명',st.supplier.name)}${raw('사용기간',`${range(u.s,u.e)}<span class="hint">·</span>${chip(u.days+'일',u.days)}`)}
+      ${item('사업자등록번호',fmtBiz(st.supplier.regno),digits(st.supplier.regno))}${item('업체명',st.supplier.name)}${raw('사용기간',`${range(u.s,u.e)}<span class="hint">·</span>${chip(u.days+'일',u.days)}${u.abroadDays?`<span class="hint">청구</span>${chip(u.rentDays+'일',u.rentDays)}`:''}`)}
       ${raw('업체계약기간',range(rxS,rxE))}${item('구입총액',won(u.total),u.total)}${raw('월별 평균 사용시간',avgH!=null?`${chip(avgH+' 시간',avgH)}<span class="hint">(${hm(c.avgMin)})</span>`:'<span class="cvv empty">—</span>')}
       ${item('본인부담총액',won(u.bonin),u.bonin,'big')}${item('실본인부담총액','')}${item('공단부담총액',won(u.gong),u.gong,'big')}
       ${item('반납기간','')}${blank}${blank}
       ${aux('부담금 상세',[['기기대여 본인부담금',won(rentBonin),rentBonin],['마스크 본인부담금',u.mask?won(u.maskBonin):'',u.mask?u.maskBonin:null],['기기대여 공단부담금',won(u.rentGong),u.rentGong],['마스크 공단부담금',u.mask?won(u.maskGong):'',u.mask?u.maskGong:null]])}
+      ${u.abroadDays?aux('예외기간 (LMTS 공단청구리포트 항목과 동일)',[['예외기간',hasTrips(ov)?ov.trips.filter(t=>t&&t.dep&&t.arr).map(t=>`${dot(addDays(t.dep,1))}~${dot(addDays(t.arr,-1))}`).join(', '):'(일수만 입력됨)'],['청구제외일수',u.abroadDays+'일',u.abroadDays],['제외사유','해외체류','해외체류'],['제외일 본인부담(전액)',won(u.abAmt),u.abAmt]]):''}
     </div>
     <div class="cvsec">기기대여정보</div>
     <div class="cv3">
