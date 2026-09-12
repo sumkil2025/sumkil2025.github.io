@@ -571,7 +571,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.09.3';
+const APP_VERSION='2026.09.12.1';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -2170,13 +2170,13 @@ function askModal(title,body,defVal,type){
     $('#askVal').addEventListener('keydown',e=>{if(e.key==='Enter')$('#askOk').click();});
   });
 }
-function confirmModal(title,body,okLabel,danger){
+function confirmModal(title,body,okLabel,danger,noLabel){
   return dlgQueue((finish,mark)=>{
     $('#dlgHost').innerHTML=`<div class="modalBack" id="cfBack" data-mark="${mark}" style="z-index:70"><div class="modal" style="width:440px">
       <h3>${esc(title)}</h3>
       <div style="white-space:pre-wrap;font-size:.85rem;line-height:1.7">${esc(body)}</div>
-      <div class="actions"><button class="btn" id="cfNo">취소</button>
-      <button class="btn ${danger?'danger':'primary'}" id="cfYes">${esc(okLabel||'확인')}</button></div></div></div>`;
+      <div class="actions"><button class="btn${noLabel?' primary':''}" id="cfNo">${esc(noLabel||'취소')}</button>
+      <button class="btn ${danger?'danger':(noLabel?'':'primary')}" id="cfYes">${esc(okLabel||'확인')}</button></div></div></div>`;
     const done=v=>{$('#dlgHost').innerHTML='';finish(v);};
     $('#cfYes').onclick=()=>done(true);
     $('#cfNo').onclick=()=>done(false);
@@ -2350,8 +2350,8 @@ function afterImport(){
     const before=JSON.parse(importUndo.snap),{lines,nP,nM}=diffState(before,{patients:state.patients,months:state.months});
     if(!lines.length){importUndo=null;updateUndoBtn();return;}
     confirmModal('가져오기 변경 요약 — 확인 후 필요하면 되돌리기',
-      `${importUndo.files.join(', ')}\n환자 ${nP}명 · 청구월 항목 ${nM}건 변경\n\n${lines.slice(0,40).join('\n')}${lines.length>40?`\n… 외 ${lines.length-40}건`:''}\n\n[취소]를 누르면 이대로 두고, [↩ 되돌리기]를 누르면 이 파일(들)을 넣기 전으로 돌아갑니다.\n(되돌리기는 [환자 관리]·[월별 청구]의 ↩ 버튼으로 나중에도 할 수 있습니다)`,
-      '↩ 되돌리기',true).then(ok=>{if(ok)undoImport();});
+      `${importUndo.files.join(', ')}\n환자 ${nP}명 · 청구월 항목 ${nM}건 변경\n\n${lines.slice(0,40).join('\n')}${lines.length>40?`\n… 외 ${lines.length-40}건`:''}\n\n[그대로 반영]을 누르면 이 내용이 차트에 남고, [↩ 되돌리기]를 누르면 이 파일(들)을 넣기 전으로 돌아갑니다.\n(되돌리기는 [환자 관리]·[월별 청구]의 ↩ 버튼으로 나중에도 할 수 있습니다)`,
+      '↩ 되돌리기',true,'그대로 반영').then(ok=>{if(ok)undoImport();});
   },1500);
 }
 async function undoImport(){
