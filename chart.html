@@ -571,7 +571,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.13.1';
+const APP_VERSION='2026.09.13.2';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -774,6 +774,7 @@ function calcPatientMonth(p,ym,ov){
   const multi=defs.length>1;
   const cut=(multi&&pass&&pass>s&&pass<=e)?pass:null;      /* 구간 경계 = 순응통과(재처방) 시작일 */
   const maskSeg=multi?((Number(ov.maskSeg)===1)?1:2):1;   /* 마스크 기본: 뒤 구간(재처방 시점 교체가 흔함) */
+  const anyPost=defs.some(g=>g.ph==='post');
   const units=defs.map(g=>{
     const base=g.rent>0?baseAmt(B,g.rent,N):0;
     const rb=g.rent>0?boninAmt(B,g.rent,N,g.r):0;
@@ -784,7 +785,8 @@ function calcPatientMonth(p,ym,ov){
       days:g.d,rentDays:g.rent,abroadDays:g.ab,base,rentBonin:rb,rentGong:base-rb,abAmt:ab,
       mask:hasMask,maskBonin:mB,maskGong:mG,
       bonin:rb+ab+mB,gong:(base-rb)+mG,total:base+ab+(hasMask?prices.maskBase:0)};
-    if(selfFull){u.rentBonin=u.base;u.rentGong=0;u.maskBonin=hasMask?prices.maskBase:0;u.maskGong=0;u.bonin=u.total;u.gong=0;}
+    /* 2시간 규칙(요양비 미지급)은 순응후 구간에만 — 혼재 달의 순응중 구간은 정상 청구 */
+    if(selfFull&&(!anyPost||g.ph==='post')){u.rentBonin=u.base;u.rentGong=0;u.maskBonin=hasMask?prices.maskBase:0;u.maskGong=0;u.bonin=u.total;u.gong=0;u.selfFull=true;}
     return u;
   });
   /* 공단 청구 완료된 구간은 청구 당시 스냅샷으로 고정 — 이후 단가·처방·일수가 바뀌어도 그 달의 청구값은 흔들리지 않는다.
@@ -2967,7 +2969,7 @@ async function importMonthlyClaims(aoa,h,fname){
         iRxT=col('처방유형'),iPass=col('통과여부'),iAvgT=col('평균시간'),iConf=col('확정여부'),
         iBase=col('기본금액'),iAmt=col('사용기간금액'),iBonin=col('본인부담액'),iGong=col('공단부담액'),
         iPay=col('결제수단'),iCashNo=col('현금번호'),iBillNo=col('계산서번호'),iGP=col('공단수금'),iSP=col('개인수금'),
-        iLast=col('최종자료일'),iIssue=col('이슈'),iCond=col('청구조건'),iIns=col('보험자격');
+        iLast=col('최종자료일'),iIssue=col('이슈'),iCond=col('청구조건'),iIns=col('보험자격'),iIndv=col('개인구매액');
   const ext=iAmt>=0&&iBonin>=0&&iGong>=0;               /* 금액 열이 있는 확장 형식 */
   const num=v=>Number(String(v??'').replace(/[^\d.-]/g,''))||0;
   const seqOf=v=>{const m=String(v||'').match(/_[AB]_(\d+)/);return m?Number(m[1]):0;};
@@ -2991,7 +2993,7 @@ async function importMonthlyClaims(aoa,h,fname){
       base:num(g0(row,iBase)),amt:num(g0(row,iAmt)),bonin:num(g0(row,iBonin)),gong:num(g0(row,iGong)),
       pay:String(g0(row,iPay)||'').trim().toUpperCase(),cashNo:String(g0(row,iCashNo)||'').trim(),billNo:String(g0(row,iBillNo)||'').trim(),
       gp:String(g0(row,iGP)||'').trim().toUpperCase(),sp:String(g0(row,iSP)||'').trim().toUpperCase(),
-      last:ymd8(g0(row,iLast)),issue:String(g0(row,iIssue)||'').trim(),cond:String(g0(row,iCond)||'').trim(),insType:String(g0(row,iIns)||'').trim().toUpperCase()};
+      last:ymd8(g0(row,iLast)),issue:String(g0(row,iIssue)||'').trim(),cond:String(g0(row,iCond)||'').trim(),insType:String(g0(row,iIns)||'').trim().toUpperCase(),indv:num(g0(row,iIndv))};
     const kind=String(row[iKind]||'').trim().toUpperCase();
     (kind==='B'?groups[key].B:groups[key].A).push(rec);
   }
@@ -3000,7 +3002,7 @@ async function importMonthlyClaims(aoa,h,fname){
     const g=groups[key];
     /* 해외 체류(급여 정지) 청구행: 청구조건 EXC / 개인부담율 100% — 임대 요율 행과 분리
        (이슈 '해외'는 환자 단위로 모든 행에 찍히므로 판정에 쓰지 않음 — 실자료 2026-08 이성행) */
-    const isExc=a=>/^EXC/i.test(a.cond||'')||a.rate>=0.99;
+    const isExc=a=>/^EXC/i.test(a.cond||'');   /* 개인부담율 100%만으로는 해외가 아님 — 순응후 통과여부 N(2시간 미달)도 100%·개인구매액 (실자료 2026-09) */
     const rentAll=g.A.filter(a=>a.days>0&&a.start).sort((x,y)=>x.start<y.start?-1:1);
     const excRows=rentAll.filter(isExc),rentRows=rentAll.filter(a=>!isExc(a));
     const fx=findPatientEx(g.code,g.name);
@@ -3034,7 +3036,8 @@ async function importMonthlyClaims(aoa,h,fname){
     const r50=rentRows.filter(a=>phaseOf(a)==='pre'),r20s=rentRows.filter(a=>phaseOf(a)==='post');
     const r20=r20s[0];
     /* 행의 개인부담율이 자격표(순응중/순응후)와 다르면 자동 반영하지 않는다 */
-    const badRate=rentRows.filter(a=>Math.abs(a.rate-(phaseOf(a)==='pre'?ins.pre:ins.post))>0.001);
+    const expRate=a=>phaseOf(a)==='pre'?ins.pre:(a.pass==='N'?1:ins.post);   /* 순응후 통과여부 N(평균 2시간 미달) = 요양비 미지급 → 100% */
+    const badRate=rentRows.filter(a=>Math.abs(a.rate-expRate(a))>0.001);
     if(badRate.length){report.push(`⚠️ ${g.name}(${g.code}): 개인부담율 ${[...new Set(badRate.map(a=>Math.round(a.rate*100)+'%'))].join(', ')}이 ${ins.n} 기준(순응중 ${Math.round(ins.pre*100)}% · 순응후 ${Math.round(ins.post*100)}%)과 다름 — 이 달은 반영하지 않음 (LMTS 자격·처방유형 확인)`);continue;}
     /* ── 순응통과일: 순응중·순응후가 같이 있는 달은 20% 청구행 시작일이 LMTS 공식 순응통과일 → 다르면 선택 ── */
     if(r20){
@@ -3066,6 +3069,13 @@ async function importMonthlyClaims(aoa,h,fname){
     if(d50&&d20){ov.d1=d50;ov.d2=d20;}
     else if(d50||d20){ov.d1=d50||d20;ov.d2=0;}
     else{ov.d1=null;ov.d2=null;} /* 청구행 없음 → 자동계산으로 복귀 */
+    /* 순응후 통과여부 N(평균 2시간 미달) → 그 달 순응후 구간은 요양비 미지급·전액 본인부담(LMTS 개인구매액). Y면 이전 지정을 푼다 */
+    if(r20s.length){
+      const fail=r20s.filter(a=>a.pass==='N');
+      if(fail.length){ov.selfFull=true;
+        notes.push(`순응후 평균 ${fail[0].avgText||hm(fail[0].avgMin)||'—'} — 2시간 미달(통과여부 N) → ${fail.reduce((x,a)=>x+a.days,0)}일 전액 본인부담(개인구매 ${won(fail.reduce((x,a)=>x+a.indv,0))}) · 공단 청구 없음`);}
+      else if(getOv(g.ym,p.id).selfFull===true){ov.selfFull=false;notes.push('전액 본인부담 지정 해제 — LMTS 통과여부 Y');}
+    }
     /* 해외(EXC) 행 → 그 기간을 여행으로 등록(전액 본인부담), 구간 일수에는 해외일을 포함시켜 계산이 날짜대로 차감하게 */
     if(excRows.length){
       const trips=excRows.filter(a=>a.start&&a.end).map(a=>({dep:addDays(a.start,-1),arr:addDays(a.end,1)}));
@@ -3123,7 +3133,7 @@ async function importMonthlyClaims(aoa,h,fname){
       for(const ph of ['pre','post']){
         const rs=rentRows.filter(a=>phaseOf(a)===ph);if(!rs.length)continue;
         const u=unitOf(rs[0]);if(!u)continue;
-        const A=rs.reduce((x,a)=>x+a.amt,0),Bn=rs.reduce((x,a)=>x+a.bonin,0),Gg=rs.reduce((x,a)=>x+a.gong,0);
+        const A=rs.reduce((x,a)=>x+a.amt,0),Bn=rs.reduce((x,a)=>x+a.bonin+(a.indv||0),0),Gg=rs.reduce((x,a)=>x+a.gong,0);   /* 개인구매액(100% 행)도 본인 몫 */
         if(u.base!==A||u.rentBonin!==Bn||u.rentGong!==Gg)bad.push(`${ph==='pre'?'순응중':'순응후'} 계산 ${won(u.base)}/${won(u.rentBonin)}/${won(u.rentGong)} ↔ LMTS ${won(A)}/${won(Bn)}/${won(Gg)}${rs.length>1?' (청구행 '+rs.length+'개 합산 — 행별 일할 차이 가능)':''}`);
       }
       for(const b of g.B){const u=c.units.find(x=>x.mask)||c.units[0];
@@ -4156,6 +4166,8 @@ window.__selftest=function(){
       /* 해외일 날짜 배분: 7/5~7/8 해외(4일)는 순응중 구간에서 차감, 일수만 주면 뒤 구간부터 */
       const ca=calcPatientMonth(p,'2026-07',{mask:false,trips:[{dep:'2026-07-04',arr:'2026-07-09'}]});
       const cb=calcPatientMonth(p,'2026-07',{mask:false,abroad:'4'});
+      const cs=calcPatientMonth(p,'2026-07',{mask:false,selfFull:true});
+      if(cs.units.length===2&&cs.units[0].gong===21530&&cs.units[0].bonin===21530&&cs.units[1].gong===0&&cs.units[1].bonin===cs.units[1].base&&cs.units[1].base===45930)ok6++;else console.warn('FAIL6-6',cs.units);
       if(ca.units[0].abroadDays===4&&ca.units[0].rentDays===11&&ca.units[1].abroadDays===0&&ca.units[0].bonin===27270&&cb.units[1].abroadDays===4&&cb.units[0].abroadDays===0)ok6++;else console.warn('FAIL6-5',ca.units,cb.units);
       /* 보험자격별 부담율 (LMTS fnCalChargeAmt): SC 순응중 20%·통과 후 0%·마스크 0% / MC 항상 0% / IN 전액 본인 */
       const mk=(o)=>Object.assign({id:'t7',device:'자동형',rentStart:'2026-07-01',rxStart:'2026-07-01',passDate:null,rentEnd:null,insureType:'IB'},o);
@@ -4168,7 +4180,7 @@ window.__selftest=function(){
       u=t({insureType:'IB'},{mask:true});if(u&&u.maskBonin===19000&&u.maskGong===76000&&u.bonin===63500)ok7++;else console.warn('FAIL7-6',u);
     }finally{state=saved;}
   }
-  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/5 · 자격별 ${ok7}/6`;
+  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6`;
   console.log(msg);
   return {ok,ok2,ok3,ok4,msg};
 };
