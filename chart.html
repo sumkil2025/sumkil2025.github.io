@@ -571,7 +571,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.13.2';
+const APP_VERSION='2026.09.13.3';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1083,7 +1083,7 @@ function todoOf(r){
   if(!p.branch)miss.push('지사');
   for(const u of c.units){
     if(u.frozen&&u.diff)need.push(`구간${u.k} 청구 당시와 계산 다름`);
-    if(u.phase==='post'){if(rxPeriodFor(p,u).stale)need.push('처방종료일 갱신 필요');if(c.avgMin==null)miss.push('순응후 평균사용시간');}
+    if(u.phase==='post'){if(rxPeriodFor(p,u).stale)need.push('처방종료일 갱신 필요');if(c.avgMin==null)miss.push('순응후 평균사용시간');if(p.passDateEst)miss.push('순응통과일·처방시작일(추정 — 실제 재처방일 입력)');}
     const cd=uGet(ov,u.k,'claimed'),ca=uGet(ov,u.k,'cashApprove'),ta=uGet(ov,u.k,'taxApprove');
     const needC=!card&&u.bonin>0,needT=u.gong>0;
     const docsOk=(!needC||!!ca)&&(!needT||!!ta);
@@ -1481,6 +1481,7 @@ function openClaimView(pid,k){
       ${item('의사면허번호/의사명',docLic?`${docLic} ${docName}`:docName,docLic||docName)}${item('요양기관',`${cl.hospCode||''} ${p.hospital||cl.hospName||''}`.trim(),cl.hospCode)}${item('진료구분','')}
       ${blank}${item('전문의번호',p.docSpecNo||cl.specNo)}${item('전문과목',cl.specialty)}
       ${aux('숨길이 추가정보',[['처방압력',PP.pressure||''],['순응기간(순응중 처방)',PP.adaptStart?`${dot(PP.adaptStart)} ~ ${dot(PP.adaptEnd||addDays(PP.adaptStart,89))}`:'',dot(PP.adaptStart)],['순응 판정 · 연속 30일 사용기간',PP.adaptWinStart?`${dot(PP.adaptWinStart)} ~ ${dot(PP.adaptWinEnd||addDays(PP.adaptWinStart,29))}`:'',dot(PP.adaptWinStart)],['4시간 이상 사용일수',PP.adaptDays4h!=null?PP.adaptDays4h+'일':'',PP.adaptDays4h],['순응판정일(LMTS)',dot(PP.adaptJudge)],['순응통과(20% 시작)일',dot(p.passDate)],['PSG 검사일',dot(PP.psgDate)],['진료예정일(재처방)',dot(PP.nextVisit)],['순응 상태(LMTS)',PP.adaptStatus||'']])}
+      ${(post&&PP.passDateEst)?`<div class="cvaux" style="color:var(--red)">⚠️ 순응통과일·처방시작일이 <b>추정값</b>(월청구자료에 통과일이 없어 그 달 1일로 가정)입니다 — 공단 화면의 처방전발행일·처방기간은 실제 처방전 날짜로 입력하고, [환자 관리]에서 재처방일을 넣어 주세요</div>`:''}
       ${rxStale?`<div class="cvaux" style="color:var(--red)">⚠️ 처방종료일(${dot(p.rxEnd)})이 재처방 시작일보다 앞입니다 — 고객정보 가져오기(처방종료일 자동 갱신) 또는 환자 관리에서 처방종료일을 갱신하세요</div>`:''}
     </div>
     <div class="cvsec">청구정보</div>
@@ -1746,7 +1747,7 @@ function renderPatients(){
       ${c1('rentEnd',`<td><input type="date" class="inline pdate" value="${p.rentEnd||''}" data-pf="rentEnd" data-id="${p.id}" title="계약종료일(반납·해지) — 비우면 사용중 · 이 날까지만 청구 계산 · 바꾸면 월별 수기 일수 자동계산 복귀"></td>`)}
       ${c1('rxs',`<td><input type="date" class="inline pdate" value="${p.rxStart||''}" data-pf="rxStart" data-id="${p.id}" title="처방시작일 = 현재 처방(최근 재처방일). 재처방 받으면 종료일과 함께 갱신 · 순응통과일은 바꾸지 마세요 (첫 재처방일로 고정)"></td>`)}
       ${c1('rx',`<td><input type="date" class="inline pdate" value="${p.rxEnd||''}" data-pf="rxEnd" data-id="${p.id}" title="처방종료일 — 재처방(처방전 재발행) 시 새 종료일로 갱신 · 30일 전부터 상태 칸에 임박 표시"></td>`)}
-      ${c1('pass',`<td><input type="date" class="inline pdate ${p.passDate?'on':''}" value="${p.passDate||''}" data-pf="passDate" data-id="${p.id}" title="순응통과(재처방) 시작일 — 이 날부터 본인부담 20% · 비우면 순응중(50%) · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 되돌아갑니다"></td>`)}
+      ${c1('pass',`<td><input type="date" class="inline pdate ${p.passDate?'on':''}" value="${p.passDate||''}" data-pf="passDate" data-id="${p.id}" title="순응통과(재처방) 시작일 — 이 날부터 본인부담 20% · 비우면 순응중(50%) · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 되돌아갑니다">${p.passDateEst?'<span class="badge warn" title="월청구자료에 통과일이 없어 그 달 1일로 가정한 값 — 실제 재처방일을 입력하면 해제">추정</span>':''}</td>`)}
       ${cell('pay',`<td><button class="badge tgl ${p.payMethod==='card'?'card':'cash'}" data-act="togglePay" data-id="${p.id}" title="${p.payMethod==='card'?'카드 결제 — 현금영수증 일괄발급에서 제외됨':'현금영수증 발행 대상'} · 클릭하면 전환">${p.payMethod==='card'?'카드':'현금'}</button></td>`)}
       ${cell('branch',`<td><button class="btn sm brbtn" data-act="branch" data-id="${p.id}" title="클릭하여 지사 선택${p.branchFax?` · 팩스 ${esc(p.branchFax)}`:''}">${esc(p.branch||'선택…')}</button></td>`)}
       ${cell('staff',`<td><input class="inline" style="width:62px" list="staffOpts" value="${esc(p.staff||'')}" data-pf="staff" data-id="${p.id}" placeholder="담당자" title="담당자 — 직접 입력하거나 목록에서 선택"></td>`)}
@@ -1839,6 +1840,7 @@ $('#patTable').addEventListener('change',e=>{
       /* 최초 처방 시작일은 계약시작일을 따라감 (아직 재처방 전이고 수기로 다르게 넣지 않은 경우) */
       if(f==='rentStart'&&(!p.rxStart||p.rxStart===p.rentStart))p.rxStart=nv;
       if(f==='passDate')applyPassDate(p,nv); else p[f]=nv;
+      if(f==='passDate'||f==='rxStart')p.passDateEst=false;   /* 직접 입력한 값은 추정이 아님 */
       /* 연동으로 바뀐 처방시작일을 같은 행의 칸에 즉시 반영 (표는 다시 그리지 않음) */
       const rxEl=document.querySelector(`#patTable input[data-pf="rxStart"][data-id="${p.id}"]`);
       if(rxEl&&rxEl!==el)rxEl.value=p.rxStart||'';
@@ -2118,6 +2120,7 @@ function openPatModal(id){
     obj.doctor=obj.docName+(obj.docLicense?`(${obj.docLicense})`:''); /* 구형식 호환 */
     /* 순응통과일이 바뀌면 최초 처방에 머문 처방시작일을 함께 옮김 (직접 넣은 재처방일은 유지) */
     {const pd=obj.passDate;obj.passDate=prev?prev.passDate:null;applyPassDate(obj,pd);}
+    obj.passDateEst=!!(prev&&prev.passDateEst&&obj.passDate===prev.passDate&&obj.rxStart===prev.rxStart);   /* 날짜를 손대면 추정 해제 */
     /* 지사 팩스: 🔍 선택값 우선, 지사명이 바뀌었으면 자동 조회 */
     obj.branchFax=$('#f_branch').dataset.fax
       ??(prev&&prev.branch===obj.branch?prev.branchFax:branchFaxOf(obj.branch));
@@ -2487,13 +2490,18 @@ async function importAdaptMgmt(aoa,h,fname){
     let passNote='';
     if(rec.start){
       if(!p.passDate){applyPassDate(p,rec.start);nSet++;passNote=`순응통과일 ${rec.start} 설정(비어있었음, 처방시작일 연동)`;}
-      else if(p.passDate===rec.start){nSame++;passNote=`순응통과일 ${rec.start} 일치 ✓`;}
+      else if(p.passDate===rec.start){nSame++;p.passDateEst=false;passNote=`순응통과일 ${rec.start} 일치 ✓`;}
+      else if(p.passDateEst){
+        const old=p.passDate;applyPassDate(p,rec.start);p.passDateEst=false;
+        for(const ymk in state.months){const o=state.months[ymk]&&state.months[ymk][p.id];if(o){delete o.d1;delete o.d2;}}
+        nChg++;passNote=`순응통과일 추정 ${old} → ${rec.start} 확정(LMTS 적용기간시작일)`;
+      }
       else{
         /* 순응후관리의 적용기간시작일은 LMTS 공식 판정값 — 어느 쪽을 쓸지 환자마다 선택 (기본: LMTS) */
         const ok=await confirmModal('순응통과일이 다릅니다 — 어느 값으로?',
           `${p.name}(${p.mgmtCode||'-'})\n\n차트 순응통과일:        ${p.passDate}\nLMTS 적용기간시작일:  ${rec.start}\n\nLMTS 값(${rec.start})으로 바꿀까요?\n바꾸면 처방시작일이 함께 연동되고, 이 환자의 월별 수기 일수는 자동계산으로 돌아갑니다.\n[취소]를 누르면 차트 값을 유지합니다.`,'LMTS 값으로 변경');
         if(ok){
-          const old=p.passDate;applyPassDate(p,rec.start);
+          const old=p.passDate;applyPassDate(p,rec.start);p.passDateEst=false;
           for(const ymk in state.months){const o=state.months[ymk]&&state.months[ymk][p.id];if(o){delete o.d1;delete o.d2;}}
           nChg++;passNote=`순응통과일 ${old} → ${rec.start} 변경(LMTS · 처방시작일 연동 · 수기 일수 초기화)`;
         }else{nDiff++;passNote=`⚠️ 순응통과일 차트 ${p.passDate} ↔ LMTS ${rec.start} — 차트 값 유지(선택)`;}
@@ -2997,7 +3005,7 @@ async function importMonthlyClaims(aoa,h,fname){
     const kind=String(row[iKind]||'').trim().toUpperCase();
     (kind==='B'?groups[key].B:groups[key].A).push(rec);
   }
-  const report=[];let nNew=0,nMonth=0,nAmtOk=0,nAmtBad=0,nPassChg=0,nPassKeep=0,nPassSet=0,nPay=0,nPaid=0,nRx=0;
+  const report=[];let nNew=0,nMonth=0,nAmtOk=0,nAmtBad=0,nPassChg=0,nPassKeep=0,nPassSet=0,nPassEst=0,nPay=0,nPaid=0,nRx=0;
   for(const key of Object.keys(groups).sort()){
     const g=groups[key];
     /* 해외 체류(급여 정지) 청구행: 청구조건 EXC / 개인부담율 100% — 임대 요율 행과 분리
@@ -3041,11 +3049,24 @@ async function importMonthlyClaims(aoa,h,fname){
     if(badRate.length){report.push(`⚠️ ${g.name}(${g.code}): 개인부담율 ${[...new Set(badRate.map(a=>Math.round(a.rate*100)+'%'))].join(', ')}이 ${ins.n} 기준(순응중 ${Math.round(ins.pre*100)}% · 순응후 ${Math.round(ins.post*100)}%)과 다름 — 이 달은 반영하지 않음 (LMTS 자격·처방유형 확인)`);continue;}
     /* ── 순응통과일: 순응중·순응후가 같이 있는 달은 20% 청구행 시작일이 LMTS 공식 순응통과일 → 다르면 선택 ── */
     if(r20){
-      if(!p.passDate){applyPassDate(p,r20.start);nPassSet++;notes.push(`순응통과일 ${r20.start} 설정`);}
+      const monthFirst=ymFirst(g.ym);
+      /* 이달 전체가 순응후이고 계약이 그 전부터면 통과일은 이달 이전 어딘가 — 파일에 없으므로 이달 1일로 가정하고 '추정' 표시 (기존 환자를 처음 옮길 때) */
+      const legacy=!r50.length&&r20.start<=monthFirst&&!!p.rentStart&&p.rentStart<monthFirst;
+      if(!p.passDate){
+        if(legacy){applyPassDate(p,monthFirst);p.passDateEst=true;nPassEst++;
+          notes.push(`⚠️ 순응통과일 미상(이달 이전에 통과) — ${monthFirst}로 가정(추정). 실제 재처방일·처방기간은 [환자 관리]에서 입력하거나 순응후관리.xlsx로 확정하세요`);}
+        else{applyPassDate(p,r20.start);p.passDateEst=false;nPassSet++;notes.push(`순응통과일 ${r20.start} 설정`);}
+      }
+      else if(r50.length&&p.passDate!==r20.start&&p.passDateEst){
+        /* 추정값은 묻지 않고 LMTS 값으로 확정 */
+        const old=p.passDate;applyPassDate(p,r20.start);p.passDateEst=false;
+        for(const ymk in state.months){const o=state.months[ymk]&&state.months[ymk][p.id];if(o){delete o.d1;delete o.d2;}}
+        nPassChg++;notes.push(`순응통과일 추정 ${old} → ${r20.start} 확정(LMTS)`);
+      }
       else if(r50.length&&p.passDate!==r20.start){
         const ok=await confirmModal('순응통과일이 다릅니다 — 어느 값으로?',
           `${g.name}(${g.code}) · ${g.ym.replace('-','년 ')}월\n\n차트 순응통과일:        ${p.passDate}\nLMTS 20% 청구 시작일: ${r20.start}${r20.rxType?` (처방유형 ${r20.rxType}${r20.pass?' · 통과여부 '+r20.pass:''})`:''}\n\nLMTS 값(${r20.start})으로 바꿀까요?\n바꾸면 처방시작일이 함께 연동되고, 이 환자의 월별 수기 일수는 자동계산으로 돌아갑니다.\n[취소]를 누르면 차트 값을 유지합니다.`,'LMTS 값으로 변경');
-        if(ok){const old=p.passDate;applyPassDate(p,r20.start);
+        if(ok){const old=p.passDate;applyPassDate(p,r20.start);p.passDateEst=false;
           for(const ymk in state.months){const o=state.months[ymk]&&state.months[ymk][p.id];if(o){delete o.d1;delete o.d2;}}
           nPassChg++;notes.push(`순응통과일 ${old} → ${r20.start} 변경(LMTS)`);}
         else{nPassKeep++;notes.push(`⚠️ 순응통과일 차트 ${p.passDate} ↔ LMTS ${r20.start} — 차트 값 유지(선택)`);}
@@ -3151,7 +3172,7 @@ async function importMonthlyClaims(aoa,h,fname){
   persist();renderAll();
   showMsg('월청구자료 가져오기 완료',`${fname}\n신규 환자 ${nNew}명 · 월 청구행 ${nMonth}건 반영`
     +(ext?`\n금액 검산 — 일치 ${nAmtOk} · 불일치 ${nAmtBad}`:'')
-    +((nPassSet||nPassChg||nPassKeep)?`\n순응통과일 — 새로 설정 ${nPassSet} · LMTS로 변경 ${nPassChg} · 차트 유지 ${nPassKeep}`:'')
+    +((nPassSet||nPassChg||nPassKeep||nPassEst)?`\n순응통과일 — 새로 설정 ${nPassSet} · LMTS로 변경 ${nPassChg} · 차트 유지 ${nPassKeep}${nPassEst?` · ⚠️ 추정(이달 이전 통과) ${nPassEst}`:''}`:'')
     +(nPay?`\n결제 방식 이 달 조정 ${nPay}건 (LMTS 결제수단 기준)`:'')+(nPaid?`\n수금 표시 ${nPaid}건`:'')+(nRx?`\n재처방 신호 ${nRx}건`:'')
     +`\n※ 일수·마스크·평균사용시간·결제수단은 LMTS 자료 기준으로 설정됩니다.\n\n`+report.slice(0,40).join('\n')+(report.length>40?`\n… 외 ${report.length-40}건`:''));
 }
