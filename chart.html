@@ -571,7 +571,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.12.1';
+const APP_VERSION='2026.09.13.1';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -2786,7 +2786,7 @@ function importCustomerInfo(aoa,h,fname){
     const latest=[...g.rows].filter(x=>x.cs).sort((a,b)=>a.cs<b.cs?-1:1).pop();
     if(latest){
       if(!p.rxStart||p.rxStart===p.rentStart){if(latest.cs>(p.rxStart||''))p.rxStart=latest.cs;}
-      else fill('rxStart',latest.cs,'처방시작일');
+      else if(!(p.passDate&&p.rxStart>=p.passDate))fill('rxStart',latest.cs,'처방시작일');   /* 재처방 후 처방시작일이 계약시작일과 다른 건 정상 */
     }
     /* 처방종료일은 재처방 때 LMTS가 제자리에서 갱신하므로 LMTS 기준 (사용자 확인 2026-09-05) */
     const rxeL=(latest&&latest.rxe)||last.rxe;
@@ -2794,7 +2794,7 @@ function importCustomerInfo(aoa,h,fname){
       if(old&&old<rxeL&&!p.rxEndPrev)p.rxEndPrev=old;   /* 순응중(최초) 처방의 종료일 보관 → 순응중 구간 처방기간 표시용 */
       if(old&&old<rxeL){const post=!!(p.passDate&&old>p.passDate);(p.rxHist=p.rxHist||[]).push({start:post?(p.rxStart||p.passDate):(p.adaptStart||p.rentStart||null),end:old,kind:post?'순응후':'순응중',at:fd(new Date()),src:'고객정보'});}
       if(old)warns.push(`${g.name}: 처방종료일 ${old} → ${rxeL} 갱신(LMTS${p.passDate&&rxeL>p.passDate?' · 재처방':''})`);}
-    if(last.ins){const code=INS_KO[last.ins.replace(/\s/g,'')];
+    if(last.ins){const raw=last.ins.replace(/\s/g,''),code=INS_KO[raw]||(INSURE[raw.toUpperCase()]?raw.toUpperCase():null);
       if(code&&(p.insureType||'IB')!==code){const old=insOf(p).n;p.insureType=code;warns.push(`${g.name}: 보험자격 ${old} → ${INSURE[code].n} (LMTS 보험구분 '${last.ins}') — 부담율이 바뀝니다`);}
       else if(!code)warns.push(`${g.name}: 보험구분 '${last.ins}'은 아직 지원하지 않는 자격 — 부담율 확인 필요`);
       if(/특례/.test(last.ins))p.special=true;}
