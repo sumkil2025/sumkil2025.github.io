@@ -571,7 +571,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.13.3';
+const APP_VERSION='2026.09.13.4';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -635,6 +635,9 @@ const INSURE={IB:{code:'IB',n:'건강보험',pre:.5,post:.2,mask:.2},SC:{code:'S
 const insOf=p=>INSURE[(p&&p.insureType)||'IB']||INSURE.IB;
 /* 마스크 본인부담: 건강보험은 설정값(19,000), 그 외 자격은 기준액×율 절상 */
 const maskBoninFor=p=>{const ins=insOf(p),pr=state.settings.prices;return ins.code==='IB'?pr.maskBonin:ceil10(pr.maskBase*ins.mask);};
+/* 처방종료일에서 재처방 시작일 후보 계산 (6개월·1년 처방) — 통과일 미상인 기존 환자 입력 보조 */
+const rxStartFrom=(rxEnd,months)=>{if(!rxEnd)return null;const [y,m,d]=rxEnd.split('-').map(Number);const dt=new Date(Date.UTC(y,m-1-months,d));if(isNaN(dt))return null;return addDays(dt.toISOString().slice(0,10),1);};
+const rxStartHints=p=>p.rxEnd?`처방종료일 ${p.rxEnd} 기준 — 6개월 처방이면 ${rxStartFrom(p.rxEnd,6)}, 1년 처방이면 ${rxStartFrom(p.rxEnd,12)}`:'처방종료일이 있으면 재처방일 후보를 계산해 드립니다';
 const INS_KO={'건강보험':'IB','건강보험(특례)':'IB','의료급여':'MC','차상위':'SC','개인사용':'IN'};
 
 /* ===== 해외 체류 (출국심사일 다음날 ~ 입국심사일 전날 = 전액 본인부담) ===== */
@@ -1481,7 +1484,7 @@ function openClaimView(pid,k){
       ${item('의사면허번호/의사명',docLic?`${docLic} ${docName}`:docName,docLic||docName)}${item('요양기관',`${cl.hospCode||''} ${p.hospital||cl.hospName||''}`.trim(),cl.hospCode)}${item('진료구분','')}
       ${blank}${item('전문의번호',p.docSpecNo||cl.specNo)}${item('전문과목',cl.specialty)}
       ${aux('숨길이 추가정보',[['처방압력',PP.pressure||''],['순응기간(순응중 처방)',PP.adaptStart?`${dot(PP.adaptStart)} ~ ${dot(PP.adaptEnd||addDays(PP.adaptStart,89))}`:'',dot(PP.adaptStart)],['순응 판정 · 연속 30일 사용기간',PP.adaptWinStart?`${dot(PP.adaptWinStart)} ~ ${dot(PP.adaptWinEnd||addDays(PP.adaptWinStart,29))}`:'',dot(PP.adaptWinStart)],['4시간 이상 사용일수',PP.adaptDays4h!=null?PP.adaptDays4h+'일':'',PP.adaptDays4h],['순응판정일(LMTS)',dot(PP.adaptJudge)],['순응통과(20% 시작)일',dot(p.passDate)],['PSG 검사일',dot(PP.psgDate)],['진료예정일(재처방)',dot(PP.nextVisit)],['순응 상태(LMTS)',PP.adaptStatus||'']])}
-      ${(post&&PP.passDateEst)?`<div class="cvaux" style="color:var(--red)">⚠️ 순응통과일·처방시작일이 <b>추정값</b>(월청구자료에 통과일이 없어 그 달 1일로 가정)입니다 — 공단 화면의 처방전발행일·처방기간은 실제 처방전 날짜로 입력하고, [환자 관리]에서 재처방일을 넣어 주세요</div>`:''}
+      ${(post&&PP.passDateEst)?`<div class="cvaux" style="color:var(--red)">⚠️ 순응통과일·처방시작일이 <b>추정값</b>(월청구자료에 통과일이 없어 그 달 1일로 가정)입니다 — 공단 화면의 처방전발행일·처방기간은 실제 처방전 날짜로 입력하고, [환자 관리] 순응통과일에 재처방일을 넣어 주세요. ${esc(rxStartHints(PP))}</div>`:''}
       ${rxStale?`<div class="cvaux" style="color:var(--red)">⚠️ 처방종료일(${dot(p.rxEnd)})이 재처방 시작일보다 앞입니다 — 고객정보 가져오기(처방종료일 자동 갱신) 또는 환자 관리에서 처방종료일을 갱신하세요</div>`:''}
     </div>
     <div class="cvsec">청구정보</div>
@@ -1747,7 +1750,7 @@ function renderPatients(){
       ${c1('rentEnd',`<td><input type="date" class="inline pdate" value="${p.rentEnd||''}" data-pf="rentEnd" data-id="${p.id}" title="계약종료일(반납·해지) — 비우면 사용중 · 이 날까지만 청구 계산 · 바꾸면 월별 수기 일수 자동계산 복귀"></td>`)}
       ${c1('rxs',`<td><input type="date" class="inline pdate" value="${p.rxStart||''}" data-pf="rxStart" data-id="${p.id}" title="처방시작일 = 현재 처방(최근 재처방일). 재처방 받으면 종료일과 함께 갱신 · 순응통과일은 바꾸지 마세요 (첫 재처방일로 고정)"></td>`)}
       ${c1('rx',`<td><input type="date" class="inline pdate" value="${p.rxEnd||''}" data-pf="rxEnd" data-id="${p.id}" title="처방종료일 — 재처방(처방전 재발행) 시 새 종료일로 갱신 · 30일 전부터 상태 칸에 임박 표시"></td>`)}
-      ${c1('pass',`<td><input type="date" class="inline pdate ${p.passDate?'on':''}" value="${p.passDate||''}" data-pf="passDate" data-id="${p.id}" title="순응통과(재처방) 시작일 — 이 날부터 본인부담 20% · 비우면 순응중(50%) · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 되돌아갑니다">${p.passDateEst?'<span class="badge warn" title="월청구자료에 통과일이 없어 그 달 1일로 가정한 값 — 실제 재처방일을 입력하면 해제">추정</span>':''}</td>`)}
+      ${c1('pass',`<td><input type="date" class="inline pdate ${p.passDate?'on':''}" value="${p.passDate||''}" data-pf="passDate" data-id="${p.id}" title="순응통과(재처방) 시작일 — 이 날부터 본인부담 20% · 비우면 순응중(50%) · 바꾸면 이 환자의 월별 수기 일수는 자동계산으로 되돌아갑니다">${p.passDateEst?`<span class="badge warn" title="월청구자료에 통과일이 없어 그 달 1일로 가정한 값 — 처방전의 재처방일을 입력하면 해제. ${esc(rxStartHints(p))}">추정</span>`:''}</td>`)}
       ${cell('pay',`<td><button class="badge tgl ${p.payMethod==='card'?'card':'cash'}" data-act="togglePay" data-id="${p.id}" title="${p.payMethod==='card'?'카드 결제 — 현금영수증 일괄발급에서 제외됨':'현금영수증 발행 대상'} · 클릭하면 전환">${p.payMethod==='card'?'카드':'현금'}</button></td>`)}
       ${cell('branch',`<td><button class="btn sm brbtn" data-act="branch" data-id="${p.id}" title="클릭하여 지사 선택${p.branchFax?` · 팩스 ${esc(p.branchFax)}`:''}">${esc(p.branch||'선택…')}</button></td>`)}
       ${cell('staff',`<td><input class="inline" style="width:62px" list="staffOpts" value="${esc(p.staff||'')}" data-pf="staff" data-id="${p.id}" placeholder="담당자" title="담당자 — 직접 입력하거나 목록에서 선택"></td>`)}
@@ -2458,7 +2461,7 @@ async function importAdaptMgmt(aoa,h,fname){
     const endRaw=String(g(row,iE)||'').trim();
     recs.push({code,name,staff:String(g(row,iStaff)||'').trim(),rx:String(g(row,iRx)||'').trim(),
       claim:String(g(row,iClaim)||'').trim(),ex:String(g(row,iEx)||'').trim(),
-      start:ymd8(g(row,iS)),end:ymd8(g(row,iE)),endRaw,
+      start:ymd8(g(row,iS)),startRaw:String(g(row,iS)||'').trim(),end:ymd8(g(row,iE)),endRaw,
       calcDays:Number(g(row,iCalc))||0,useDays:Number(g(row,iUse))||0,
       avgMin:parseHM(g(row,iAvg)),cumMin:parseHM(g(row,iCum)),baseMin:parseHM(g(row,iBase)),needMin:parseHM(g(row,iNeed)),
       last:ymd8(g(row,iLast))});
@@ -2486,8 +2489,9 @@ async function importAdaptMgmt(aoa,h,fname){
     const p=fx.p;
     if(!p){miss.push(`${rec.name}(${rec.code||'코드없음'})`);continue;}
     if(rec.staff&&!p.staff)p.staff=rec.staff;
-    /* 적용기간시작일 = 순응통과일 대조 (차트 값 우선) */
+    /* 적용기간시작일 = 순응통과일 대조 (차트 값 우선). 이전에 통과한 환자는 '계속'으로만 나와 날짜를 알 수 없다 */
     let passNote='';
+    if(!rec.start&&/계속/.test(rec.startRaw||'')){passNote=p.passDateEst?`적용기간 '계속'(이달 이전 통과) — 순응통과일은 여전히 추정 ${p.passDate}, 처방전 재처방일 입력 필요`:`적용기간 '계속'(이달 이전 통과)`;}
     if(rec.start){
       if(!p.passDate){applyPassDate(p,rec.start);nSet++;passNote=`순응통과일 ${rec.start} 설정(비어있었음, 처방시작일 연동)`;}
       else if(p.passDate===rec.start){nSame++;p.passDateEst=false;passNote=`순응통과일 ${rec.start} 일치 ✓`;}
@@ -3010,7 +3014,8 @@ async function importMonthlyClaims(aoa,h,fname){
     const g=groups[key];
     /* 해외 체류(급여 정지) 청구행: 청구조건 EXC / 개인부담율 100% — 임대 요율 행과 분리
        (이슈 '해외'는 환자 단위로 모든 행에 찍히므로 판정에 쓰지 않음 — 실자료 2026-08 이성행) */
-    const isExc=a=>/^EXC/i.test(a.cond||'');   /* 개인부담율 100%만으로는 해외가 아님 — 순응후 통과여부 N(2시간 미달)도 100%·개인구매액 (실자료 2026-09) */
+    /* EXC = 청구 제외. 해외는 이슈 '해외'일 때만(실자료 2026-08 이성행). 그 외 EXC 순응후 행(2시간 미달 등)은 전액 본인부담 구간으로 처리 */
+    const isExc=a=>/^EXC/i.test(a.cond||'')&&/해외/.test(a.issue||'');
     const rentAll=g.A.filter(a=>a.days>0&&a.start).sort((x,y)=>x.start<y.start?-1:1);
     const excRows=rentAll.filter(isExc),rentRows=rentAll.filter(a=>!isExc(a));
     const fx=findPatientEx(g.code,g.name);
@@ -3044,7 +3049,8 @@ async function importMonthlyClaims(aoa,h,fname){
     const r50=rentRows.filter(a=>phaseOf(a)==='pre'),r20s=rentRows.filter(a=>phaseOf(a)==='post');
     const r20=r20s[0];
     /* 행의 개인부담율이 자격표(순응중/순응후)와 다르면 자동 반영하지 않는다 */
-    const expRate=a=>phaseOf(a)==='pre'?ins.pre:(a.pass==='N'?1:ins.post);   /* 순응후 통과여부 N(평균 2시간 미달) = 요양비 미지급 → 100% */
+    const selfPayRow=a=>a.pass==='N'||/^EXC/i.test(a.cond||'');   /* 순응후 통과여부 N(평균 2시간 미달)·청구조건 EXC = 요양비 미지급 → 100% */
+    const expRate=a=>phaseOf(a)==='pre'?ins.pre:(selfPayRow(a)?1:ins.post);
     const badRate=rentRows.filter(a=>Math.abs(a.rate-expRate(a))>0.001);
     if(badRate.length){report.push(`⚠️ ${g.name}(${g.code}): 개인부담율 ${[...new Set(badRate.map(a=>Math.round(a.rate*100)+'%'))].join(', ')}이 ${ins.n} 기준(순응중 ${Math.round(ins.pre*100)}% · 순응후 ${Math.round(ins.post*100)}%)과 다름 — 이 달은 반영하지 않음 (LMTS 자격·처방유형 확인)`);continue;}
     /* ── 순응통과일: 순응중·순응후가 같이 있는 달은 20% 청구행 시작일이 LMTS 공식 순응통과일 → 다르면 선택 ── */
@@ -3054,7 +3060,7 @@ async function importMonthlyClaims(aoa,h,fname){
       const legacy=!r50.length&&r20.start<=monthFirst&&!!p.rentStart&&p.rentStart<monthFirst;
       if(!p.passDate){
         if(legacy){applyPassDate(p,monthFirst);p.passDateEst=true;nPassEst++;
-          notes.push(`⚠️ 순응통과일 미상(이달 이전에 통과) — ${monthFirst}로 가정(추정). 실제 재처방일·처방기간은 [환자 관리]에서 입력하거나 순응후관리.xlsx로 확정하세요`);}
+          notes.push(`⚠️ 순응통과일 미상(이달 이전에 통과) — ${monthFirst}로 가정(추정). 처방전의 재처방일을 [환자 관리] 순응통과일에 넣어 주세요 (${rxStartHints(p)}) · 순응후관리에도 이전 통과자는 '계속'으로만 나와 확정 불가`);}
         else{applyPassDate(p,r20.start);p.passDateEst=false;nPassSet++;notes.push(`순응통과일 ${r20.start} 설정`);}
       }
       else if(r50.length&&p.passDate!==r20.start&&p.passDateEst){
@@ -3092,9 +3098,10 @@ async function importMonthlyClaims(aoa,h,fname){
     else{ov.d1=null;ov.d2=null;} /* 청구행 없음 → 자동계산으로 복귀 */
     /* 순응후 통과여부 N(평균 2시간 미달) → 그 달 순응후 구간은 요양비 미지급·전액 본인부담(LMTS 개인구매액). Y면 이전 지정을 푼다 */
     if(r20s.length){
-      const fail=r20s.filter(a=>a.pass==='N');
+      const fail=r20s.filter(selfPayRow);
       if(fail.length){ov.selfFull=true;
-        notes.push(`순응후 평균 ${fail[0].avgText||hm(fail[0].avgMin)||'—'} — 2시간 미달(통과여부 N) → ${fail.reduce((x,a)=>x+a.days,0)}일 전액 본인부담(개인구매 ${won(fail.reduce((x,a)=>x+a.indv,0))}) · 공단 청구 없음`);}
+        const why=fail[0].pass==='N'?`순응후 평균 ${fail[0].avgText||hm(fail[0].avgMin)||'—'} — 2시간 미달(통과여부 N)`:`청구조건 EXC(청구 제외${fail[0].issue?' · 이슈 '+fail[0].issue:''})`;
+        notes.push(`${why} → ${fail.reduce((x,a)=>x+a.days,0)}일 전액 본인부담(개인구매 ${won(fail.reduce((x,a)=>x+a.indv,0))}) · 공단 청구 없음`);}
       else if(getOv(g.ym,p.id).selfFull===true){ov.selfFull=false;notes.push('전액 본인부담 지정 해제 — LMTS 통과여부 Y');}
     }
     /* 해외(EXC) 행 → 그 기간을 여행으로 등록(전액 본인부담), 구간 일수에는 해외일을 포함시켜 계산이 날짜대로 차감하게 */
