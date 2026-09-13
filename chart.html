@@ -571,7 +571,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.13.4';
+const APP_VERSION='2026.09.13.6';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -3014,8 +3014,9 @@ async function importMonthlyClaims(aoa,h,fname){
     const g=groups[key];
     /* 해외 체류(급여 정지) 청구행: 청구조건 EXC / 개인부담율 100% — 임대 요율 행과 분리
        (이슈 '해외'는 환자 단위로 모든 행에 찍히므로 판정에 쓰지 않음 — 실자료 2026-08 이성행) */
-    /* EXC = 청구 제외. 해외는 이슈 '해외'일 때만(실자료 2026-08 이성행). 그 외 EXC 순응후 행(2시간 미달 등)은 전액 본인부담 구간으로 처리 */
-    const isExc=a=>/^EXC/i.test(a.cond||'')&&/해외/.test(a.issue||'');
+    /* EXC = 개인사용(공단 청구 제외) 기간 — 사용자 확인 2026-09-13 (해외 체류가 대표 사유, 행의 보험자격은 IN).
+       사유와 무관하게 그 날짜 범위를 100% 본인부담으로 등록(여행과 같은 방식) — 달 중간의 부분 기간도 날짜대로 반영된다 */
+    const isExc=a=>/^EXC/i.test(a.cond||'');
     const rentAll=g.A.filter(a=>a.days>0&&a.start).sort((x,y)=>x.start<y.start?-1:1);
     const excRows=rentAll.filter(isExc),rentRows=rentAll.filter(a=>!isExc(a));
     const fx=findPatientEx(g.code,g.name);
@@ -3034,7 +3035,9 @@ async function importMonthlyClaims(aoa,h,fname){
     }else if(!p.mgmtCode){p.mgmtCode=g.code;}
     if(g.staff&&!p.staff)p.staff=g.staff;
     /* 보험자격(IB/SC/MC/IN)은 LMTS 기준 — 자격이 바뀌면 부담율이 바뀐다 (해외 EXC 행의 IN은 제외) */
-    {const insRow=(rentRows.find(a=>INSURE[a.insType])||g.B.find(a=>INSURE[a.insType])||{}).insType;
+    /* EXC(개인사용 기간) 행의 보험자격 IN은 그 기간만의 표시 — 환자 자격으로 옮기지 않는다 */
+    {const notExc=a=>INSURE[a.insType]&&!/^EXC/i.test(a.cond||'');
+     const insRow=(rentRows.find(notExc)||g.B.find(notExc)||{}).insType;
      if(insRow&&(p.insureType||'IB')!==insRow){const old=insOf(p).n;p.insureType=insRow;report.push(`${g.name}(${g.code}): 보험자격 ${old} → ${INSURE[insRow].n} (LMTS)`);}}
     const ins=insOf(p);
     /* 구간 판정: 처방유형(ING=순응중, 그 외=순응후)이 있으면 그것으로, 없으면 자격별 부담율로 */
@@ -3049,7 +3052,7 @@ async function importMonthlyClaims(aoa,h,fname){
     const r50=rentRows.filter(a=>phaseOf(a)==='pre'),r20s=rentRows.filter(a=>phaseOf(a)==='post');
     const r20=r20s[0];
     /* 행의 개인부담율이 자격표(순응중/순응후)와 다르면 자동 반영하지 않는다 */
-    const selfPayRow=a=>a.pass==='N'||/^EXC/i.test(a.cond||'');   /* 순응후 통과여부 N(평균 2시간 미달)·청구조건 EXC = 요양비 미지급 → 100% */
+    const selfPayRow=a=>a.pass==='N';   /* 순응후 통과여부 N(평균 2시간 미달) = 요양비 미지급 → 그 구간 100% (EXC 행은 위에서 날짜 범위로 따로 처리) */
     const expRate=a=>phaseOf(a)==='pre'?ins.pre:(selfPayRow(a)?1:ins.post);
     const badRate=rentRows.filter(a=>Math.abs(a.rate-expRate(a))>0.001);
     if(badRate.length){report.push(`⚠️ ${g.name}(${g.code}): 개인부담율 ${[...new Set(badRate.map(a=>Math.round(a.rate*100)+'%'))].join(', ')}이 ${ins.n} 기준(순응중 ${Math.round(ins.pre*100)}% · 순응후 ${Math.round(ins.post*100)}%)과 다름 — 이 달은 반영하지 않음 (LMTS 자격·처방유형 확인)`);continue;}
@@ -3100,7 +3103,7 @@ async function importMonthlyClaims(aoa,h,fname){
     if(r20s.length){
       const fail=r20s.filter(selfPayRow);
       if(fail.length){ov.selfFull=true;
-        const why=fail[0].pass==='N'?`순응후 평균 ${fail[0].avgText||hm(fail[0].avgMin)||'—'} — 2시간 미달(통과여부 N)`:`청구조건 EXC(청구 제외${fail[0].issue?' · 이슈 '+fail[0].issue:''})`;
+        const why=`순응후 평균 ${fail[0].avgText||hm(fail[0].avgMin)||'—'} — 2시간 미달(통과여부 N)`;
         notes.push(`${why} → ${fail.reduce((x,a)=>x+a.days,0)}일 전액 본인부담(개인구매 ${won(fail.reduce((x,a)=>x+a.indv,0))}) · 공단 청구 없음`);}
       else if(getOv(g.ym,p.id).selfFull===true){ov.selfFull=false;notes.push('전액 본인부담 지정 해제 — LMTS 통과여부 Y');}
     }
@@ -3118,7 +3121,8 @@ async function importMonthlyClaims(aoa,h,fname){
       else{ov.d1=cover(all,lo,hi);ov.d2=0;}
       if(!trips.length)ov.abroad=String(abTot);
       const overlap=rentRows.filter(a=>excRows.some(x=>a.start&&x.start&&a.start<=x.end&&x.start<=a.end));
-      notes.push(`해외(EXC) ${abTot}일 [${excRows.map(a=>`${(a.start||'').slice(5)}~${(a.end||'').slice(5)}`).join(', ')}] → 전액 본인부담으로 반영`
+      const excLabel=excRows.some(a=>/해외/.test(a.issue||''))?'해외(EXC)':`개인사용 기간(EXC${excRows[0].issue?' · 이슈 '+excRows[0].issue:''})`;
+      notes.push(`${excLabel} ${abTot}일 [${excRows.map(a=>`${(a.start||'').slice(5)}~${(a.end||'').slice(5)}`).join(', ')}] → 날짜대로 전액 본인부담 반영`
         +(overlap.length?` · ⚠️ LMTS 요율 청구행(${overlap.map(a=>`${a.start.slice(5)}~${a.end.slice(5)} ${a.days}일`).join(', ')})이 해외기간을 아직 포함 — LMTS 확정 후 다시 가져와 검산하세요`:''));
     }else{
       /* LMTS 청구행에 해외가 없으면 이전에 들어간 해외 정보도 지운다 (수정된 자료 재입력 시 옛 해외일이 남지 않게) */
@@ -3166,8 +3170,8 @@ async function importMonthlyClaims(aoa,h,fname){
       }
       for(const b of g.B){const u=c.units.find(x=>x.mask)||c.units[0];
         if(u.maskBonin!==b.bonin||u.maskGong!==b.gong)bad.push(`마스크 계산 ${won(u.maskBonin)}/${won(u.maskGong)} ↔ LMTS ${won(b.bonin)}/${won(b.gong)}`);}
-      if(excRows.length){const ex=excRows.reduce((a2,x)=>a2+x.bonin,0),exG=excRows.reduce((a2,x)=>a2+x.gong,0),mine=c.units.reduce((a2,u)=>a2+u.abAmt,0);
-        if(ex!==mine||exG!==0)bad.push(`해외(EXC) 본인부담 계산 ${won(mine)} ↔ LMTS ${won(ex)}${exG?` (공단 ${won(exG)}?)`:''} — 해외 분리 청구는 행별 일할이라 10원 단위 차이 가능`);}
+      if(excRows.length){const ex=excRows.reduce((a2,x)=>a2+x.bonin+(x.indv||0),0),exG=excRows.reduce((a2,x)=>a2+x.gong,0),mine=c.units.reduce((a2,u)=>a2+u.abAmt,0);
+        if(ex!==mine||exG!==0)bad.push(`개인사용(EXC) 기간 본인부담 계산 ${won(mine)} ↔ LMTS ${won(ex)}${exG?` (공단 ${won(exG)}?)`:''} — 행별 일할이라 10원 단위 차이 가능`);}
       if(bad.length){nAmtBad++;notes.push(`⚠️ 금액 불일치 — ${bad.join(' · ')}`);}
       else{nAmtOk++;notes.push(`금액 일치 ✓ 본인 ${won(c.bonin)}/공단 ${won(c.gong)}`);}
     }
