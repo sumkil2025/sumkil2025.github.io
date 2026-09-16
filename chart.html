@@ -209,6 +209,9 @@
   .docsmodal h3{margin:0 0 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .docsmodal iframe{flex:1;width:100%;min-height:0;border:1px solid var(--line);border-radius:8px;background:#fff}
   .docsmodal .dstat{font-weight:400;font-size:.76rem;color:var(--muted)}
+  .docscell{padding-left:2px;padding-right:2px;white-space:nowrap}
+  .docsbtn{padding:3px 7px;font-size:.92rem;line-height:1}
+  .docsbtn sup{font-size:.62rem;color:var(--green);font-weight:800;margin-left:1px;vertical-align:top}
   .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
   .fgrid .full{grid-column:1/-1}
   .fgrid label{display:block;font-size:.76rem;font-weight:700;margin-bottom:3px;color:var(--muted)}
@@ -578,7 +581,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.16.1';
+const APP_VERSION='2026.09.16.2';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1732,7 +1735,7 @@ function renderPatients(){
   $('#btnPatTwoLine').textContent=two?'⇕ 두 줄 ✓':'⇕ 두 줄';
   const L2={device:1,rentStart:1,rentEnd:1,rxs:1,rx:1,pass:1};
   const c1=(k,html)=>on(k)&&(!two||!L2[k])?html:'';
-  const nCols1=3+1+PAT_COLS.filter(c=>on(c.k)&&(!two||!L2[c.k])).length;
+  const nCols1=3+1+1+PAT_COLS.filter(c=>on(c.k)&&(!two||!L2[c.k])).length;   /* #·차트번호·성명 + 📄 + 작업 열 */
   const body=pats.filter(p=>!staffFilter||(staffFilter==='(미지정)'?!(p.staff||'').trim():(p.staff||'').trim()===staffFilter))
     .filter(p=>!q
       ||[p.name,p.mgmtCode,p.phone,p.sn,p.branch,p.staff].join(' ').toLowerCase().includes(q)
@@ -1751,6 +1754,7 @@ function renderPatients(){
       <td>${i+1}</td>
       <td><input class="inline" style="width:64px" value="${esc(p.mgmtCode||'')}" data-pf="mgmtCode" data-id="${p.id}" placeholder="A00000" title="LMTS 차트번호 — 직접 수정 가능"></td>
       <td><b>${esc(p.name)}</b></td>
+      <td class="noprint docscell"><button class="btn sm docsbtn" data-act="docs" data-id="${p.id}" title="양압기 서류 만들기 — 서류 앱을 창 안에 열고 이 환자 자료를 자동으로 채웁니다${(p.docHist&&p.docHist.length)?` · 발행 ${p.docHist.length}회 (최근 ${p.docHist[p.docHist.length-1].at})`:''}">📄${(p.docHist&&p.docHist.length)?`<sup>${p.docHist.length}</sup>`:''}</button></td>
       ${cell('rrn',`<td><input class="inline ${p.rrn&&p.rrn.length!==13&&p.rrn.length!==6?'bad':''}" style="width:112px" value="${esc(fmtRRN(p.rrn))}" data-pf="rrn" data-id="${p.id}" placeholder="000000-0000000" title="${p.rrn&&p.rrn.length===6?'뒷자리 7자리를 이어서 입력 → Tab/↓로 다음 환자':'직접 수정 가능'}"></td>`)}
       ${cell('phone',`<td><input class="inline ${p.phone&&p.phone.length!==10&&p.phone.length!==11?'bad':''}" style="width:94px" value="${esc(fmtPhone(p.phone))}" data-pf="phone" data-id="${p.id}" placeholder="010-" title="직접 수정 가능"></td>`)}
       ${c1('device',`<td>${esc(p.device)}${p.model?` <span class="hint">${esc(p.model)}</span>`:''}</td>`)}
@@ -1766,14 +1770,13 @@ function renderPatients(){
       ${cell('staff',`<td><input class="inline" style="width:62px" list="staffOpts" value="${esc(p.staff||'')}" data-pf="staff" data-id="${p.id}" placeholder="담당자" title="담당자 — 직접 입력하거나 목록에서 선택"></td>`)}
       ${cell('status',`<td style="white-space:nowrap">${p.rentEnd&&p.rentEnd<today?'<span class="badge end">종료</span>':'<span class="badge b20" style="background:#e9f9f1">사용중</span>'}${rxBadge(p,today)}</td>`)}
       <td class="noprint" style="white-space:nowrap">
-        <button class="btn sm" data-act="docs" data-id="${p.id}" title="양압기 서류 만들기 — 서류 앱을 창 안에 열고 이 환자 자료를 자동으로 채웁니다${(p.docHist&&p.docHist.length)?` · 발행 ${p.docHist.length}회 (최근 ${p.docHist[p.docHist.length-1].at})`:''}">📄</button>
         <button class="btn sm" data-act="edit" data-id="${p.id}" title="환자 정보 수정">✏️</button>
         <button class="btn sm danger" data-act="del" data-id="${p.id}" title="환자 삭제">🗑</button>
       </td>
     </tr>${line2}`;}).join('');
   const nCols=nCols1;
   $('#patTable').innerHTML=`
-    <thead><tr><th>#</th>${th('mgmtCode','차트번호')}${th('name','성명')}
+    <thead><tr><th>#</th>${th('mgmtCode','차트번호')}${th('name','성명')}<th class="noprint" title="양압기 서류 만들기 (서류 자동작성 창)">📄</th>
     ${cell('rrn','<th>주민번호</th>')}${cell('phone','<th>연락처</th>')}${c1('device',th('device','기기'))}
     ${cell('pressure','<th>처방압력</th>')}${cell('sn','<th>S/N</th>')}${c1('rentStart',th('rentStart','계약시작'))}${c1('rentEnd',th('rentEnd','계약종료'))}
     ${c1('rxs',th('rxs','처방시작'))}${c1('rx',th('rx','처방종료'))}${c1('pass',th('pass','순응통과'))}${cell('pay',th('pay','결제'))}
