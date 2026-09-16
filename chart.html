@@ -578,7 +578,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.15.1';
+const APP_VERSION='2026.09.16.1';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -900,7 +900,8 @@ function ensureDefaults(){
 }
 let persistTimer=null,persistDirty=false,persistVer=0,persistBusy=false;
 function persist(){
-  persistDirty=true;persistVer++;          /* 변경 번호 — 암호화 도중 들어온 입력을 '저장됨'으로 오인하지 않게 */
+  persistDirty=true;persistVer++;
+  publishPresets();          /* 변경 번호 — 암호화 도중 들어온 입력을 '저장됨'으로 오인하지 않게 */
   clearTimeout(persistTimer);
   persistTimer=setTimeout(flushPersist,300);
 }
@@ -1025,6 +1026,7 @@ async function tryUnlock(){
 }
 function enterApp(){
   ensureDefaults();
+  publishPresets();
   /* 브라우저 자동 정리로 자료가 사라지지 않도록 지속 저장 요청 */
   try{ if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{}); }catch(e){}
   /* 지정된 폴더가 있으면 하루 1회 자동 백업 */
@@ -4144,13 +4146,25 @@ $('#btnWipe').onclick=async()=>{
   if(!await confirmModal('전체 삭제','정말 모든 데이터를 삭제할까요? 되돌릴 수 없습니다.','삭제',true))return;
   const v=await askModal('최종 확인','확인을 위해 "삭제"라고 입력하세요','');
   if(v!=='삭제')return;
-  localStorage.removeItem(LSKEY);location.reload();
+  localStorage.removeItem(LSKEY);try{localStorage.removeItem(PRESET_KEY);}catch(e){}location.reload();
 };
 
 /* ================== 서류 자동작성(docs.html) 연동 ==================
    서류 앱을 창 안 창(iframe)으로 열고 환자 자료를 메시지로 넘긴다(주소창에 개인정보를 싣지 않음).
    서류 앱에서 PDF를 내려받거나 [숨길이에 저장]을 누르면 입력값이 돌아오고, 확인 후 환자에 저장한다(신환은 새로 등록). */
 const DOCS_URL='docs.html';
+/* 서류 앱 프리셋(업체·병원·의사·상병)에 넘길 숨길이 설정 — 환자 정보는 포함하지 않음 */
+function docsPresets(){
+  const st=state.settings||{},sp=st.supplier||{},cl=st.claim||{},dr=(st.doctors||[])[0]||{};
+  const o={coName:sp.name,coBizNo:fmtBiz(sp.regno),coCeo:sp.ceo,coAddr:sp.addr,
+    hospital:cl.hospName,hospCode:cl.hospCode,doctor:dr.name,docLicense:dr.license,specNo:dr.specNo||cl.specNo,specialty:cl.specialty,
+    disease:cl.sickName,diseaseCode:cl.sickCode};
+  for(const k of Object.keys(o))if(o[k]==null||String(o[k]).trim()==='')delete o[k];
+  return o;
+}
+/* 서류 앱을 따로 열었을 때도 [숨길이에서 가져오기]가 되도록, 같은 주소의 localStorage에 설정(업체·병원)만 평문으로 남긴다 */
+const PRESET_KEY='sumgilChart.presets.v1';
+function publishPresets(){if(!state)return;try{localStorage.setItem(PRESET_KEY,JSON.stringify({at:new Date().toISOString(),app:APP_VERSION,presets:docsPresets()}));}catch(e){}}
 const DEV2DOC={'자동형':'APAP','수동형':'CPAP','이중형':'BiPAP'},DOC2DEV={APAP:'자동형',CPAP:'수동형',BiPAP:'이중형'};
 function latestMaskOf(pid){for(const ym of Object.keys(state.months).sort().reverse()){const o=state.months[ym]&&state.months[ym][pid];if(o&&(o.maskItem||o.maskSpec))return o;}return null;}
 /* 숨길이 환자 → 서류 앱 입력칸(data-k). opt.phase='pre'|'post', opt.rxDate=재처방일(순응 후) */
@@ -4212,6 +4226,7 @@ function openDocs(pid,opt){
         note:p?`숨길이에서 ${p.name} 환자 자료를 받았습니다`:'신환 — 간단 입력을 채우고 PDF를 내려받으세요'},'*');
       $('#docsStat').textContent=p?'환자 자료를 채웠습니다 ✓':'신환 입력';
     }else if(m.type==='sumgilDocs:save'){applyDocsSave(m,ctx);}
+    else if(m.type==='sumgilDocs:requestPresets'){frame.contentWindow.postMessage({type:'sumgilDocs:presets',presets:docsPresets()},'*');}
   };
   window.addEventListener('message',ctx.onMsg);
   ctx.timer=setTimeout(()=>{if(!ctx.filled&&$('#docsStat'))$('#docsStat').innerHTML='<span style="color:var(--red)">서류 앱(docs.html)이 응답하지 않습니다 — chart.html과 같은 폴더(주소)에 docs.html이 있어야 합니다</span>';},8000);
