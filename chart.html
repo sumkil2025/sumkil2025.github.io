@@ -594,7 +594,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.09.16.5';
+const APP_VERSION='2026.09.16.6';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1054,6 +1054,8 @@ function enterApp(){
   /* 브라우저 자동 정리로 자료가 사라지지 않도록 지속 저장 요청 */
   try{ if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{}); }catch(e){}
   /* 지정된 폴더가 있으면 하루 1회 자동 백업 */
+  /* 접속 안내 팝업 — [1주일간 안 보기] 기간이 아니면 자동으로 */
+  if(noticeDue())setTimeout(()=>showNotice({auto:true}),500);
   setTimeout(()=>autoBackupRun(false).then(r=>{
     if(r&&r.ok&&r.name)console.log('자동 백업:',r.name);
   }).catch(()=>{}),1500);
@@ -4436,16 +4438,27 @@ const NOTICE_HTML=`<p>양압기 건강보험 요양비 청구를 한 화면에�
 <h4>처음이라면</h4>
 <p>[환자 관리 → 📖 어떤 파일을 어디서 받나요?]를 먼저 열어 보세요. LMTS 어느 메뉴에서 어떤 파일을 받아 넣는지 순서대로 적혀 있습니다.</p>
 <p>문의사항은 <b>상쾌한오공</b>(<a href="mailto:anveer@hanmail.net">anveer@hanmail.net</a>)에게 해주셔도 됩니다. 오류 화면은 캡처해서 보내 주시면 빠르게 고칠 수 있습니다.</p>`;
-function showNotice(){
-  $('#dlgHost').innerHTML=`<div class="modalBack" id="ntBack" style="z-index:80"><div class="modal" style="width:780px">
-    <h3>📢 항상웃는얼굴숨길이 — 양압기 청구 차트 안내 <small style="font-weight:400;color:var(--muted);font-size:.76rem">v${APP_VERSION} · https://sumkil2025.github.io/chart.html</small></h3>
-    <div class="notice">${NOTICE_HTML}</div>
-    <div class="actions"><a class="btn sm" href="chart-notice.html" target="_blank" rel="noopener" title="같은 안내를 링크로 공유할 수 있는 페이지">🔗 공유용 페이지</a><button class="btn primary" id="ntOk">닫기</button></div></div></div>`;
-  $('#ntOk').onclick=()=>$('#dlgHost').innerHTML='';
-  $('#ntBack').onclick=e=>{if(e.target.id==='ntBack')$('#dlgHost').innerHTML='';};
+/* 접속(잠금 해제) 때 자동으로 한 번 띄우고, [1주일간 안 보기]를 누르면 그 날짜까지 자동으로는 뜨지 않는다 (📢 버튼으로는 언제든) */
+const NOTICE_HIDE_KEY='sumgilChart.noticeHideUntil';
+function noticeDue(){try{const u=localStorage.getItem(NOTICE_HIDE_KEY);return !u||u<fd(new Date());}catch(e){return true;}}
+function showNotice(opt){
+  const auto=!!(opt&&opt.auto);
+  return dlgQueue((finish,mark)=>{
+    $('#dlgHost').innerHTML=`<div class="modalBack" id="ntBack" data-mark="${mark}" style="z-index:80"><div class="modal" style="width:780px">
+      <h3>📢 항상웃는얼굴숨길이 — 양압기 청구 차트 안내 <small style="font-weight:400;color:var(--muted);font-size:.76rem">v${APP_VERSION} · https://sumkil2025.github.io/chart.html</small></h3>
+      <div class="notice">${NOTICE_HTML}</div>
+      <div class="actions" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div><a class="btn sm" href="chart-notice.html" target="_blank" rel="noopener" title="같은 안내를 링크로 공유할 수 있는 페이지">🔗 공유용 페이지</a>
+          ${auto?`<span class="hint" style="margin-left:8px">접속할 때마다 안내가 뜹니다 · 화면 위 📢 안내 버튼으로 언제든 다시 볼 수 있습니다</span>`:''}</div>
+        <div>${auto?`<button class="btn" id="ntWeek" title="${addDays(fd(new Date()),7)}까지 자동으로 뜨지 않습니다">1주일간 안 보기</button> `:''}<button class="btn primary" id="ntOk">닫기</button></div></div></div></div>`;
+    const done=v=>{$('#dlgHost').innerHTML='';finish(v);};
+    $('#ntOk').onclick=()=>done('close');
+    const w=$('#ntWeek');if(w)w.onclick=()=>{try{localStorage.setItem(NOTICE_HIDE_KEY,addDays(fd(new Date()),7));}catch(e){}done('week');};
+    $('#ntBack').onclick=e=>{if(e.target.id==='ntBack')done('close');};
+  });
 }
-$('#btnNotice').onclick=showNotice;
-$('#btnNoticeLock').onclick=showNotice;
+$('#btnNotice').onclick=()=>showNotice();
+$('#btnNoticeLock').onclick=()=>showNotice();
 /* 상단 💾 백업: 설정의 암호화 백업과 같은 동작 + 마지막 백업이 오래됐으면 눈에 띄게 */
 function updateBackupBtn(){
   const b=$('#btnBackupTop');if(!b||!state)return;
