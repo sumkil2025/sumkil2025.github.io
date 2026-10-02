@@ -194,6 +194,8 @@
   .cvai .cvl{padding:0;background:none;border:0;display:inline}
   .cvi.span3 .cvl{margin-left:0}
   .cvtbl{font-size:.83rem}
+  .cvapp{margin-left:6px;white-space:nowrap}
+  .cvapp .btn.sm{padding:1px 6px;font-size:.72rem;margin-left:2px}
   .cvempty{color:#c0c6d4;font-size:.85rem;padding:6px 8px}
   @media (max-width:1000px){.cv3{grid-template-columns:repeat(2,minmax(0,1fr))}.cvi.blank{display:none}}
   @media (max-width:640px){.cv3{grid-template-columns:1fr}}
@@ -608,7 +610,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.10.03.1';
+const APP_VERSION='2026.10.03.2';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1616,9 +1618,11 @@ function openClaimView(pid,k){
     ${(p.maskType||p.maskDate||ov.maskSpec)?`<div class="cvaux"><b>마스크 정보(LMTS)</b>${p.maskType?`<span class="cvai"><span class="cvl">종류</span>${chip(p.maskType,p.maskType)}</span>`:''}${p.maskDate?`<span class="cvai"><span class="cvl">구매일</span>${chip(dot(p.maskDate),dot(p.maskDate))}</span>`:''}${ov.maskSpec?`<span class="cvai"><span class="cvl">규격</span>${chip(ov.maskSpec,ov.maskSpec)}</span>`:''}</div>`:''}
     <div class="cvsec">국세청자료</div>
     ${(()=>{const card=(ov.payMethod||p.payMethod)==='card',taxDate=taD||taI;
+      /* 승인번호 직접 수정·지우기 (홈택스 결과 파일을 아직 못 받았거나 취소만 한 경우) */
+      const appBtns=(kind,cur)=>`<span class="cvapp noprint"><button class="btn sm" data-act="appEdit" data-kind="${kind}" title="${kind==='cash'?'현금영수증':'전자세금계산서'} 승인번호·날짜 직접 입력/수정">✏️</button>${cur?`<button class="btn sm" data-act="appClear" data-kind="${kind}" title="승인번호와 날짜 지우기 — 홈택스에서 취소한 뒤 다시 발급할 때">✕</button>`:''}</span>`;
       return `<div class="tblwrap"><table class="grid cvtbl"><thead><tr><th>순번</th><th>문서종류</th><th>작성일자</th><th>승인번호</th><th class="num">합계금액</th></tr></thead><tbody>
-      <tr><td>1</td><td>전자세금계산서</td><td>${taxDate?`${chip(dot(taxDate),dot(taxDate))}${taI&&taI!==taxDate?`<span class="hint"> (발급 ${dot(taI)})</span>`:''}`:'<span class="cvv empty">—</span><span class="hint"> LMTS 세금계산서내역 대사 또는 홈택스 목록 가져오기</span>'}</td><td>${ta?chip(ta,ta):'<span class="cvv empty">승인번호 없음</span>'}</td><td class="num">${chip(won(u.gong),u.gong)}</td></tr>
-      <tr><td>2</td><td>현금영수증${caSum?' <span class="badge warn" title="구간별로 2장 발행해야 합니다">⚠️ 월 합산 1장</span>':''}</td>${card?`<td colspan="2"><span class="cvv empty">카드 결제 — 현금영수증 해당 없음</span></td>`:`<td>${caD?chip(dot(caD),dot(caD)):'<span class="cvv empty">—</span>'}</td><td>${ca?chip(ca,ca):`<span class="cvv empty">승인번호 없음</span><span class="hint"> 홈택스 매출내역(현금영수증) 가져오기 — 본인부담 ${won(u.bonin)}원 · 연락처/주민번호 뒤4자리로 자동 매칭</span>`}</td>`}<td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>
+      <tr><td>1</td><td>전자세금계산서</td><td>${taxDate?`${chip(dot(taxDate),dot(taxDate))}${taI&&taI!==taxDate?`<span class="hint"> (발급 ${dot(taI)})</span>`:''}`:'<span class="cvv empty">—</span><span class="hint"> LMTS 세금계산서내역 대사 또는 홈택스 목록 가져오기</span>'}</td><td>${ta?chip(ta,ta):'<span class="cvv empty">승인번호 없음</span>'}${appBtns('tax',ta)}</td><td class="num">${chip(won(u.gong),u.gong)}</td></tr>
+      <tr><td>2</td><td>현금영수증${caSum?' <span class="badge warn" title="구간별로 2장 발행해야 합니다">⚠️ 월 합산 1장</span>':''}</td>${card?`<td colspan="2"><span class="cvv empty">카드 결제 — 현금영수증 해당 없음</span></td>`:`<td>${caD?chip(dot(caD),dot(caD)):'<span class="cvv empty">—</span>'}</td><td>${ca?chip(ca,ca):`<span class="cvv empty">승인번호 없음</span><span class="hint"> 홈택스 매출내역(현금영수증) 가져오기 — 본인부담 ${won(u.bonin)}원 · 연락처/주민번호 뒤4자리로 자동 매칭</span>`}${appBtns('cash',ca)}</td>`}<td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>
       </tbody></table></div>`;})()}
     ${(c.avgMin!=null||ad||lm)?`<div class="cvsec">숨길이 참고자료 <small style="font-weight:400;color:var(--muted);font-size:.74rem">LMTS 순응후관리 · 월청구자료 — 대조용</small></div>
       <div class="cv3">
@@ -1663,6 +1667,31 @@ function openClaimView(pid,k){
    $('#cvNextOpen').onclick=()=>go(target);}
   $('#cvBack').onclick=e=>{if(e.target.id==='cvBack')$('#modalHost').innerHTML='';};
   $('#cvBack').addEventListener('click',async e=>{
+    const ab=e.target.closest('button[data-act="appEdit"],button[data-act="appClear"]');
+    if(ab){
+      const kind=ab.dataset.kind,field=kind==='cash'?'cashApprove':'taxApprove',dateF=kind==='cash'?'cashDate':'taxDate';
+      const label=kind==='cash'?'현금영수증':'전자세금계산서';
+      const segTxt=multi?` · 구간${u.k}(${u.phase==='pre'?'순응중':'순응후'} ${u.s.slice(5)}~${u.e.slice(5)})`:'';
+      const cur=uGet(getOv(ym,p.id),u.k,field)||'',curD=uGet(getOv(ym,p.id),u.k,dateF)||'';
+      const refresh=()=>{renderMonth();openClaimView(p.id,k);};
+      if(ab.dataset.act==='appClear'){
+        const ok=await confirmModal('승인번호 지우기',`${p.name} · ${ym.replace('-','년 ')}월${segTxt}\n\n${label} 승인번호 ${cur}${curD?` (${dot(curD)})`:''}와 날짜를 지웁니다.\n홈택스에서 취소한 경우에만 지우세요 — 지우면 이 건은 국세청 업로드 파일에 다시 포함됩니다.`,'지우기',true);
+        if(!ok)return;
+        uSet(ym,p.id,u.k,{[field]:'',[dateF]:null,...(kind==='tax'?{taxIssue:null}:{})});refresh();return;
+      }
+      let v=await askModal(`${label} 승인번호${cur?' 수정':' 입력'}`,`${p.name} · ${ym.replace('-','년 ')}월${segTxt}\n\n홈택스에 표시된 승인번호를 그대로 입력하세요.\n${kind==='cash'?'현금영수증: 숫자 9자리':'전자세금계산서: 24자리 (YYYYMMDD-XXXXXXXX-XXXXXXXX)'}\n비우고 [확인]하면 지웁니다.`,cur);
+      if(v===null)return;
+      v=v.trim();
+      if(v===''){if(cur){uSet(ym,p.id,u.k,{[field]:'',[dateF]:null,...(kind==='tax'?{taxIssue:null}:{})});refresh();}return;}
+      const okFmt=kind==='cash'?/^\d{9}$/.test(v):/^\d{8}-\d{8}-\d{8}$/.test(v);
+      if(!okFmt){const go=await confirmModal('승인번호 형식 확인',`입력한 값: ${v}\n\n보통 ${kind==='cash'?'현금영수증 승인번호는 숫자 9자리':'전자세금계산서 승인번호는 8-8-8 자리 24자'}입니다.\n그래도 이대로 저장할까요?`,'저장');if(!go)return;}
+      let d=await askModal(`${kind==='cash'?'거래일시(발급일)':'작성일자'} — 선택`,`날짜를 고르거나 비워 두세요 (비우면 날짜 없이 저장).`,curD,'date');
+      if(d===null)d=curD;   /* 날짜 창에서 취소 → 기존 날짜 유지 */
+      const dd=d?ymd8(d):null;
+      if(d&&!dd){showMsg('날짜 형식 오류',`${d} — YYYY-MM-DD 형식이 아닙니다. 승인번호만 저장합니다.`);}
+      uSet(ym,p.id,u.k,{[field]:v,[dateF]:dd||null,...(kind==='tax'?{taxIssue:null}:{}),[field+'Src']:'manual'});
+      refresh();return;
+    }
     const v=e.target.closest('.cvv[data-copy]');if(!v)return;
     try{await navigator.clipboard.writeText(v.dataset.copy);}
     catch(err){const ta2=document.createElement('textarea');ta2.value=v.dataset.copy;document.body.appendChild(ta2);ta2.select();document.execCommand('copy');ta2.remove();}
@@ -2437,7 +2466,7 @@ function beginImport(fname){
   importUndo={at:Date.now(),files:[fname],snap:JSON.stringify({patients:state.patients,months:state.months})};
 }
 const FIELD_KO={rrn:'주민번호',phone:'연락처',addr:'주소',birthDate:'생년월일',rentStart:'계약시작일',rentEnd:'계약종료일',rxStart:'처방시작일',rxEnd:'처방종료일',rxEndPrev:'이전 처방종료일',passDate:'순응통과일',pressure:'처방압력',model:'모델',sn:'S/N',device:'기기',mgmtCode:'차트번호',staff:'담당자',branch:'지사',branchFax:'지사팩스',docName:'의사',docLicense:'면허',docSpecNo:'전문의번호',hospital:'병원',doctor:'의사',maskType:'마스크종류',maskDate:'마스크구매일',maskMonth:'마스크구독월',adaptStart:'순응시작일',adaptEnd:'순응종료일',adaptWinStart:'통과기간시작',adaptWinEnd:'통과기간종료',adaptDays4h:'4시간 사용일',adaptJudge:'순응판정일',psgDate:'PSG검사일',nextVisit:'진료예정일',lastVisit:'최근진료일',adaptStatus:'순응상태',adaptRxType:'최종처방전',payMethod:'결제',cashIdNum:'현금영수증번호',cashUse:'용도',memo:'메모',
-  ahi:'PSG AHI',docHist:'서류 발행 이력',avgMinManual:'평균사용시간(수동)',seg3:'구간3',seg4:'구간4',seg5:'구간5',seg6:'구간6',d1:'구간1 일수',d2:'구간2 일수',mask:'마스크',maskSeg:'마스크 구간',maskItem:'마스크 품목',maskSpec:'마스크 규격',abroad:'해외일',trips:'해외 출입국',avgMin:'평균사용시간',selfFull:'전액본인부담',cashApprove:'현금 승인번호',taxApprove:'세금 승인번호',cashDate:'현금 작성일',taxDate:'세금 작성일',taxIssue:'세금 발급일',cashPaid:'현금 입금',taxPaid:'세금 입금',claimed:'청구완료',snap:'청구 스냅샷',seg2:'구간2',lmts:'LMTS 요약',adapt:'LMTS 순응후'};
+  ahi:'PSG AHI',docHist:'서류 발행 이력',avgMinManual:'평균사용시간(수동)',cashApproveSrc:'현금승인 출처',taxApproveSrc:'세금승인 출처',seg3:'구간3',seg4:'구간4',seg5:'구간5',seg6:'구간6',d1:'구간1 일수',d2:'구간2 일수',mask:'마스크',maskSeg:'마스크 구간',maskItem:'마스크 품목',maskSpec:'마스크 규격',abroad:'해외일',trips:'해외 출입국',avgMin:'평균사용시간',selfFull:'전액본인부담',cashApprove:'현금 승인번호',taxApprove:'세금 승인번호',cashDate:'현금 작성일',taxDate:'세금 작성일',taxIssue:'세금 발급일',cashPaid:'현금 입금',taxPaid:'세금 입금',claimed:'청구완료',snap:'청구 스냅샷',seg2:'구간2',lmts:'LMTS 요약',adapt:'LMTS 순응후'};
 const fko=k=>FIELD_KO[k]||k;
 const fmtV=v=>v==null||v===''?'—':(typeof v==='object'?(Array.isArray(v)?`[${v.length}]`:'{…}'):String(v));
 function diffState(before,after){
