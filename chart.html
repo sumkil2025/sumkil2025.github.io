@@ -610,7 +610,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.10.03.4';
+const APP_VERSION='2026.10.03.5';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -3651,6 +3651,12 @@ $('#btnCashXls').onclick=async()=>{
   /* 국세청 양식 한도: 현금영수증 1회 1,000건 → 초과 시 자동 분할 */
   await writeSplit('cash',rows,NTS_LIMIT.cash,`현금영수증_일괄발급_${ym.replace('-','')}`,'현금영수증');
 };
+/* 지정한 행 범위의 글자(문자열) 셀에 엑셀 '텍스트' 표시형식(@)을 붙인다 — 숫자처럼 보이는 글자(010…, 01, 02, 주민번호)가 숫자로 바뀌지 않게 */
+function textFormatCells(ws,r0,r1){
+  if(!ws||!ws['!ref'])return;
+  const ref=XLSX.utils.decode_range(ws['!ref']);
+  for(let r=r0;r<=r1;r++)for(let c=ref.s.c;c<=ref.e.c;c++){const cell=ws[XLSX.utils.encode_cell({r,c})];if(cell&&cell.t==='s')cell.z='@';}
+}
 /* 국세청 일괄 업로드 양식의 1회 최대 건수 (양식 안내문 기준) */
 const NTS_LIMIT={cash:1000,tax:100};
 /* 한도를 넘으면 여러 파일로 나눠 저장 */
@@ -3662,8 +3668,10 @@ async function writeSplit(kind,rows,limit,baseName,label){
     +`홈택스에서 파일을 하나씩 올리시면 됩니다.\n(브라우저가 "여러 파일 다운로드"를 물어보면 허용해주세요)`,
     `${parts}개 파일로 저장`))return;
   for(let i=0;i<parts;i++){
-    const wb=tplWorkbook(kind);
-    XLSX.utils.sheet_add_aoa(wb.Sheets['엑셀업로드양식'],rows.slice(i*limit,(i+1)*limit),{origin:'A7'});
+    const wb=tplWorkbook(kind),ws=wb.Sheets['엑셀업로드양식'],chunk=rows.slice(i*limit,(i+1)*limit);
+    XLSX.utils.sheet_add_aoa(ws,chunk,{origin:'A7'});
+    /* 글자 칸(발급수단번호·등록번호·'01'·'02' 등)은 엑셀 '텍스트' 서식(@) — 엑셀에서 손으로 다시 입력해도 맨 앞 0이 사라지지 않게 (2026-10-03) */
+    textFormatCells(ws,6,6+chunk.length-1);
     XLSX.writeFile(wb,parts>1?`${baseName}_${i+1}of${parts}.xlsx`:`${baseName}.xlsx`);
     if(parts>1)await new Promise(r=>setTimeout(r,400));   /* 연속 다운로드 차단 방지 */
   }
