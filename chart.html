@@ -610,7 +610,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.10.03.3';
+const APP_VERSION='2026.10.03.4';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1682,11 +1682,12 @@ function openClaimView(pid,k){
         uSet(ym,p.id,u.k,{[field]:'',[dateF]:null,...(kind==='tax'?{taxIssue:null}:{})});refresh();return;
       }
       /* 승인번호·날짜를 한 창에서 — 둘 중 하나만 고쳐도 됨 */
-      const r=await appEditModal(`${label} 승인번호 · ${dateLabel}`,`${who}\n홈택스에 표시된 값을 그대로 입력하세요. ${kind==='cash'?'현금영수증 승인번호는 숫자 9자리':'전자세금계산서 승인번호는 24자리(YYYYMMDD-XXXXXXXX-XXXXXXXX)'}.\n둘 다 비우고 [저장]하면 지웁니다.`,cur,curD,dateLabel,ab.dataset.act==='dateEdit'?'date':'app');
+      const r=await appEditModal(`${label} 승인번호 · ${dateLabel}`,`${who}\n홈택스에 표시된 값을 그대로 입력하세요. ${kind==='cash'?'현금영수증 승인번호는 9자리(예: Z59048643)':'전자세금계산서 승인번호는 24자리(예: 20260831-10260903-59060777)'}.\n둘 다 비우고 [저장]하면 지웁니다.`,cur,curD,dateLabel,ab.dataset.act==='dateEdit'?'date':'app');
       if(!r)return;
-      const v=r.app.trim(),d=r.date.trim();
-      if(v&&!(kind==='cash'?/^\d{9}$/.test(v):/^\d{8}-\d{8}-\d{8}$/.test(v))){
-        const go=await confirmModal('승인번호 형식 확인',`입력한 값: ${v}\n\n보통 ${kind==='cash'?'현금영수증 승인번호는 숫자 9자리':'전자세금계산서 승인번호는 8-8-8 자리 24자'}입니다.\n그래도 이대로 저장할까요?`,'저장');if(!go)return;}
+      const v=r.app.replace(/\s+/g,'').toUpperCase(),d=r.date.trim();
+      /* 형식 확인은 번호를 새로 넣거나 바꿨을 때만 — 홈택스 현금영수증 승인번호는 영문 1자+숫자 8자리(Z59048643) 또는 숫자 9자리 */
+      if(v&&v!==cur&&!(kind==='cash'?/^[A-Z0-9]{9}$/.test(v):/^\d{8}-\d{8}-\d{8}$/.test(v))){
+        const go=await confirmModal('승인번호 형식 확인',`입력한 값: ${v} (${v.length}자)\n\n홈택스 ${kind==='cash'?'현금영수증 승인번호는 보통 9자리(예: Z59048643)':'전자세금계산서 승인번호는 보통 24자리(예: 20260831-10260903-59060777)'}입니다.\n그래도 이대로 저장할까요?`,'저장');if(!go)return;}
       const dd=d?ymd8(d):null;
       if(d&&!dd){showMsg('날짜 형식 오류',`${d} — YYYY-MM-DD 형식이 아닙니다. 다시 입력해 주세요.`);return;}
       if(!v&&!dd&&!cur&&!curD)return;                      /* 바뀐 게 없음 */
