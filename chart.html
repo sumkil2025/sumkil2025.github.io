@@ -610,7 +610,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.10.03.2';
+const APP_VERSION='2026.10.03.3';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1620,9 +1620,10 @@ function openClaimView(pid,k){
     ${(()=>{const card=(ov.payMethod||p.payMethod)==='card',taxDate=taD||taI;
       /* 승인번호 직접 수정·지우기 (홈택스 결과 파일을 아직 못 받았거나 취소만 한 경우) */
       const appBtns=(kind,cur)=>`<span class="cvapp noprint"><button class="btn sm" data-act="appEdit" data-kind="${kind}" title="${kind==='cash'?'현금영수증':'전자세금계산서'} 승인번호·날짜 직접 입력/수정">✏️</button>${cur?`<button class="btn sm" data-act="appClear" data-kind="${kind}" title="승인번호와 날짜 지우기 — 홈택스에서 취소한 뒤 다시 발급할 때">✕</button>`:''}</span>`;
+      const dateBtn=kind=>`<span class="cvapp noprint"><button class="btn sm" data-act="dateEdit" data-kind="${kind}" title="${kind==='cash'?'거래일시(발급일)':'작성일자'} 직접 입력/수정">✏️</button></span>`;
       return `<div class="tblwrap"><table class="grid cvtbl"><thead><tr><th>순번</th><th>문서종류</th><th>작성일자</th><th>승인번호</th><th class="num">합계금액</th></tr></thead><tbody>
-      <tr><td>1</td><td>전자세금계산서</td><td>${taxDate?`${chip(dot(taxDate),dot(taxDate))}${taI&&taI!==taxDate?`<span class="hint"> (발급 ${dot(taI)})</span>`:''}`:'<span class="cvv empty">—</span><span class="hint"> LMTS 세금계산서내역 대사 또는 홈택스 목록 가져오기</span>'}</td><td>${ta?chip(ta,ta):'<span class="cvv empty">승인번호 없음</span>'}${appBtns('tax',ta)}</td><td class="num">${chip(won(u.gong),u.gong)}</td></tr>
-      <tr><td>2</td><td>현금영수증${caSum?' <span class="badge warn" title="구간별로 2장 발행해야 합니다">⚠️ 월 합산 1장</span>':''}</td>${card?`<td colspan="2"><span class="cvv empty">카드 결제 — 현금영수증 해당 없음</span></td>`:`<td>${caD?chip(dot(caD),dot(caD)):'<span class="cvv empty">—</span>'}</td><td>${ca?chip(ca,ca):`<span class="cvv empty">승인번호 없음</span><span class="hint"> 홈택스 매출내역(현금영수증) 가져오기 — 본인부담 ${won(u.bonin)}원 · 연락처/주민번호 뒤4자리로 자동 매칭</span>`}${appBtns('cash',ca)}</td>`}<td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>
+      <tr><td>1</td><td>전자세금계산서</td><td>${taxDate?`${chip(dot(taxDate),dot(taxDate))}${taI&&taI!==taxDate?`<span class="hint"> (발급 ${dot(taI)})</span>`:''}`:'<span class="cvv empty">—</span><span class="hint"> LMTS 세금계산서내역 대사 또는 홈택스 목록 가져오기</span>'}${dateBtn('tax')}</td><td>${ta?chip(ta,ta):'<span class="cvv empty">승인번호 없음</span>'}${appBtns('tax',ta)}</td><td class="num">${chip(won(u.gong),u.gong)}</td></tr>
+      <tr><td>2</td><td>현금영수증${caSum?' <span class="badge warn" title="구간별로 2장 발행해야 합니다">⚠️ 월 합산 1장</span>':''}</td>${card?`<td colspan="2"><span class="cvv empty">카드 결제 — 현금영수증 해당 없음</span></td>`:`<td>${caD?chip(dot(caD),dot(caD)):'<span class="cvv empty">—</span><span class="hint"> 홈택스 발급결과 상세조회 파일의 거래일시</span>'}${dateBtn('cash')}</td><td>${ca?chip(ca,ca):`<span class="cvv empty">승인번호 없음</span><span class="hint"> 홈택스 매출내역(현금영수증) 가져오기 — 본인부담 ${won(u.bonin)}원 · 연락처/주민번호 뒤4자리로 자동 매칭</span>`}${appBtns('cash',ca)}</td>`}<td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>
       </tbody></table></div>`;})()}
     ${(c.avgMin!=null||ad||lm)?`<div class="cvsec">숨길이 참고자료 <small style="font-weight:400;color:var(--muted);font-size:.74rem">LMTS 순응후관리 · 월청구자료 — 대조용</small></div>
       <div class="cv3">
@@ -1667,29 +1668,29 @@ function openClaimView(pid,k){
    $('#cvNextOpen').onclick=()=>go(target);}
   $('#cvBack').onclick=e=>{if(e.target.id==='cvBack')$('#modalHost').innerHTML='';};
   $('#cvBack').addEventListener('click',async e=>{
-    const ab=e.target.closest('button[data-act="appEdit"],button[data-act="appClear"]');
+    const ab=e.target.closest('button[data-act="appEdit"],button[data-act="dateEdit"],button[data-act="appClear"]');
     if(ab){
       const kind=ab.dataset.kind,field=kind==='cash'?'cashApprove':'taxApprove',dateF=kind==='cash'?'cashDate':'taxDate';
-      const label=kind==='cash'?'현금영수증':'전자세금계산서';
+      const label=kind==='cash'?'현금영수증':'전자세금계산서',dateLabel=kind==='cash'?'거래일시(발급일)':'작성일자';
       const segTxt=multi?` · 구간${u.k}(${u.phase==='pre'?'순응중':'순응후'} ${u.s.slice(5)}~${u.e.slice(5)})`:'';
+      const who=`${p.name} · ${ym.replace('-','년 ')}월${segTxt}`;
       const cur=uGet(getOv(ym,p.id),u.k,field)||'',curD=uGet(getOv(ym,p.id),u.k,dateF)||'';
       const refresh=()=>{renderMonth();openClaimView(p.id,k);};
       if(ab.dataset.act==='appClear'){
-        const ok=await confirmModal('승인번호 지우기',`${p.name} · ${ym.replace('-','년 ')}월${segTxt}\n\n${label} 승인번호 ${cur}${curD?` (${dot(curD)})`:''}와 날짜를 지웁니다.\n홈택스에서 취소한 경우에만 지우세요 — 지우면 이 건은 국세청 업로드 파일에 다시 포함됩니다.`,'지우기',true);
+        const ok=await confirmModal('승인번호 지우기',`${who}\n\n${label} 승인번호 ${cur}${curD?` (${dot(curD)})`:''}와 날짜를 지웁니다.\n홈택스에서 취소한 경우에만 지우세요 — 지우면 이 건은 국세청 업로드 파일에 다시 포함됩니다.`,'지우기',true);
         if(!ok)return;
         uSet(ym,p.id,u.k,{[field]:'',[dateF]:null,...(kind==='tax'?{taxIssue:null}:{})});refresh();return;
       }
-      let v=await askModal(`${label} 승인번호${cur?' 수정':' 입력'}`,`${p.name} · ${ym.replace('-','년 ')}월${segTxt}\n\n홈택스에 표시된 승인번호를 그대로 입력하세요.\n${kind==='cash'?'현금영수증: 숫자 9자리':'전자세금계산서: 24자리 (YYYYMMDD-XXXXXXXX-XXXXXXXX)'}\n비우고 [확인]하면 지웁니다.`,cur);
-      if(v===null)return;
-      v=v.trim();
-      if(v===''){if(cur){uSet(ym,p.id,u.k,{[field]:'',[dateF]:null,...(kind==='tax'?{taxIssue:null}:{})});refresh();}return;}
-      const okFmt=kind==='cash'?/^\d{9}$/.test(v):/^\d{8}-\d{8}-\d{8}$/.test(v);
-      if(!okFmt){const go=await confirmModal('승인번호 형식 확인',`입력한 값: ${v}\n\n보통 ${kind==='cash'?'현금영수증 승인번호는 숫자 9자리':'전자세금계산서 승인번호는 8-8-8 자리 24자'}입니다.\n그래도 이대로 저장할까요?`,'저장');if(!go)return;}
-      let d=await askModal(`${kind==='cash'?'거래일시(발급일)':'작성일자'} — 선택`,`날짜를 고르거나 비워 두세요 (비우면 날짜 없이 저장).`,curD,'date');
-      if(d===null)d=curD;   /* 날짜 창에서 취소 → 기존 날짜 유지 */
+      /* 승인번호·날짜를 한 창에서 — 둘 중 하나만 고쳐도 됨 */
+      const r=await appEditModal(`${label} 승인번호 · ${dateLabel}`,`${who}\n홈택스에 표시된 값을 그대로 입력하세요. ${kind==='cash'?'현금영수증 승인번호는 숫자 9자리':'전자세금계산서 승인번호는 24자리(YYYYMMDD-XXXXXXXX-XXXXXXXX)'}.\n둘 다 비우고 [저장]하면 지웁니다.`,cur,curD,dateLabel,ab.dataset.act==='dateEdit'?'date':'app');
+      if(!r)return;
+      const v=r.app.trim(),d=r.date.trim();
+      if(v&&!(kind==='cash'?/^\d{9}$/.test(v):/^\d{8}-\d{8}-\d{8}$/.test(v))){
+        const go=await confirmModal('승인번호 형식 확인',`입력한 값: ${v}\n\n보통 ${kind==='cash'?'현금영수증 승인번호는 숫자 9자리':'전자세금계산서 승인번호는 8-8-8 자리 24자'}입니다.\n그래도 이대로 저장할까요?`,'저장');if(!go)return;}
       const dd=d?ymd8(d):null;
-      if(d&&!dd){showMsg('날짜 형식 오류',`${d} — YYYY-MM-DD 형식이 아닙니다. 승인번호만 저장합니다.`);}
-      uSet(ym,p.id,u.k,{[field]:v,[dateF]:dd||null,...(kind==='tax'?{taxIssue:null}:{}),[field+'Src']:'manual'});
+      if(d&&!dd){showMsg('날짜 형식 오류',`${d} — YYYY-MM-DD 형식이 아닙니다. 다시 입력해 주세요.`);return;}
+      if(!v&&!dd&&!cur&&!curD)return;                      /* 바뀐 게 없음 */
+      uSet(ym,p.id,u.k,{[field]:v,[dateF]:dd||null,...(kind==='tax'&&v!==cur?{taxIssue:null}:{}),...(v?{[field+'Src']:'manual'}:{})});
       refresh();return;
     }
     const v=e.target.closest('.cvv[data-copy]');if(!v)return;
@@ -2317,6 +2318,26 @@ function askModal(title,body,defVal,type){
     $('#askOk').onclick=()=>{const v=$('#askVal').value;$('#dlgHost').innerHTML='';finish(v);};
     $('#askCancel').onclick=()=>{$('#dlgHost').innerHTML='';finish(null);};
     $('#askVal').addEventListener('keydown',e=>{if(e.key==='Enter')$('#askOk').click();});
+  });
+}
+/* 승인번호 + 날짜 두 칸 입력 창 → {app,date} 또는 null(취소) */
+function appEditModal(title,body,app,date,dateLabel,focus){
+  return dlgQueue((finish,mark)=>{
+    $('#dlgHost').innerHTML=`<div class="modalBack" id="apBack" data-mark="${mark}" style="z-index:70"><div class="modal" style="width:470px">
+      <h3>${esc(title)}</h3>
+      <div style="font-size:.85rem;margin-bottom:6px;white-space:pre-wrap;line-height:1.6">${esc(body)}</div>
+      <label style="display:block;font-size:.8rem;font-weight:700;margin:10px 0 4px">승인번호</label>
+      <input id="apNo" type="text" style="width:100%" value="${esc(app||'')}" placeholder="비우면 승인번호 없음" autocomplete="off">
+      <label style="display:block;font-size:.8rem;font-weight:700;margin:10px 0 4px">${esc(dateLabel)}</label>
+      <input id="apDate" type="date" style="width:100%" value="${esc(date||'')}">
+      <div class="actions"><button class="btn" id="apCancel">취소</button><button class="btn primary" id="apOk">저장</button></div></div></div>`;
+    const done=v=>{$('#dlgHost').innerHTML='';finish(v);};
+    $('#apOk').onclick=()=>done({app:$('#apNo').value,date:$('#apDate').value});
+    $('#apCancel').onclick=()=>done(null);
+    $('#apBack').onclick=e=>{if(e.target.id==='apBack')done(null);};
+    $('#apNo').addEventListener('keydown',e=>{if(e.key==='Enter')$('#apDate').focus();});
+    $('#apDate').addEventListener('keydown',e=>{if(e.key==='Enter')$('#apOk').click();});
+    setTimeout(()=>{const el=$(focus==='date'?'#apDate':'#apNo');if(el){el.focus();if(el.select)el.select();}},50);
   });
 }
 function confirmModal(title,body,okLabel,danger,noLabel){
