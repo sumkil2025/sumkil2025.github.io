@@ -610,7 +610,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.10.03.5';
+const APP_VERSION='2026.10.07.1';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -709,6 +709,24 @@ function abroadDaysIn(trips,rangeStart,rangeEnd){
   return n;
 }
 const hasTrips=ov=>Array.isArray(ov.trips)&&ov.trips.some(t=>t&&t.dep&&t.arr);
+/* ── 재처방(압력 변경) 이력 — 순응기간 중(또는 순응후) 압력이 바뀐 처방전이 나오면 그 날부터 새 청구 단위.
+   LMTS 월청구자료는 이 경우 행을 나누지 않으므로(2026-10-07 확인) 차트가 날짜를 들고 있다. 새 처방전 기간 = 재처방일 ~ 원래 만료일 */
+const rxChangesOf=p=>(Array.isArray(p&&p.rxChanges)?p.rxChanges.filter(x=>x&&x.date):[]).slice().sort((a,b)=>a.date<b.date?-1:1);
+/* 어떤 날짜(구간 시작)에 적용되는 처방압력: 그 날까지의 마지막 재처방 '변경 후', 그 전이면 첫 재처방의 '변경 전', 이력이 없으면 현재값 */
+function pressureAt(p,d){
+  const ch=rxChangesOf(p);let v='';
+  for(const x of ch){if(x.date<=d){if(x.to)v=x.to;}else break;}
+  if(v)return v;
+  if(ch.length&&ch[0].date>d&&ch[0].from)return ch[0].from;
+  return (p&&p.pressure)||'';
+}
+/* 재처방일이 속한 달에 승인번호·청구완료가 있으면 구간 구조를 바꿀 수 없다 */
+function rxChangeLocked(p,dates){
+  if(!p||!state||!state.months)return null;
+  for(const d of dates){if(!d)continue;const ym=d.slice(0,7),ov=(state.months[ym]||{})[p.id];if(!ov)continue;
+    if(unitKeysOf(ov).some(kk=>uGet(ov,kk,'claimed')||uGet(ov,kk,'cashApprove')||uGet(ov,kk,'taxApprove')))return ym;}
+  return null;
+}
 /* ===== 순응 후 월평균 사용시간 규정 (2024.1.1 시행 고시) =====
    순응통과자라도 "하루 평균 사용시간 2시간 이상"인 경우에 한해 계속 급여 인정.
    미달 월은 요양비 미지급 → 전액 본인부담. 12세 이하는 적용하지 않음. */
@@ -789,17 +807,25 @@ function calcPatientMonth(p,ym,ov){
   const excRanges=[];
   if(hasTrips(ov)){for(const t of ov.trips){if(!t||!t.dep||!t.arr)continue;let a=addDays(t.dep,1),b=addDays(t.arr,-1);if(a<s)a=s;if(b>e)b=e;if(b<a)continue;excRanges.push({a,b});}excRanges.sort((x,y)=>x.a<y.a?-1:1);}
   const merged=[];for(const r of excRanges){const L=merged[merged.length-1];if(L&&r.a<=addDays(L.b,1)){if(r.b>L.b)L.b=r.b;}else merged.push({a:r.a,b:r.b});}
-  const byDate=merged.length>0;
+  /* 재처방(압력 변경)일이 이 달 안에 있으면 날짜 경계 — 해외 체류 한가운데면 나누지 않음(공단 청구 없는 기간) */
+  const rxAll=rxChangesOf(p);
+  const rxIn=rxAll.map(x=>x.date).filter(d=>d>s&&d<=e);
+  const rxCuts=rxIn.filter(d=>!merged.some(m=>m.a<d&&d<=m.b));
+  const legacyAb=(!hasTrips(ov)&&rxCuts.length)?Math.max(0,Math.min(Math.floor(Number(ov.abroad||0)),days)):0;   /* 날짜 없는 해외 일수 + 재처방 분리 → 마지막 임대 구간에서 차감 */
+  const byDate=merged.length>0||rxCuts.length>0;
   const cutP=(pass&&pass>s&&pass<=e)?pass:null;
   let ranges=null,abroad=0,t1=0,t2=0,e1=d1,e2=d2;
   if(byDate){
     /* 순응통과 경계가 해외 체류 한가운데면 해외 구간은 나누지 않는다 (현금영수증 1장) — 통과 뒤 임대 구간은 그대로 순응후 */
     const bounds=new Set([s]);if(cutP&&!merged.some(m=>m.a<cutP&&cutP<=m.b))bounds.add(cutP);
     for(const m of merged){bounds.add(m.a);const nb=addDays(m.b,1);if(nb<=e)bounds.add(nb);}
+    for(const d of rxCuts)bounds.add(d);
     const starts=[...bounds].sort();
-    ranges=starts.map((st,i)=>{const en=i<starts.length-1?addDays(starts[i+1],-1):e;const exc=merged.some(m=>m.a<=st&&en<=m.b);const ph=(pass&&st>=pass)?'post':'pre';return {s:st,e:en,days:diffDays(st,en)+1,exc,ph};});
-    abroad=ranges.filter(r=>r.exc).reduce((a,r)=>a+r.days,0);
-    const preRent=ranges.filter(r=>!r.exc&&r.ph==='pre').reduce((a,r)=>a+r.days,0),postRent=ranges.filter(r=>!r.exc&&r.ph==='post').reduce((a,r)=>a+r.days,0);
+    ranges=starts.map((st,i)=>{const en=i<starts.length-1?addDays(starts[i+1],-1):e;const exc=merged.some(m=>m.a<=st&&en<=m.b);const ph=(pass&&st>=pass)?'post':'pre';const dd=diffDays(st,en)+1;
+      return {s:st,e:en,days:dd,exc,ph,rent:exc?0:dd,ab:exc?dd:0,rxNo:rxAll.filter(x=>x.date<=st).length};});
+    if(legacyAb>0){const last=[...ranges].reverse().find(r=>!r.exc);if(last){last.ab=Math.min(legacyAb,last.days);last.rent=last.days-last.ab;}}
+    abroad=ranges.reduce((a,r)=>a+r.ab,0);
+    const preRent=ranges.filter(r=>r.ph==='pre').reduce((a,r)=>a+r.rent,0),postRent=ranges.filter(r=>r.ph==='post').reduce((a,r)=>a+r.rent,0);
     /* 날짜 범위 방식에서는 수기 일수(d1/d2)를 쓰지 않는다 — 단계별 임대일수는 2시간 규정 판정용 */
     if(cutP){d1=preRent;d2=postRent;}else{d1=preRent+postRent;d2=0;}
     dayWarn=null;e1=d1;e2=d2;
@@ -832,12 +858,15 @@ function calcPatientMonth(p,ym,ov){
   else selfFull=(ov.selfFull===true)||ruleHit;                                   /* LMTS 통과여부 N 또는 자동 규정 */
   /* ── 청구 단위(구간) — 구간마다 세금계산서·현금영수증·청구서가 따로 나간다. 해외(exc) 구간은 현금영수증만(개인사용, 공단 청구 없음) ── */
   let defs;
-  if(byDate){defs=ranges.map((r,i)=>({k:i+1,r:r.exc?1:(r.ph==='post'?ins.post:ins.pre),ph:r.ph,kind:r.exc?'exc':'rent',s:r.s,e:r.e,d:r.days,rent:r.exc?0:r.days,ab:r.exc?r.days:0}));}
+  if(byDate){defs=ranges.map((r,i)=>({k:i+1,r:r.exc?1:(r.ph==='post'?ins.post:ins.pre),ph:r.ph,kind:r.exc?'exc':'rent',s:r.s,e:r.e,d:r.days,rent:r.rent,ab:r.ab,rxNo:r.rxNo}));}
   else{
-    defs=[{k:1,r:r1,ph:ph1,kind:'rent',s,e:(cutP&&d2>0)?addDays(cutP,-1):e,d:d1,rent:e1,ab:t1}];
-    if(d2>0)defs.push({k:2,r:r2,ph:ph2,kind:'rent',s:cutP||s,e,d:d2,rent:e2,ab:t2});
+    const rx0=rxAll.filter(x=>x.date<=s).length;
+    defs=[{k:1,r:r1,ph:ph1,kind:'rent',s,e:(cutP&&d2>0)?addDays(cutP,-1):e,d:d1,rent:e1,ab:t1,rxNo:rx0}];
+    if(d2>0)defs.push({k:2,r:r2,ph:ph2,kind:'rent',s:cutP||s,e,d:d2,rent:e2,ab:t2,rxNo:rx0});
   }
   const multi=defs.length>1;
+  const rxSplit=rxIn.length>0;                            /* 이 달에 재처방이 있음 (해외 체류 중이면 경계는 해외 구간이 대신) */
+  const rxMin=Math.min(...defs.map(g=>g.rxNo||0));
   const cut=(multi&&cutP)?cutP:null;                       /* 순응통과(재처방) 경계 */
   const rentDefs=defs.filter(g=>g.kind==='rent');
   const firstRent=rentDefs.length?rentDefs[0].k:1;
@@ -850,7 +879,7 @@ function calcPatientMonth(p,ym,ov){
     const ab=g.ab>0?baseAmt(B,g.ab,N):0;
     const hasMask=mask&&g.kind==='rent'&&g.k===maskSeg;
     const mB=hasMask?maskBoninFor(p):0,mG=hasMask?(prices.maskBase-mB):0;
-    const u={k:g.k,rate:g.r,phase:g.ph,kind:g.kind,multi,s:g.s,e:g.e,
+    const u={k:g.k,rate:g.r,phase:g.ph,kind:g.kind,multi,s:g.s,e:g.e,rxNo:g.rxNo||0,rxSplit,rxNew:rxSplit&&(g.rxNo||0)>rxMin,
       days:g.d,rentDays:g.rent,abroadDays:g.ab,base,rentBonin:rb,rentGong:base-rb,abAmt:ab,
       mask:hasMask,maskBonin:mB,maskGong:mG,
       bonin:rb+ab+mB,gong:(base-rb)+mG,total:base+ab+(hasMask?prices.maskBase:0)};
@@ -864,7 +893,7 @@ function calcPatientMonth(p,ym,ov){
     const snap=uGet(ov,u.k,'snap');
     if(uGet(ov,u.k,'claimed')&&snap&&snap.bonin!=null){
       u.live={s:u.s,e:u.e,days:u.days,bonin:u.bonin,gong:u.gong,total:u.total};
-      for(const f of ['s','e','days','rentDays','abroadDays','rate','phase','kind','base','rentBonin','rentGong','abAmt','mask','maskBonin','maskGong','bonin','gong','total'])if(snap[f]!==undefined)u[f]=snap[f];
+      for(const f of ['s','e','days','rentDays','abroadDays','rate','phase','kind','rxNo','base','rentBonin','rentGong','abAmt','mask','maskBonin','maskGong','bonin','gong','total'])if(snap[f]!==undefined)u[f]=snap[f];
       u.frozen=true;u.snap=snap;
       u.diff=(u.live.bonin!==u.bonin||u.live.gong!==u.gong||u.live.total!==u.total||u.live.days!==u.days);
     }
@@ -874,7 +903,7 @@ function calcPatientMonth(p,ym,ov){
   c.rentBase=sum('base');c.rentBonin=sum('rentBonin');c.rentGong=sum('rentGong');c.abAmt=sum('abAmt');
   c.bonin=sum('bonin');c.gong=sum('gong');c.total=sum('total');
   if(selfFull)c.selfFull=true;
-  return {active:true,dayWarn,byDate,s,e,days,N,B,split:(d2>0),d1,d2,r1,r2,phase1:ph1,phase2:ph2,insType:ins.code,autoD1,autoD2,abroad,mask,maskSeg,units,cut,
+  return {active:true,dayWarn,byDate,rxSplit,s,e,days,N,B,split:(d2>0),d1,d2,r1,r2,phase1:ph1,phase2:ph2,insType:ins.code,autoD1,autoD2,abroad,mask,maskSeg,units,cut,
     fullMonth,postAdapt,avgMin,avgSrc,avgLmts,age,exempt,ruleHit,...c};
 }
 
@@ -1153,6 +1182,7 @@ function todoOf(r){
   const {p,ov,c}=r,card=(ov.payMethod||p.payMethod)==='card';
   const need=[],miss=[];let issue=false,claimWait=false,pay=false;
   if(c.dayWarn)need.push('구간 일수 초과');
+  if(p.rxChangePending)need.push(`압력 변경 감지(${p.rxChangePending.from||'?'}→${p.rxChangePending.to||'?'}) — 재처방일 입력`);
   if(c.units.length>1){const cas=c.units.map(x=>uGet(ov,x.k,'cashApprove'));if(cas.every(Boolean)&&new Set(cas).size===1)need.push('현금영수증 월 합산 1장');}
   if(digits(p.rrn).length!==13)miss.push('주민번호 13자리');
   if(!p.docName&&!p.doctor)miss.push('의사');
@@ -1224,7 +1254,7 @@ function renderMonth(){
     const avgHtml=`      ${c.units.some(u=>u.phase==='post')?`<span class="avgwrap" title="순응 후 월평균 사용시간 — 직접 입력(h:mm 또는 분). 비우면 LMTS 값${c.avgLmts!=null?` ${hm(c.avgLmts)}`:'(없음)'}. 2시간 미만이면 그 달 요양비 미지급(전액 본인부담)">⏱<input class="inline avgin${c.avgSrc==='manual'?' on':''}" value="${c.avgSrc==='manual'?hmColon(c.avgMin):''}" placeholder="${c.avgLmts!=null?hmColon(c.avgLmts):'h:mm'}" data-f="avgMinManual" data-id="${p.id}"${locked?' disabled':''}>${c.avgSrc==='manual'?`<span class="badge warn" title="수동 입력값 사용 중${c.avgLmts!=null?` · LMTS ${hm(c.avgLmts)}`:''}">수동</span>`:''}</span>`:''}
     `;
     const segsHtml = c.byDate ? `<div class="segchips">
-      ${c.units.map(u=>`<span class="badge ${u.kind==='exc'?'exc':(u.phase==='pre'?'b50':'b20')}" title="${u.s}~${u.e}${u.kind==='exc'?' 해외 체류(개인사용 100%)':''}">${u.kind==='exc'?'해외':(u.phase==='pre'?'순응중':'순응후')} ${u.kind==='exc'?'100%':Math.round(u.rate*100)+'%'} ${u.days}일</span>`).join(' ')}
+      ${c.units.map(u=>`<span class="badge ${u.kind==='exc'?'exc':(u.phase==='pre'?'b50':'b20')}" title="${u.s}~${u.e}${u.kind==='exc'?' 해외 체류(개인사용 100%)':(u.rxSplit?` · 압력 ${pressureAt(p,u.s)}${u.rxNew?' (재처방)':''}`:'')}">${u.kind==='exc'?'해외':(u.phase==='pre'?'순응중':'순응후')}${u.rxNew?'·재처방':''} ${u.kind==='exc'?'100%':Math.round(u.rate*100)+'%'} ${u.days}일</span>`).join(' ')}
       <span class="hint" title="해외 출·입국 날짜가 있어 구간 일수는 날짜로 계산됩니다 (수기 일수 입력 없음)">날짜 계산</span>
       ${locked?`<span class="badge b20" title="공단 청구 완료 — 이 달의 값은 청구 당시로 고정. 수정하려면 청구완료를 해제하세요">🔒</span>`:''}
       ${avgHtml}</div>
@@ -1261,7 +1291,7 @@ function renderMonth(){
         <td></td>
         <td colspan="${two?5:8}" class="hint" style="white-space:nowrap">
           <span style="display:inline-block;width:16px;text-align:center">${ui===0?'┌':(ui===c.units.length-1?'└':'├')}</span>
-          ${exc?`<span class="badge exc" title="해외 체류 — 개인사용(전액 본인부담), 공단 청구 없음, 현금영수증만 발행">해외 100%</span>`:`<span class="badge ${u.phase==='pre'?'b50':'b20'}">${u.phase==='pre'?'순응중':'순응후'} ${Math.round(u.rate*100)}%</span>`}
+          ${exc?`<span class="badge exc" title="해외 체류 — 개인사용(전액 본인부담), 공단 청구 없음, 현금영수증만 발행">해외 100%</span>`:`<span class="badge ${u.phase==='pre'?'b50':'b20'}" title="${u.rxSplit?`압력 ${pressureAt(p,u.s)}${u.rxNew?' — 재처방(압력 변경) 처방전':' — 변경 전 처방전'}`:''}">${u.phase==='pre'?'순응중':'순응후'}${u.rxNew?'·재처방':''} ${Math.round(u.rate*100)}%</span>`}
           ${u.s.slice(5)}~${u.e.slice(5)} (${u.days}일)${(u.abroadDays&&!exc)?` · 해외 ${u.abroadDays}일`:''}${u.mask?' · 마스크':''}
           ${cardEff?' · <span style="color:var(--amber)">카드 · 현금영수증 제외</span>':''}
           ${ca?` · <span style="color:var(--green)">현금승인 ${esc(ca)}</span>`:''}
@@ -1307,7 +1337,7 @@ function renderMonth(){
       <td style="text-align:center"><input type="checkbox" ${ov.taxPaid?'checked':''} data-f="taxPaid" data-id="${p.id}" title="공단부담금 입금확인"></td>`;
     return `<tr${multi?' class="split"':''}>
       <td>${i+1}</td>
-      <td><b>${esc(p.name)}</b>${insOf(p).code!=='IB'?` <span class="badge warn" title="보험자격 ${insOf(p).n} — 본인부담 순응중 ${Math.round(insOf(p).pre*100)}% · 순응후 ${Math.round(insOf(p).post*100)}% · 마스크 ${Math.round(insOf(p).mask*100)}%">${insOf(p).n}</span>`:''}${p.rentStart>=mS?' <span class="badge cash" style="background:#e9f9f1;color:var(--green)">신규</span>':''}${c.selfFull?' <span class="badge warn" title="순응 후 월평균 사용시간 2시간 미만 — 요양비 미지급(전액 본인부담)">100%</span>':''}${multi?` <span class="badge split" title="${c.byDate?'해외 체류·순응 단계로 구간이 나뉘어':'순응중·순응후 구간이 함께 있어'} 청구서·세금계산서·현금영수증을 ${c.units.length}건으로 분리 발행${c.units.some(u=>u.kind==='exc')?' (해외 구간은 현금영수증만)':''}">${c.units.length}건</span>`:''}</td>
+      <td><b>${esc(p.name)}</b>${p.rxChangePending?` <span class="badge warn" title="LMTS 고객정보의 설정압력이 ${esc(p.rxChangePending.from||'')} → ${esc(p.rxChangePending.to||'')}로 바뀌었습니다. 압력 변경 처방전이 나온 날짜를 [환자 관리 → 수정 → 재처방 이력]에 넣으면 그날부터 청구가 분리됩니다">압력변경?</span>`:''}${insOf(p).code!=='IB'?` <span class="badge warn" title="보험자격 ${insOf(p).n} — 본인부담 순응중 ${Math.round(insOf(p).pre*100)}% · 순응후 ${Math.round(insOf(p).post*100)}% · 마스크 ${Math.round(insOf(p).mask*100)}%">${insOf(p).n}</span>`:''}${p.rentStart>=mS?' <span class="badge cash" style="background:#e9f9f1;color:var(--green)">신규</span>':''}${c.selfFull?' <span class="badge warn" title="순응 후 월평균 사용시간 2시간 미만 — 요양비 미지급(전액 본인부담)">100%</span>':''}${multi?` <span class="badge split" title="${[c.cut?'순응 단계':'',c.units.some(u=>u.kind==='exc')?'해외 체류':'',c.rxSplit?'재처방(압력 변경)':''].filter(Boolean).join('·')||'순응중·순응후'}로 구간이 나뉘어 청구서·세금계산서·현금영수증을 ${c.units.length}건으로 분리 발행${c.units.some(u=>u.kind==='exc')?' (해외 구간은 현금영수증만)':''}">${c.units.length}건</span>`:''}</td>
       ${two?'':`<td>${esc(fmtRRN(p.rrn))}</td>
       <td>${esc(fmtPhone(p.phone))}</td>
       <td>${esc(p.sn||'')}</td>`}
@@ -1496,8 +1526,16 @@ function rxPeriodFor(p,u){
   const post=u.phase==='post';
   const rxS=post?((p.rxStart&&(!p.passDate||p.rxStart>=p.passDate))?p.rxStart:(p.passDate||p.rxStart||p.rentStart)):(p.adaptStart||(p.passDate?p.rentStart:(p.rxStart||p.rentStart)));
   const stale=post&&!!p.rxEnd&&!!rxS&&p.rxEnd<rxS;   /* 처방종료일이 재처방 이전 값 */
-  const preEnd=p.adaptEnd||p.rxEndPrev||((p.passDate&&p.rxEnd&&p.rxEnd>p.passDate&&rxS)?addDays(rxS,89):p.rxEnd);
-  return {s:rxS,e:post?(stale?null:p.rxEnd):preEnd,kind:post?'순응기간 후 처방':'순응기간 중 처방',stale};
+  const preEnd=p.adaptEnd||p.rxEndPrev||((p.passDate&&p.rxEnd&&p.rxEnd>p.passDate&&rxS)?addDays(rxS,89):(p.rxEnd||(rxS?addDays(rxS,89):null)));
+  let s0=rxS,e0=post?(stale?null:p.rxEnd):preEnd,changed=null;
+  /* 재처방(압력 변경)으로 나뉜 처방전: 시작 = 재처방일, 끝 = 다음 재처방 전일 — 원래 만료일은 그대로 (사용자 확인 2026-10-07) */
+  if(u&&u.s){
+    const inPhase=x=>post?(!p.passDate||x.date>=p.passDate):(!p.passDate||x.date<p.passDate);
+    const ch=rxChangesOf(p).filter(inPhase);
+    const before=ch.filter(x=>x.date<=u.s&&(!s0||x.date>s0));if(before.length){changed=before[before.length-1];s0=changed.date;}
+    const after=ch.filter(x=>x.date>u.s&&(!e0||x.date<=e0));if(after.length)e0=addDays(after[0].date,-1);
+  }
+  return {s:s0,e:e0,kind:post?'순응기간 후 처방':'순응기간 중 처방',stale,changed};
 }
 /* 공단 청구 완료 시점의 값을 통째로 보관 — 금액·기간·처방·환자 기기정보·단가 */
 function claimSnapshot(p,ym,ov,c,u){
@@ -1505,7 +1543,7 @@ function claimSnapshot(p,ym,ov,c,u){
   return {at:fd(new Date()),ver:APP_VERSION,ym,
     s:u.s,e:u.e,days:u.days,rentDays:u.rentDays,abroadDays:u.abroadDays,rate:u.rate,phase:u.phase,kind:u.kind||'rent',base:u.base,rentBonin:u.rentBonin,rentGong:u.rentGong,abAmt:u.abAmt,
     mask:u.mask,maskBonin:u.maskBonin,maskGong:u.maskGong,bonin:u.bonin,gong:u.gong,total:u.total,
-    rx:{s:rx.s,e:rx.e,kind:rx.kind},avgMin:c.avgMin==null?null:c.avgMin,avgSrc:c.avgSrc||null,
+    rx:{s:rx.s,e:rx.e,kind:rx.kind},rxPressure:pressureAt(p,u.s),rxNo:u.rxNo||0,avgMin:c.avgMin==null?null:c.avgMin,avgSrc:c.avgSrc||null,
     prices:{B:pr[p.device]||pr['자동형'],maskBase:pr.maskBase,maskBonin:pr.maskBonin},
     pat:{device:p.device,insureType:p.insureType||'IB',model:p.model,sn:p.sn,pressure:p.pressure,mfgYm:p.mfgYm||null,rentStart:p.rentStart,rentEnd:p.rentEnd||null,rxStart:p.rxStart||null,rxEnd:p.rxEnd||null,passDate:p.passDate||null,
       adaptStart:p.adaptStart||null,adaptEnd:p.adaptEnd||null,adaptWinStart:p.adaptWinStart||null,adaptWinEnd:p.adaptWinEnd||null,adaptDays4h:p.adaptDays4h??null,adaptJudge:p.adaptJudge||null,
@@ -1560,7 +1598,8 @@ function openClaimView(pid,k){
   const avgH=c.avgMin!=null?Math.floor(c.avgMin/60):null;
   const ad=ov.adapt||null,lm=ov.lmts||null;
   /* 상세항목 = 공단 팝업 "압력처방 및 순응도 평가": 1. 압력 처방(기기별) / 2. 연이은 30일 사용기간·4시간 이상 사용일수(순응기간 후 최초 처방 시 기재) */
-  const prs=String(PP.pressure||'').replace(/\s/g,'').split(/[-~\/]/).filter(Boolean);
+  const pressNow=(u.frozen&&u.snap&&u.snap.rxPressure)||pressureAt(PP,u.s)||PP.pressure||'';
+  const prs=String(pressNow).replace(/\s/g,'').split(/[-~\/]/).filter(Boolean);
   const pressHtml=PP.device==='이중형'?`<span class="cvl">EPAP</span>${chip(prs[0]||'',prs[0])}<span class="cvl">IPAP</span>${chip(prs[1]||'',prs[1])}`
     :PP.device==='수동형'?`<span class="cvl">CPAP</span>${chip(prs[0]||'',prs[0])}`
     :`<span class="cvl">APAP</span>${chip(prs[0]||'',prs[0])}<span class="hint">~</span>${chip(prs[1]||prs[0]||'',prs[1]||prs[0])}`;
@@ -1573,7 +1612,7 @@ function openClaimView(pid,k){
   $('#modalHost').innerHTML=`<div class="modalBack" id="cvBack"><div class="modal cvmodal">
     <h3>📋 공단 청구 입력 — ${esc(p.name)} · ${ym.replace('-','년 ')}월${segTitle}
       <small style="font-weight:400;color:var(--muted);font-size:.76rem">공단 화면과 같은 자리 배치 · 값을 클릭하면 복사됩니다</small></h3>
-    ${multi?`<div class="hint" style="margin:-6px 0 10px;padding:8px 10px;background:#f3f8ff;border-radius:8px;color:var(--navy)">이 달은 청구 구간이 ${c.units.length}개로 나뉘어(${c.byDate?'해외 체류·순응 단계':'순응중·순응후'}) 청구서·세금계산서·현금영수증을 <b>구간마다 따로</b> 냅니다${c.units.some(x=>x.kind==='exc')?' (해외 구간은 공단 청구 없이 현금영수증만)':''}. 이 창은 <b>구간${u.k}(${u.phase==='pre'?'순응중':'순응후'} ${u.s.slice(5)}~${u.e.slice(5)})</b>의 값입니다 — 다른 구간은 월별 표의 해당 구간 행 📋.</div>`:''}
+    ${multi?`<div class="hint" style="margin:-6px 0 10px;padding:8px 10px;background:#f3f8ff;border-radius:8px;color:var(--navy)">이 달은 청구 구간이 ${c.units.length}개로 나뉘어(${[c.cut?'순응 단계':'',c.units.some(x=>x.kind==='exc')?'해외 체류':'',c.rxSplit?'재처방(압력 변경)':''].filter(Boolean).join('·')||'순응중·순응후'}) 청구서·세금계산서·현금영수증을 <b>구간마다 따로</b> 냅니다${c.units.some(x=>x.kind==='exc')?' (해외 구간은 공단 청구 없이 현금영수증만)':''}${c.rxSplit?' — LMTS 월청구자료는 재처방을 나누지 않으므로 LMTS 합계와 10원 단위 절사 차이가 날 수 있습니다':''}. 이 창은 <b>구간${u.k}(${u.phase==='pre'?'순응중':'순응후'}${u.rxNew?'·재처방':''} ${u.s.slice(5)}~${u.e.slice(5)})</b>의 값입니다 — 다른 구간은 월별 표의 해당 구간 행 📋.</div>`:''}
     ${u.frozen?`<div class="hint" style="margin:-4px 0 10px;padding:8px 10px;background:${u.diff?'#fff3e0':'#eef7f0'};border-radius:8px;color:${u.diff?'#b45309':'var(--green)'}">🔒 <b>공단 청구 완료(${esc(u.snap.at)}) 당시 값으로 고정</b>된 창입니다 — 이후 단가·처방·일수가 바뀌어도 이 값은 변하지 않습니다.${u.diff?` <b>⚠️ 현재 계산과 다릅니다:</b> 본인 ${won(u.live.bonin)} / 공단 ${won(u.live.gong)} / 총 ${won(u.live.total)} (${u.live.days}일). 정정 청구가 필요하면 청구완료를 해제한 뒤 다시 계산하세요.`:' 현재 계산과 일치합니다.'}</div>`:''}
     <div class="cvsec">수진자 정보</div>
     <div class="cv3">
@@ -1591,7 +1630,7 @@ function openClaimView(pid,k){
       ${item('상병',`${cl.sickCode||''} ${cl.sickName||''}`.trim(),cl.sickCode)}${raw('상세항목',detailHtml)}${item('마스크 최초지급월',firstMask?dot(firstMask):'')}
       ${item('의사면허번호/의사명',docLic?`${docLic} ${docName}`:docName,docLic||docName)}${item('요양기관',`${cl.hospCode||''} ${p.hospital||cl.hospName||''}`.trim(),cl.hospCode)}${item('진료구분','')}
       ${blank}${item('전문의번호',p.docSpecNo||cl.specNo)}${item('전문과목',cl.specialty)}
-      ${aux('숨길이 추가정보',[['처방압력',PP.pressure||''],['순응기간(순응중 처방)',PP.adaptStart?`${dot(PP.adaptStart)} ~ ${dot(PP.adaptEnd||addDays(PP.adaptStart,89))}`:'',dot(PP.adaptStart)],['순응 판정 · 연속 30일 사용기간',PP.adaptWinStart?`${dot(PP.adaptWinStart)} ~ ${dot(PP.adaptWinEnd||addDays(PP.adaptWinStart,29))}`:'',dot(PP.adaptWinStart)],['4시간 이상 사용일수',PP.adaptDays4h!=null?PP.adaptDays4h+'일':'',PP.adaptDays4h],['순응판정일(LMTS)',dot(PP.adaptJudge)],['순응통과(20% 시작)일',dot(p.passDate)],['PSG 검사일',dot(PP.psgDate)],['진료예정일(재처방)',dot(PP.nextVisit)],['순응 상태(LMTS)',PP.adaptStatus||'']])}
+      ${aux('숨길이 추가정보',[['처방압력',pressNow],...(rxPeriodFor(PP,u).changed?[['재처방(압력 변경)',`${dot(rxPeriodFor(PP,u).changed.date)} · ${rxPeriodFor(PP,u).changed.from||'?'} → ${rxPeriodFor(PP,u).changed.to||'?'}`]]:[]),['순응기간(순응중 처방)',PP.adaptStart?`${dot(PP.adaptStart)} ~ ${dot(PP.adaptEnd||addDays(PP.adaptStart,89))}`:'',dot(PP.adaptStart)],['순응 판정 · 연속 30일 사용기간',PP.adaptWinStart?`${dot(PP.adaptWinStart)} ~ ${dot(PP.adaptWinEnd||addDays(PP.adaptWinStart,29))}`:'',dot(PP.adaptWinStart)],['4시간 이상 사용일수',PP.adaptDays4h!=null?PP.adaptDays4h+'일':'',PP.adaptDays4h],['순응판정일(LMTS)',dot(PP.adaptJudge)],['순응통과(20% 시작)일',dot(p.passDate)],['PSG 검사일',dot(PP.psgDate)],['진료예정일(재처방)',dot(PP.nextVisit)],['순응 상태(LMTS)',PP.adaptStatus||'']])}
       ${(post&&PP.passDateEst)?`<div class="cvaux" style="color:var(--red)">⚠️ 순응통과일·처방시작일이 <b>추정값</b>(월청구자료에 통과일이 없어 그 달 1일로 가정)입니다 — 공단 화면의 처방전발행일·처방기간은 실제 처방전 날짜로 입력하고, [환자 관리] 순응통과일에 재처방일을 넣어 주세요. ${esc(rxStartHints(PP))}</div>`:''}
       ${rxStale?`<div class="cvaux" style="color:var(--red)">⚠️ 처방종료일(${dot(p.rxEnd)})이 재처방 시작일보다 앞입니다 — 고객정보 가져오기(처방종료일 자동 갱신) 또는 환자 관리에서 처방종료일을 갱신하세요</div>`:''}
     </div>
@@ -1702,6 +1741,14 @@ function openClaimView(pid,k){
   });
 }
 function fmtBiz(v){const d=digits(v);return d.length===10?`${d.slice(0,3)}-${d.slice(3,5)}-${d.slice(5)}`:v||'';}
+/* 환자 수정 폼의 재처방 이력 한 줄 */
+function rxcRowHtml(x){
+  return `<div class="rxcrow" style="display:flex;gap:6px;align-items:center;margin:3px 0;flex-wrap:wrap">
+    <input type="date" class="rxc_date" value="${esc(x.date||'')}" style="width:150px" title="압력 변경 처방전 발행일(재처방일)">
+    <span class="hint">압력</span><input class="rxc_from" value="${esc(x.from||'')}" placeholder="변경 전 (예: 4-15)" style="width:120px">
+    <span class="hint">→</span><input class="rxc_to" value="${esc(x.to||'')}" placeholder="변경 후 (예: 6-12)" style="width:120px">
+    <button type="button" class="btn sm" data-rxc="del" title="이 줄 삭제">✕</button></div>`;
+}
 function esc2(v){return v?esc(v):'';}
 function maskDupWarn(pid,ym,maskNow){
   if(!maskNow)return false;
@@ -1741,7 +1788,7 @@ $('#btnMonthXlsx')&&($('#btnMonthXlsx').onclick=()=>{
     const rx=(rxs0?yymmdd(rxs0).replace(/(\d\d)(\d\d)(\d\d)/,'$1.$2.$3'):'')+(p.rxEnd?'~'+yymmdd(p.rxEnd).replace(/(\d\d)(\d\d)(\d\d)/,'$1.$2.$3'):'');
     c.units.forEach(u=>{
       n++;if(u.mask)mk++;
-      aoa.push([n,p.name+(multi?` (${u.kind==='exc'?'해외':(u.phase==='pre'?'순응중':'순응후')})`:'')+(insOf(p).code!=='IB'?` [${insOf(p).n}]`:''),fmtRRN(p.rrn),fmtPhone(p.phone),p.sn||'',rx,`${u.s}~${u.e}`,
+      aoa.push([n,p.name+(multi?` (${u.kind==='exc'?'해외':(u.phase==='pre'?'순응중':'순응후')}${u.rxNew?'·재처방':''})`:'')+(insOf(p).code!=='IB'?` [${insOf(p).n}]`:''),fmtRRN(p.rrn),fmtPhone(p.phone),p.sn||'',rx,`${u.s}~${u.e}`,
         `${Math.round(u.rate*100)}%×${u.days}일`,u.abroadDays||0,u.mask?1:0,
         u.bonin,uGet(ov,u.k,'cashPaid')?'O':'',u.gong,uGet(ov,u.k,'taxPaid')?'O':'',u.total,
         u.kind==='exc'?'해외(개인사용)':(u.phase==='pre'?'순응중':(p.passDate&&p.passDate>c.s?'순응통과('+p.passDate+')':'순응통과')),
@@ -2176,6 +2223,9 @@ function openPatModal(id){
       <div><label>처방종료일 <span style="font-weight:400">(재처방 시 시작·종료 함께 갱신)</span></label><input type="date" id="f_rxEnd" value="${p.rxEnd||''}"></div>
       <div class="full"><label>순응통과일 = 첫 재처방일 — 이 날부터 본인부담 20%, 비우면 순응중(50%). <b>이후 재처방 때는 바꾸지 마세요</b></label>
         <input type="date" id="f_pass" value="${p.passDate||''}"></div>
+      <div class="full"><label>재처방(압력 변경) 이력 <span style="font-weight:400">— 압력이 바뀐 처방전이 나온 날짜. 그날부터 청구서·세금계산서·현금영수증이 따로 나가고, 새 처방전 기간은 그날 ~ 원래 만료일. LMTS 월청구자료는 이 경우 행을 나누지 않으므로 여기에 직접 넣습니다</span>${p.rxChangePending?` <span class="badge warn">LMTS 설정압력 ${esc(p.rxChangePending.from||'')} → ${esc(p.rxChangePending.to||'')} 변경 감지 — 날짜를 넣어 주세요</span>`:''}</label>
+        <div id="f_rxc">${rxChangesOf(p).map(x=>rxcRowHtml(x)).join('')}</div>
+        <button type="button" class="btn sm" data-rxc="add">＋ 재처방 추가</button></div>
       <div><label>순응 판정 · 연속 30일 사용기간(시작)</label><input type="date" id="f_awS" value="${p.adaptWinStart||''}"></div>
       <div><label>연속 30일 사용기간(종료) <span style="font-weight:400">(비우면 시작+29일)</span></label><input type="date" id="f_awE" value="${p.adaptWinEnd||''}"></div>
       <div><label>4시간 이상 사용일수</label><input type="number" id="f_aw4" min="0" max="31" value="${p.adaptDays4h??''}" placeholder="예: 24"></div>
@@ -2237,11 +2287,29 @@ function openPatModal(id){
   $('#mback').addEventListener('keydown',e=>{             /* Enter = 저장 (여러 줄 입력칸 제외) */
     if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type!=='button'){e.preventDefault();$('#mSave').click();}
   });
+  $('#mback').addEventListener('click',e=>{
+    const b=e.target.closest('[data-rxc]');if(!b)return;
+    if(b.dataset.rxc==='add'){const pend=id?(state.patients.find(x=>x.id===id)||{}).rxChangePending:null;
+      $('#f_rxc').insertAdjacentHTML('beforeend',rxcRowHtml({date:'',from:(pend&&pend.from)||$('#f_pressure').value.trim(),to:(pend&&pend.to)||''}));
+      const rows=$('#f_rxc').querySelectorAll('.rxcrow');const last=rows[rows.length-1];if(last)last.querySelector('.rxc_date').focus();}
+    else if(b.dataset.rxc==='del'){b.closest('.rxcrow').remove();}
+  });
   $('#mSave').onclick=()=>{
     const name=$('#f_name').value.trim();
     const rentStart=$('#f_rentStart').value;
     if(!name){showMsg('입력 확인','성명을 입력하세요.');return;}
     if(!rentStart){showMsg('입력 확인','계약시작일을 입력하세요.');return;}
+    /* 재처방(압력 변경) 이력 수집·검증 */
+    const rxcList=[];
+    for(const r of $('#f_rxc').querySelectorAll('.rxcrow')){
+      const date=r.querySelector('.rxc_date').value,from=r.querySelector('.rxc_from').value.trim(),to=r.querySelector('.rxc_to').value.trim();
+      if(!date&&!from&&!to)continue;
+      if(!date){showMsg('입력 확인','재처방 이력에 날짜가 빠진 줄이 있습니다.');return;}
+      if(date<rentStart){showMsg('입력 확인',`재처방일 ${date}이 계약시작일 ${rentStart}보다 앞입니다.`);return;}
+      if(rxcList.some(x=>x.date===date)){showMsg('입력 확인',`재처방일 ${date}이 두 번 들어 있습니다.`);return;}
+      rxcList.push({date,from,to});
+    }
+    rxcList.sort((a,b)=>a.date<b.date?-1:1);
     const rrn=digits($('#f_rrn').value);
     if(rrn&&rrn.length!==13&&rrn.length!==6){showMsg('입력 확인','주민등록번호는 13자리(또는 앞 6자리만)여야 합니다.');return;}
     const prev=id?state.patients.find(x=>x.id===id):null;
@@ -2251,6 +2319,7 @@ function openPatModal(id){
       mgmtCode:$('#f_mgmt').value.trim(),cashIdNum:digits($('#f_cashId').value),cashUse:$('#f_cashUse').value,
       device:$('#f_device').value,model:$('#f_model').value.trim(),sn:$('#f_sn').value.trim(),
       pressure:$('#f_pressure').value.trim(),insureType:$('#f_ins').value||'IB',mfgYm:$('#f_mfg').value||null,
+      rxChanges:rxcList,
       payMethod:$('#f_pay .on').dataset.v,
       rentStart,rentEnd:$('#f_rentEnd').value||null,
       rxStart:$('#f_rxStart').value||null,rxEnd:$('#f_rxEnd').value||null,
@@ -2264,6 +2333,14 @@ function openPatModal(id){
       staff:$('#f_staff').value.trim()
     };
     obj.doctor=obj.docName+(obj.docLicense?`(${obj.docLicense})`:''); /* 구형식 호환 */
+    /* 재처방 이력이 바뀌면: 승인번호·청구완료가 있는 달은 구간이 어긋나므로 차단, 마지막 '변경 후' 압력을 현재 처방압력으로, 압력 변경 감지 표시 해제 */
+    {const prevL=rxChangesOf(prev||{}),key=x=>`${x.date}|${x.from}|${x.to}`;
+      const changedDates=[...prevL.filter(x=>!rxcList.some(y=>key(y)===key(x))),...rxcList.filter(x=>!prevL.some(y=>key(y)===key(x)))].map(x=>x.date);
+      if(changedDates.length&&prev){const lk=rxChangeLocked(prev,changedDates);if(lk){showMsg('재처방 이력 변경 불가',`${lk.replace('-','년 ')}월에 승인번호나 청구완료가 기록되어 있어 그 달의 구간을 바꿀 수 없습니다.\n먼저 해당 월의 승인번호·청구완료를 해제한 뒤 다시 저장하세요.`);return;}}
+      const lastTo=rxcList.length?rxcList[rxcList.length-1].to:'';
+      if(lastTo&&prev&&obj.pressure===(prev.pressure||'')&&obj.pressure!==lastTo)obj.pressure=lastTo;
+      if(prev&&prev.rxChangePending&&rxcList.some(x=>!prevL.some(y=>key(y)===key(x))))delete obj.rxChangePending;
+      if(!rxcList.length)delete obj.rxChanges;}
     /* 순응통과일이 바뀌면 최초 처방에 머문 처방시작일을 함께 옮김 (직접 넣은 재처방일은 유지) */
     {const pd=obj.passDate;obj.passDate=prev?prev.passDate:null;applyPassDate(obj,pd);}
     obj.passDateEst=!!(prev&&prev.passDateEst&&obj.passDate===prev.passDate&&obj.rxStart===prev.rxStart);   /* 날짜를 손대면 추정 해제 */
@@ -2488,7 +2565,7 @@ function beginImport(fname){
   importUndo={at:Date.now(),files:[fname],snap:JSON.stringify({patients:state.patients,months:state.months})};
 }
 const FIELD_KO={rrn:'주민번호',phone:'연락처',addr:'주소',birthDate:'생년월일',rentStart:'계약시작일',rentEnd:'계약종료일',rxStart:'처방시작일',rxEnd:'처방종료일',rxEndPrev:'이전 처방종료일',passDate:'순응통과일',pressure:'처방압력',model:'모델',sn:'S/N',device:'기기',mgmtCode:'차트번호',staff:'담당자',branch:'지사',branchFax:'지사팩스',docName:'의사',docLicense:'면허',docSpecNo:'전문의번호',hospital:'병원',doctor:'의사',maskType:'마스크종류',maskDate:'마스크구매일',maskMonth:'마스크구독월',adaptStart:'순응시작일',adaptEnd:'순응종료일',adaptWinStart:'통과기간시작',adaptWinEnd:'통과기간종료',adaptDays4h:'4시간 사용일',adaptJudge:'순응판정일',psgDate:'PSG검사일',nextVisit:'진료예정일',lastVisit:'최근진료일',adaptStatus:'순응상태',adaptRxType:'최종처방전',payMethod:'결제',cashIdNum:'현금영수증번호',cashUse:'용도',memo:'메모',
-  ahi:'PSG AHI',docHist:'서류 발행 이력',avgMinManual:'평균사용시간(수동)',cashApproveSrc:'현금승인 출처',taxApproveSrc:'세금승인 출처',seg3:'구간3',seg4:'구간4',seg5:'구간5',seg6:'구간6',d1:'구간1 일수',d2:'구간2 일수',mask:'마스크',maskSeg:'마스크 구간',maskItem:'마스크 품목',maskSpec:'마스크 규격',abroad:'해외일',trips:'해외 출입국',avgMin:'평균사용시간',selfFull:'전액본인부담',cashApprove:'현금 승인번호',taxApprove:'세금 승인번호',cashDate:'현금 작성일',taxDate:'세금 작성일',taxIssue:'세금 발급일',cashPaid:'현금 입금',taxPaid:'세금 입금',claimed:'청구완료',snap:'청구 스냅샷',seg2:'구간2',lmts:'LMTS 요약',adapt:'LMTS 순응후'};
+  ahi:'PSG AHI',docHist:'서류 발행 이력',avgMinManual:'평균사용시간(수동)',rxChanges:'재처방(압력 변경) 이력',rxChangePending:'압력 변경 감지',cashApproveSrc:'현금승인 출처',taxApproveSrc:'세금승인 출처',seg3:'구간3',seg4:'구간4',seg5:'구간5',seg6:'구간6',d1:'구간1 일수',d2:'구간2 일수',mask:'마스크',maskSeg:'마스크 구간',maskItem:'마스크 품목',maskSpec:'마스크 규격',abroad:'해외일',trips:'해외 출입국',avgMin:'평균사용시간',selfFull:'전액본인부담',cashApprove:'현금 승인번호',taxApprove:'세금 승인번호',cashDate:'현금 작성일',taxDate:'세금 작성일',taxIssue:'세금 발급일',cashPaid:'현금 입금',taxPaid:'세금 입금',claimed:'청구완료',snap:'청구 스냅샷',seg2:'구간2',lmts:'LMTS 요약',adapt:'LMTS 순응후'};
 const fko=k=>FIELD_KO[k]||k;
 const fmtV=v=>v==null||v===''?'—':(typeof v==='object'?(Array.isArray(v)?`[${v.length}]`:'{…}'):String(v));
 function diffState(before,after){
@@ -3023,7 +3100,14 @@ function importCustomerInfo(aoa,h,fname){
     if(last.psg&&!p.psgDate)p.psgDate=last.psg; if(last.nv)p.nextVisit=last.nv; if(last.lv)p.lastVisit=last.lv;
     if(last.ahi&&String(p.ahi||'')!==last.ahi){if(p.ahi)warns.push(`${g.name}: PSG AHI ${p.ahi} → ${last.ahi} (LMTS)`);p.ahi=last.ahi;}
     /* 설정압력 → 처방압력 (LMTS 기준) */
-    if(last.press){const pv=last.press.replace(/\s/g,'').replace('~','-');if(p.pressure!==pv){const old=p.pressure;p.pressure=pv;if(old&&old!==defaultPressure())warns.push(`${g.name}: 처방압력 ${old} → ${pv} (LMTS 설정압력)`);}}
+    if(last.press){const pv=last.press.replace(/\s/g,'').replace('~','-');if(p.pressure!==pv){const old=p.pressure;p.pressure=pv;
+      if(old&&old!==defaultPressure()){
+        /* 기존 환자의 압력이 바뀜 = 압력 변경 처방전 가능성 → 재처방일을 받을 때까지 '압력변경?' 표시 (이미 이력에 같은 변경이 있으면 생략) */
+        const known=rxChangesOf(p).some(x=>x.to===pv);
+        if(!known){p.rxChangePending={from:old,to:pv,at:fd(new Date())};warns.push(`${g.name}: 처방압력 ${old} → ${pv} (LMTS 설정압력) — 압력 변경 처방전이면 [환자 관리 → 수정 → 재처방 이력]에 날짜를 넣어 주세요 (그날부터 청구 분리)`);}
+        else warns.push(`${g.name}: 처방압력 ${old} → ${pv} (LMTS 설정압력 · 재처방 이력과 일치)`);
+      }}
+      else if(p.rxChangePending&&p.rxChangePending.to===pv&&rxChangesOf(p).some(x=>x.to===pv))delete p.rxChangePending;}
     if(last.mt)p.maskType=last.mt; if(last.md)p.maskDate=last.md; if(last.mm)p.maskMonth=last.mm;
     fill('model',last.model,'모델');
     fill('sn',last.sn,'S/N');
@@ -3386,9 +3470,14 @@ async function importMonthlyClaims(aoa,h,fname){
       }else{
       for(const ph of ['pre','post']){
         const rs=rentRows.filter(a=>phaseOf(a)===ph);if(!rs.length)continue;
-        const u=unitOf(rs[0]);if(!u)continue;
+        const us=c.units.filter(x=>x.kind!=='exc'&&x.phase===ph);if(!us.length)continue;
         const A=rs.reduce((x,a)=>x+a.amt,0),Bn=rs.reduce((x,a)=>x+a.bonin+(a.indv||0),0),Gg=rs.reduce((x,a)=>x+a.gong,0);   /* 개인구매액(100% 행)도 본인 몫 */
-        if(u.base!==A||u.rentBonin!==Bn||u.rentGong!==Gg)bad.push(`${ph==='pre'?'순응중':'순응후'} 계산 ${won(u.base)}/${won(u.rentBonin)}/${won(u.rentGong)} ↔ LMTS ${won(A)}/${won(Bn)}/${won(Gg)}${rs.length>1?' (청구행 '+rs.length+'개 합산 — 기간이 달라 행별 대조 불가)':''}`);
+        const mB=us.reduce((x,u)=>x+u.base,0),mP=us.reduce((x,u)=>x+u.rentBonin,0),mG=us.reduce((x,u)=>x+u.rentGong,0);
+        /* 재처방(압력 변경)으로 차트만 나뉜 구간: LMTS 한 줄 ↔ 구간 합계, 구간당 10원 절사 차이 허용 */
+        const tol=(c.rxSplit&&us.length>rs.length)?10*(us.length-rs.length):0;   /* 구간마다 절사 → 기준·본인 ±10원, 공단은 그 합 ±20원 */
+        const okA=Math.abs(mB-A)<=tol&&Math.abs(mP-Bn)<=tol&&Math.abs(mG-Gg)<=2*tol;
+        if(!okA)bad.push(`${ph==='pre'?'순응중':'순응후'} 계산 ${won(mB)}/${won(mP)}/${won(mG)} ↔ LMTS ${won(A)}/${won(Bn)}/${won(Gg)}${rs.length>1?' (청구행 '+rs.length+'개 합산 — 기간이 달라 행별 대조 불가)':''}`);
+        else if(tol&&(mB!==A||mP!==Bn||mG!==Gg))notes.push(`${ph==='pre'?'순응중':'순응후'} 재처방 분리 ${us.length}건 ↔ LMTS ${rs.length}행 — 절사 차이 ${[mB-A,mP-Bn,mG-Gg].map(x=>x?(x>0?'+':'')+x:0).join('/')}원 (LMTS 미분리, 정상)`);
       }}
       for(const b of g.B){const u=c.units.find(x=>x.mask)||c.units[0];
         if(u.maskBonin!==b.bonin||u.maskGong!==b.gong)bad.push(`마스크 계산 ${won(u.maskBonin)}/${won(u.maskGong)} ↔ LMTS ${won(b.bonin)}/${won(b.gong)}`);}
@@ -3549,7 +3638,7 @@ function ntsRows(ym,all){
   }
   return {cash,card,tax,skipC,skipT,only};
 }
-const segName=u=>u.kind==='exc'?'(해외)':(u.multi?(u.phase==='pre'?'(순응중)':'(순응후)'):'');
+const segName=u=>u.kind==='exc'?'(해외)':(u.multi?`(${u.phase==='pre'?'순응중':'순응후'}${u.rxNew?'·재처방':''})`:'');
 function cashMemo(p,u,ym){
   const[y,m]=ym.split('-');
   return `${p.name} 양압기 대여료${segName(u)}${u.mask?'·마스크':''} ${y}.${m}`;
@@ -3557,7 +3646,7 @@ function cashMemo(p,u,ym){
 function cashIdOf(p,idSrc){
   return p.cashIdNum||(idSrc==='rrn'?digits(p.rrn):digits(p.phone))||'';
 }
-const segBadge=r=>(r.multi||r.u.kind==='exc')?` <span class="badge ${r.u.kind==='exc'?'exc':(r.u.phase==='pre'?'b50':'b20')}">${r.u.kind==='exc'?'해외':(r.u.phase==='pre'?'순응중':'순응후')}</span>`:'';
+const segBadge=r=>(r.multi||r.u.kind==='exc')?` <span class="badge ${r.u.kind==='exc'?'exc':(r.u.phase==='pre'?'b50':'b20')}">${r.u.kind==='exc'?'해외':(r.u.phase==='pre'?'순응중':'순응후')}${r.u.rxNew?'·재처방':''}</span>`:'';
 function renderNts(){
   const ym=curYM();if(!ym)return;
   $('#ntsMonthLbl').textContent=`대상: ${ym.replace('-','년 ')}월`;
@@ -3846,12 +3935,16 @@ function applyReconToChart(){
     }
     setOv(ym,p.id,ov);
     /* 세금계산서 작성일자(LMTS) → 구간별 발행일 (승인번호는 홈택스 파일에서) */
-    for(const rec of g.tax){if(!rec.date)continue;const idx=rec.seq?segs.findIndex(x=>x.seq===rec.seq):0;const kk=idx>=0?idx+1:1;
-      if(!uGet(getOv(ym,p.id),kk,'taxDate'))uSet(ym,p.id,kk,{taxDate:rec.date});}
-    /* 검산: 우리 구간 계산 = LMTS 실제 발행액? (구간마다 문서 1건씩 대조) */
     const c=calcPatientMonth(p,ym,getOv(ym,p.id));
-    const matchAll=(recs,key)=>{const pool=c.active?c.units.map(u=>u[key]):[];
-      return recs.every(x=>{const i=pool.indexOf(x.amt);if(i<0)return false;pool.splice(i,1);return true;})&&pool.every(v=>!(v>0));};
+    /* LMTS 행(세금계산서 품목 기간)이 덮는 차트 구간들 — 재처방으로 차트만 나뉜 경우 여러 개 */
+    const coveredBy=seq=>{const sg=seq?segs.find(x=>x.seq===seq):null;if(!sg||!c.active)return [];return c.units.filter(u=>u.kind!=='exc'&&u.s>=sg.s&&u.e<=sg.e);};
+    for(const rec of g.tax){if(!rec.date)continue;const cov=coveredBy(rec.seq);const ks=cov.length?cov.map(u=>u.k):[(()=>{const idx=rec.seq?segs.findIndex(x=>x.seq===rec.seq):0;return idx>=0?idx+1:1;})()];
+      for(const kk of ks)if(!uGet(getOv(ym,p.id),kk,'taxDate'))uSet(ym,p.id,kk,{taxDate:rec.date});}
+    /* 검산: 우리 구간 계산 = LMTS 실제 발행액? (구간마다 문서 1건씩 대조 — 재처방으로 차트만 나뉜 구간은 합계, 구간당 10원 허용) */
+    const matchAll=(recs,key)=>{const pool=c.active?c.units.map(u=>({k:u.k,v:u[key]})):[];
+      return recs.every(x=>{const cov=coveredBy(x.seq);
+        if(cov.length>1&&c.rxSplit){const sm=cov.reduce((a,u)=>a+u[key],0);if(Math.abs(sm-x.amt)>(key==='gong'?20:10)*(cov.length-1))return false;for(const u of cov){const i=pool.findIndex(q=>q.k===u.k);if(i>=0)pool.splice(i,1);}return true;}
+        const i=pool.findIndex(q=>q.v===x.amt);if(i<0)return false;pool.splice(i,1);return true;})&&pool.every(q=>!(q.v>0));};
     const okP=!g.cash.length||matchAll(g.cash,'bonin'),okG=!g.tax.length||matchAll(g.tax,'gong');
     const eP=g.cash.reduce((a,x)=>a+x.amt,0),eG=g.tax.reduce((a,x)=>a+x.amt,0);
     if(unknown){rep.push(`⚠️ ${g.name}: 공단부담금과 맞는 부담률을 찾지 못했습니다 — 일수·요율을 직접 확인하세요`);nWarn++;}
@@ -3923,17 +4016,19 @@ function renderRecon(){
     rs.recs.forEach(rec=>{
       let row=rec.code?rows.find(r=>r.p.mgmtCode===rec.code):null;
       if(!row){const c=rows.filter(r=>r.p.name===rec.name);if(c.length===1)row=c[0];}
-      let unit=null,sum=false;
+      let unit=null,sum=false,rxGroup=null;
       if(row){
         const free=row.c.units.filter(u=>!used.has(row.p.id+'|'+u.k));
         unit=free.find(u=>u[calcKey]===rec.amt)||null;
+        /* 재처방(압력 변경)으로 차트만 나뉜 구간: 같은 단계 구간 합계 ↔ LMTS 1건, 구간당 10원 절사 차이 허용 */
+        if(!unit&&row.c.rxSplit){for(const ph of ['pre','post']){const g=free.filter(u=>u.kind!=='exc'&&u.phase===ph);if(g.length>1){const sm=g.reduce((a,u)=>a+u[calcKey],0);if(Math.abs(sm-rec.amt)<=(calcKey==='gong'?20:10)*(g.length-1)){g.forEach(u=>used.add(row.p.id+'|'+u.k));rxGroup={sum:sm,n:g.length,diff:sm-rec.amt};break;}}}}
         /* 현금영수증이 월 합산 한 장으로 잘못 발행된 경우(구간 합계 = 금액) → 짝은 맞추되 경고로 표시 */
-        if(!unit&&type==='cash'&&free.length>1&&free.reduce((a,u)=>a+u.bonin,0)===rec.amt){free.forEach(u=>used.add(row.p.id+'|'+u.k));sum=true;}
-        if(!unit&&!sum)unit=(rec.seq?free.find(u=>u.k===rec.seq):null)||free[0]||null;
+        if(!unit&&!rxGroup&&type==='cash'&&free.length>1&&free.reduce((a,u)=>a+u.bonin,0)===rec.amt){free.forEach(u=>used.add(row.p.id+'|'+u.k));sum=true;}
+        if(!unit&&!sum&&!rxGroup)unit=(rec.seq?free.find(u=>u.k===rec.seq):null)||free[0]||null;
         if(unit)used.add(row.p.id+'|'+unit.k);
       }
       pairs.push({name:rec.name,code:rec.code,seg:(row&&row.c.units.length>1&&unit)?unit:null,
-        lmts:rec.amt,mine:sum?rec.amt:(unit?unit[calcKey]:null),row,extra:!!row&&!unit&&!sum,sum});
+        lmts:rec.amt,mine:sum?rec.amt:(rxGroup?rxGroup.sum:(unit?unit[calcKey]:null)),row,extra:!!row&&!unit&&!sum&&!rxGroup,sum,rxGroup});
     });
     rows.forEach(r=>r.c.units.forEach(u=>{
       if(used.has(r.p.id+'|'+u.k))return;
@@ -3945,6 +4040,7 @@ function renderRecon(){
     const body=pairs.map(x=>{
       let st;
       if(x.sum){st='<span class="diff-bad">⚠️ 월 합산 1장으로 발행됨 — 구간별 2장이어야 합니다</span>';bad++;}
+      else if(x.rxGroup){st=`<span class="diff-ok">일치 ✓</span> <span class="hint">LMTS 미분리(압력 변경 재처방) — 차트 ${x.rxGroup.n}건 합계${x.rxGroup.diff?`, 절사 차이 ${x.rxGroup.diff>0?'+':''}${x.rxGroup.diff}원`:''} · 문서는 숨길이 국세청 파일로 ${x.rxGroup.n}건 발급</span>`;ok++;}
       else if(x.mine!=null&&x.lmts!=null&&x.mine===x.lmts){st='<span class="diff-ok">일치 ✓</span>';ok++;}
       else if(x.extra){st='<span class="diff-bad">차트에 해당 청구건(구간) 없음</span>';bad++;}
       else if(x.mine==null){st='<span class="diff-bad">차트에 없음 — 환자 등록 필요</span>';bad++;}
@@ -3954,7 +4050,7 @@ function renderRecon(){
         else{st='<span class="diff-bad">파일에 없음 — 발행 누락?</span>';bad++;}
       }
       else{st=`<span class="diff-bad">차이 ${won(x.mine-x.lmts)}원</span>`;bad++;}
-      return `<tr${x.seg?' class="split"':''}><td>${esc(x.name)}${x.code?` <span class="hint">${esc(x.code)}</span>`:''}${x.seg?` <span class="badge ${x.seg.phase==='pre'?'b50':'b20'}">${x.seg.phase==='pre'?'순응중':'순응후'}</span>`:''}</td>
+      return `<tr${x.seg?' class="split"':''}><td>${esc(x.name)}${x.code?` <span class="hint">${esc(x.code)}</span>`:''}${x.seg?` <span class="badge ${x.seg.phase==='pre'?'b50':'b20'}">${x.seg.phase==='pre'?'순응중':'순응후'}${x.seg.rxNew?'·재처방':''}</span>`:''}</td>
         <td class="num">${x.mine!=null?won(x.mine):'—'}</td>
         <td class="num">${x.lmts!=null?won(x.lmts):'—'}</td>
         <td>${st}</td></tr>`;
@@ -4503,6 +4599,15 @@ function applyDocsSave(m,ctx){
   const dev=DOC2DEV[r.devType];if(dev)set('device',dev,'기기');
   let pres='';if(r.devType==='BiPAP')pres=[r.pEPAP,r.pIPAP].map(x=>String(x||'').trim()).filter(Boolean).join('/');else if(r.devType==='CPAP')pres=String(r.pSingle||'').trim();else pres=[r.pMin,r.pMax].map(x=>String(x||'').trim()).filter(Boolean).join('-');
   if(pres)set('pressure',pres,'처방압력');
+  /* 기존 환자인데 처방전 압력이 다르면 = 압력 변경 재처방 → 이력 추가 (날짜: 순응후 처방전은 계약(재처방)일, 순응 전 처방전은 처방시작일) */
+  if(p&&pres&&p.pressure&&pres!==p.pressure){
+    const d=post?cs:(c.rxStart||'');
+    if(d&&p.rentStart&&d>p.rentStart&&!rxChangesOf(p).some(x=>x.date===d)){
+      const lk=rxChangeLocked(p,[d]);
+      if(lk)chg.push(`⚠️ 재처방(압력 변경) ${d} · ${p.pressure} → ${pres}: ${lk.replace('-','년 ')}월에 승인번호·청구완료가 있어 이력에 넣지 않음 — 해제 후 [환자 관리]에서 직접 입력`);
+      else{next.rxChanges=[...rxChangesOf(p),{date:d,from:p.pressure,to:pres}];chg.push(`재처방(압력 변경) 이력 추가: ${d} · ${p.pressure} → ${pres} (그날부터 청구 분리)`);}
+    }
+  }
   set('sn',String(r.sn||'').trim(),'S/N');set('psgDate',c.psgDate||'','PSG 검사일');set('ahi',String(r.ahi||'').trim(),'PSG AHI');
   if(r.payMethod==='CARD')set('payMethod','card','결제');else if(r.payMethod==='CMS')set('payMethod','cash','결제');
   set('docName',String(r.doctor||'').trim(),'의사');set('hospital',String(r.hospital||'').trim(),'병원',true);set('staff',String(r.staffName||'').trim(),'담당자',true);
@@ -4527,6 +4632,7 @@ function applyDocsSave(m,ctx){
     if(isNew){p={id:uid(),name,mgmtCode:'',rrn:'',phone:'',addr:'',cashIdNum:'',cashUse:'0',device:'자동형',model:'',sn:'',pressure:defaultPressure(),payMethod:'cash',rentStart:cs,rentEnd:null,rxStart:cs,rxEnd:null,passDate:null,hospital:'',doctor:'',docName:'',docLicense:'',docSpecNo:'',branch:'',memo:'',staff:''};state.patients.push(p);}
     const prevPass=p.passDate,prevRent=p.rentStart;
     for(const k of Object.keys(next)){if(k==='passDate'){applyPassDate(p,next[k]);p.passDateEst=false;}else p[k]=next[k];}
+    if(next.rxChanges&&p.rxChangePending)delete p.rxChangePending;
     if(post&&next.rxStart){p.rxStart=next.rxStart;p.passDateEst=false;}
     if(next.docName){const pre=(state.settings.doctors||[]).find(dd=>dd.name===p.docName);if(pre){p.docLicense=p.docLicense||pre.license||'';p.docSpecNo=p.docSpecNo||pre.specNo||'';}p.doctor=p.docName+(p.docLicense?`(${p.docLicense})`:'');}
     if(next.branch)p.branchFax=branchFaxOf(p.branch);
@@ -4655,7 +4761,7 @@ window.__selftest=function(){
   const fp=calcCore(89000,[{d:31,r:.2}],31,0,false,prices);
   if(fp.bonin===17800&&fp.gong===71200)ok5++;else console.warn('FAIL5-3',fp);
   /* 구간 분리(청구 단위) — 구간별 금액과 합계가 기존 검증값과 같아야 함 */
-  let ok6=0,ok7=0,ok8=0,ok9=0;
+  let ok6=0,ok7=0,ok8=0,ok9=0,ok10=0;
   {
     const saved=state;
     state={settings:{prices,rule2h:{enabled:false}}};
@@ -4707,9 +4813,27 @@ window.__selftest=function(){
       /* 여행 3회 입력(뒤 두 개는 겹쳐서 하나로 병합): 9/6~7 · 9/21~24 → 5구간, 해외 6일 */
       const c9t=calcPatientMonth(mk({}),'2026-09',{mask:false,trips:[{dep:'2026-09-05',arr:'2026-09-08'},{dep:'2026-09-20',arr:'2026-09-24'},{dep:'2026-09-22',arr:'2026-09-25'}]});
       if(c9t.units.length===5&&c9t.units[1].kind==='exc'&&c9t.units[1].days===2&&c9t.units[3].kind==='exc'&&c9t.units[3].s==='2026-09-21'&&c9t.units[3].e==='2026-09-24'&&c9t.abroad===6&&c9t.units.reduce((a,u)=>a+u.days,0)===30)ok9++;else console.warn('FAIL9-6',c9t.units);
+      /* 재처방(압력 변경) 분리: 9/15 재처방, 순응중 그대로 50% → [9/1~14 14일][9/15~30 16일], 구간별 절사 (LMTS 한 줄 89,000/44,500/44,500과 10원 차이) */
+      const pr={id:'t10',device:'자동형',rentStart:'2026-07-11',rxStart:'2026-07-11',passDate:null,rentEnd:null,insureType:'IB',pressure:'6-12',rxChanges:[{date:'2026-09-15',from:'4-15',to:'6-12'}]};
+      const c10=calcPatientMonth(pr,'2026-09',{mask:false});const V=c10.units;
+      if(c10.rxSplit&&V.length===2&&V[0].s==='2026-09-01'&&V[0].e==='2026-09-14'&&V[0].base===41530&&V[0].bonin===20770&&V[0].gong===20760&&!V[0].rxNew)ok10++;else console.warn('FAIL10-1',V);
+      if(V[1].s==='2026-09-15'&&V[1].e==='2026-09-30'&&V[1].base===47460&&V[1].bonin===23730&&V[1].gong===23730&&V[1].rxNew&&V[1].phase==='pre'&&c10.bonin===44500&&c10.gong===44490)ok10++;else console.warn('FAIL10-2',V);
+      const rp1=rxPeriodFor(pr,V[0]),rp2=rxPeriodFor(pr,V[1]);
+      if(pressureAt(pr,'2026-09-01')==='4-15'&&pressureAt(pr,'2026-09-20')==='6-12'&&rp1.e==='2026-09-14'&&rp2.s==='2026-09-15'&&rp2.e==='2026-10-08'&&rp2.changed&&rp2.changed.date==='2026-09-15')ok10++;else console.warn('FAIL10-3',rp1,rp2,pressureAt(pr,'2026-09-01'));
+      /* 재처방일이 해외 체류 한가운데면 해외 구간은 나누지 않음: 9/14~16 해외 → [9/1~13][해외 9/14~16][9/17~30 재처방] */
+      const c10t=calcPatientMonth(pr,'2026-09',{mask:false,trips:[{dep:'2026-09-13',arr:'2026-09-17'}]});
+      if(c10t.units.length===3&&c10t.units[1].kind==='exc'&&c10t.units[1].days===3&&c10t.units[2].s==='2026-09-17'&&c10t.units[2].rxNew&&!c10t.units[0].rxNew)ok10++;else console.warn('FAIL10-4',c10t.units);
+      /* 순응후에도 동일: 통과 9/10 + 재처방 9/20 → [순응중 9/1~9][순응후 9/10~19][순응후·재처방 9/20~30] + 다음 달(10월)은 분리 없이 한 구간 */
+      const pr2={...pr,passDate:'2026-09-10',rxStart:'2026-09-10',rxEnd:'2027-03-09',rxChanges:[{date:'2026-09-20',from:'4-15',to:'6-12'}]};
+      const c10p=calcPatientMonth(pr2,'2026-09',{mask:false}),c10n=calcPatientMonth(pr2,'2026-10',{mask:false});
+      const rpp=rxPeriodFor(pr2,c10p.units[2]);
+      if(c10p.units.length===3&&c10p.units[1].phase==='post'&&c10p.units[1].e==='2026-09-19'&&c10p.units[2].rxNew&&c10p.units[2].rate===0.2&&rpp.s==='2026-09-20'&&rpp.e==='2027-03-09'&&c10n.units.length===1&&!c10n.rxSplit&&!c10n.units[0].rxNew&&c10n.units[0].rxNo===1)ok10++;else console.warn('FAIL10-5',c10p.units,c10n.units,rpp);
+      /* 날짜 없는 해외 일수(구버전 입력) + 재처방 분리 → 마지막 임대 구간에서 차감 */
+      const c10a=calcPatientMonth(pr,'2026-09',{mask:false,abroad:'3'});
+      if(c10a.units.length===2&&c10a.units[1].abroadDays===3&&c10a.units[1].rentDays===13&&c10a.abroad===3&&c10a.units[0].abroadDays===0)ok10++;else console.warn('FAIL10-6',c10a.units);
     }finally{state=saved;}
   }
-  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6`;
+  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6`;
   console.log(msg);
   return {ok,ok2,ok3,ok4,msg};
 };
