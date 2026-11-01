@@ -610,7 +610,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.10.07.1';
+const APP_VERSION='2026.11.01.1';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1183,6 +1183,7 @@ function todoOf(r){
   const need=[],miss=[];let issue=false,claimWait=false,pay=false;
   if(c.dayWarn)need.push('구간 일수 초과');
   if(p.rxChangePending)need.push(`압력 변경 감지(${p.rxChangePending.from||'?'}→${p.rxChangePending.to||'?'}) — 재처방일 입력`);
+  if(isNoName(p))miss.push('성명 (LMTS 고객정보에 이름 없음 — 환자 관리에서 입력)');
   if(c.units.length>1){const cas=c.units.map(x=>uGet(ov,x.k,'cashApprove'));if(cas.every(Boolean)&&new Set(cas).size===1)need.push('현금영수증 월 합산 1장');}
   if(digits(p.rrn).length!==13)miss.push('주민번호 13자리');
   if(!p.docName&&!p.doctor)miss.push('의사');
@@ -1806,6 +1807,10 @@ $('#btnMonthXlsx')&&($('#btnMonthXlsx').onclick=()=>{
 
 /* ================== 렌더: 환자 관리 ================== */
 const DEVICES=['수동형','자동형','이중형'];
+/* LMTS 고객정보 '계약기기 유형'(APAP/CPAP/BiPAP) → 차트 기기 (2026-11-01: 그전엔 이 열을 안 읽어 이중형 환자가 자동형으로 들어갔음) */
+function devFromLmts(v){const k=String(v||'').trim().toUpperCase();if(!k)return null;if(/BIPAP|BI-?LEVEL|이중/.test(k))return '이중형';if(/APAP|AUTO|자동/.test(k))return '자동형';if(/CPAP|수동|고정/.test(k))return '수동형';return null;}
+/* LMTS 월청구자료 '기본금액'으로 기기 역산 (설정 단가표와 같은 금액일 때만) */
+function devFromBase(amt){const pr=(state&&state.settings&&state.settings.prices)||{};for(const d of DEVICES)if(Number(pr[d])===Number(amt))return d;return null;}
 /* 환자 표에서 켜고 끌 수 있는 열 (#·차트번호·성명·버튼은 항상 표시) */
 const PAT_COLS=[
   {k:'rrn',t:'주민번호'},{k:'phone',t:'연락처'},{k:'device',t:'기기·모델명'},
@@ -3013,20 +3018,24 @@ function importCustomerInfo(aoa,h,fname){
   const iC=col('관리코드'),iN=col('성명'),iB=col('생년월일'),iCS=col('계약시작일'),iCE=col('계약종료일'),
         iRxE=col('처방종료일'),iDoc=col('의료진명'),iModel=col('모델명'),iSN=col('시리얼'),
         iA1=col('주소1'),iA2=col('주소2'),iP1=col('휴대폰1'),iPassD=col('순응판정일'),iStaff=col('담당자'),
-        iPress=col('설정압력'),iMT=col('마스크종류'),iMD=col('마스크구매일'),iMM=col('마스크구독월'),
+        iPress=col('설정압력'),iMT=col('마스크종류'),iMD=col('마스크구매일'),iMM=col('마스크구독월'),iDevT=col('계약기기유형'),
         iPsg=col('PSG검사일'),iNext=col('진료예정일'),iLastV=col('최근진료일'),iIns=col('보험구분'),iAhi=col('PSGAHI');
   /* 1차: 관리코드별로 행 수집 (한 환자가 여러 계약 행일 수 있음) */
+  let nNoName=0;
   const groups={};
   for(let r=1;r<aoa.length;r++){
     const row=aoa[r];
     const code=String(row[iC]||'').trim(),name=String(row[iN]||'').trim();
-    if(!code||!name)continue;
+    if(!code&&!name)continue;
+    if(!code)continue;                                   /* 관리코드가 없으면 누구인지 알 수 없음 */
+    if(!name)nNoName++;
     groups[code]=groups[code]||{code,name,rows:[]};
+    if(name&&!groups[code].name)groups[code].name=name;
     groups[code].rows.push({
       birth:ymd8(row[iB]),cs:ymd8(row[iCS]),ce:ymd8(row[iCE]),rxe:ymd8(row[iRxE]),
       doc:String(iDoc>=0?row[iDoc]||'':'').split('|').map(s=>s.trim()),
       model:String(row[iModel]||'').replace(/\(\d{6}-\d{6}\)\s*$/,'').trim(),
-      sn:String(row[iSN]||'').trim(),
+      sn:String(row[iSN]||'').trim(),devT:devFromLmts(iDevT>=0?row[iDevT]:''),
       addr:[row[iA1],row[iA2]].map(x=>String(x||'').trim()).filter(Boolean).join(' '),
       ph:digits(row[iP1]),pdte:iPassD>=0?ymd8(row[iPassD]):null,
       staff:String(iStaff>=0?row[iStaff]||'':'').trim(),
@@ -3036,15 +3045,17 @@ function importCustomerInfo(aoa,h,fname){
       ins:String(iIns>=0?row[iIns]||'':'').trim(),ahi:String(iAhi>=0?row[iAhi]||'':'').trim()
     });
   }
-  let nNew=0,nUpd=0,nRrn=0,nBr=0,nDif=0;const warns=[],brLines=[];
+  let nNew=0,nUpd=0,nRrn=0,nBr=0,nDif=0;const warns=[],brLines=[],noNameNew=[];
   for(const code of Object.keys(groups).sort()){
     const g=groups[code];
     const fx=findPatientEx(g.code,g.name);
     const issue=matchIssue(fx,g.name,g.code);
     if(issue){warns.push(issue);continue;}
-    let p=fx.p;
+    let p=fx.p;const isNewP=!p;
+    if(!p&&!g.name)noNameNew.push(g.code);
+    if(p&&isNoName(p)&&g.name)p.name=g.name;              /* 나중에 성명이 들어온 파일로 임시 이름 교체 */
     if(!p){
-      p={id:uid(),name:g.name,mgmtCode:g.code,rrn:'',phone:'',addr:'',cashIdNum:'',cashUse:'0',
+      p={id:uid(),name:g.name||(NONAME_PREFIX+g.code),mgmtCode:g.code,rrn:'',phone:'',addr:'',cashIdNum:'',cashUse:'0',
         device:'자동형',model:'',sn:'',payMethod:'cash',rentStart:'',rentEnd:null,
         rxStart:null,rxEnd:null,passDate:null,hospital:'',doctor:'',docName:'',docLicense:'',docSpecNo:'',branch:'',memo:'',pressure:defaultPressure(),staff:''};
       state.patients.push(p);nNew++;
@@ -3067,7 +3078,7 @@ function importCustomerInfo(aoa,h,fname){
       if(x.birth)last.birth=x.birth; if(x.rxe)last.rxe=x.rxe;
       if(x.press)last.press=x.press; if(x.mt)last.mt=x.mt; if(x.md)last.md=x.md; if(x.mm)last.mm=x.mm;
       if(x.psg)last.psg=x.psg; if(x.nv)last.nv=x.nv; if(x.lv)last.lv=x.lv; if(x.ins)last.ins=x.ins; if(x.ahi)last.ahi=x.ahi;
-      if(x.model)last.model=x.model; if(x.sn)last.sn=x.sn;
+      if(x.model)last.model=x.model; if(x.sn)last.sn=x.sn; if(x.devT)last.devT=x.devT;
       if(x.addr)last.addr=x.addr;    if(x.ph)last.ph=x.ph;
       if(x.doc[0]&&!p.docName){
         p.docName=x.doc[0];
@@ -3108,6 +3119,9 @@ function importCustomerInfo(aoa,h,fname){
         else warns.push(`${g.name}: 처방압력 ${old} → ${pv} (LMTS 설정압력 · 재처방 이력과 일치)`);
       }}
       else if(p.rxChangePending&&p.rxChangePending.to===pv&&rxChangesOf(p).some(x=>x.to===pv))delete p.rxChangePending;}
+    /* 계약기기 유형 → 기기 (LMTS 기준). 기준금액(자동형 89,000 / 이중형 126,000 / 수동형 76,000)이 달라지므로 기존 환자가 바뀌면 보고 */
+    if(last.devT&&p.device!==last.devT){const old=p.device;p.device=last.devT;
+      if(!isNewP)warns.push(`${g.name||p.name||g.code}: 기기 ${old} → ${last.devT} (LMTS 계약기기 유형) — 기준금액이 달라집니다. 이 환자의 청구완료·승인번호가 있는 달은 금액을 확인하세요`);}
     if(last.mt)p.maskType=last.mt; if(last.md)p.maskDate=last.md; if(last.mm)p.maskMonth=last.mm;
     fill('model',last.model,'모델');
     fill('sn',last.sn,'S/N');
@@ -3142,7 +3156,8 @@ function importCustomerInfo(aoa,h,fname){
     }
   }
   persist();renderAll();
-  showMsg('고객정보 가져오기 완료',`${fname}\n신규 ${nNew}명 · 갱신 ${nUpd}명`+(nDif?` · 차트 값 유지 ${nDif}건`:'')
+  if(nNoName)warns.unshift(`⚠️ 이 파일은 성명 열이 비어 있습니다(${nNoName}행) — 기존 환자는 관리코드로 맞춰 갱신했습니다.`+(noNameNew.length?` 신규 ${noNameNew.length}명은 임시 이름(${NONAME_PREFIX}관리코드)으로 등록했으니 [환자 관리]에서 이름을 넣거나, 성명이 든 고객정보·월청구자료를 넣으면 자동으로 채워집니다: ${noNameNew.join(', ')}`:''));
+  showMsg('고객정보 가져오기 완료',`${fname}\n신규 ${nNew}명 · 갱신 ${nUpd}명${nNoName?` · ⚠️ 성명 없는 행 ${nNoName}`:''}`+(nDif?` · 차트 값 유지 ${nDif}건`:'')
     +(nRrn?`\n주민번호 앞 6자리 자동 입력 ${nRrn}명 — 뒷자리 7자리만 채우면 됩니다 (표에서 바로 수정 가능)`:'')
     +(nBr?`\n주소로 지사 자동 지정 ${nBr}명 — 관할이 맞는지 확인해주세요:\n${brLines.slice(0,15).join('\n')}`:'')
     +`\n※ 주민번호 뒷자리는 LMTS에 없어 ID_match.xlsx 또는 직접 입력이 필요합니다.`
@@ -3234,13 +3249,16 @@ const ymd8=v=>{
   return `${y}-${String(mo).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
 };
 /* 동명이인 안전 매칭: 관리코드 우선(이름도 대조), 이름은 유일할 때만 */
+/* LMTS 고객정보에 성명이 비어 있을 때 관리코드로만 등록한 환자의 임시 이름 (2026-11-01: 고객정보 (11)이 성명 없이 내려옴) */
+const NONAME_PREFIX='미입력_';
+const isNoName=p=>/^미입력_/.test((p&&p.name)||'');
 function findPatientEx(mgmt,name){
   if(mgmt){
     const hits=state.patients.filter(x=>x.mgmtCode===mgmt);
     if(hits.length>1)return{p:null,dupCode:mgmt};                       /* 같은 코드가 둘 이상 */
     if(hits.length===1){
       const p=hits[0];
-      if(!name||!p.name||p.name===name)return{p};
+      if(!name||!p.name||isNoName(p)||p.name===name)return{p};
       return{p:null,nameMismatch:p.name};                               /* 코드는 같은데 다른 사람 */
     }
   }
@@ -3314,6 +3332,7 @@ async function importMonthlyClaims(aoa,h,fname){
     const excRows=rentAll.filter(isExc),rentRows=rentAll.filter(a=>!isExc(a));
     const fx=findPatientEx(g.code,g.name);
     let p=fx.p;
+    if(p&&isNoName(p)&&g.name){p.name=g.name;report.push(`${g.name}(${g.code}): 성명 입력 (고객정보에 없던 이름을 월청구자료에서)`);}
     const issue=matchIssue(fx,g.name,g.code);
     if(issue){report.push(issue);continue;}
     if(!p){
@@ -3342,6 +3361,9 @@ async function importMonthlyClaims(aoa,h,fname){
       if(a.spec&&!p.sn)p.sn=a.spec;
     }
     const notes=[];
+    /* 기본금액이 설정 단가표의 다른 기기와 같으면 기기를 맞춘다 (고객정보 없이 월청구자료만 넣어도 이중형이 잡히게) */
+    {const a0=rentRows.find(a=>a.base>0);const dv=a0?devFromBase(a0.base):null;
+      if(dv&&dv!==p.device){const old=p.device;p.device=dv;notes.push(`기기 ${old} → ${dv} (LMTS 기본금액 ${won(a0.base)})`);}}
     const r50=rentRows.filter(a=>phaseOf(a)==='pre'),r20s=rentRows.filter(a=>phaseOf(a)==='post');
     const r20=r20s[0];
     /* 행의 개인부담율이 자격표(순응중/순응후)와 다르면 자동 반영하지 않는다 */
@@ -3722,6 +3744,7 @@ $('#ntsOnlyNew').addEventListener('change',()=>{state.settings.ntsOnlyNew=$('#nt
 $('#btnCashXls').onclick=async()=>{
   const ym=curYM();const{cash}=ntsRows(ym);
   if(!cash.length){showMsg('안내','현금영수증 대상이 없습니다.');return;}
+  {const nn=cash.filter(r=>isNoName(r.p));if(nn.length){showMsg('성명 미입력',`${nn.map(r=>r.p.name).join(', ')}\n이름이 없는 환자가 있습니다. [환자 관리]에서 성명을 입력한 뒤 파일을 만드세요.`);return;}}
   const idSrc=$('#ntsIdSrc').value;
   const miss=cash.filter(r=>!cashIdOf(r.p,idSrc));
   if(miss.length){showMsg('발급수단번호 누락',`${miss.map(r=>r.p.name).join(', ')}\n환자 정보를 먼저 채워주세요.`);return;}
@@ -3770,6 +3793,7 @@ async function writeSplit(kind,rows,limit,baseName,label){
 $('#btnTaxXls').onclick=async()=>{
   const ym=curYM();const{tax}=ntsRows(ym);
   if(!tax.length){showMsg('안내','세금계산서 대상이 없습니다.');return;}
+  {const nn=tax.filter(r=>isNoName(r.p));if(nn.length){showMsg('성명 미입력',`${nn.map(r=>r.p.name).join(', ')}\n이름이 없는 환자가 있습니다. [환자 관리]에서 성명을 입력한 뒤 파일을 만드세요.`);return;}}
   const missR=tax.filter(r=>digits(r.p.rrn).length!==13);
   if(missR.length){showMsg('주민등록번호 누락/오류',`${missR.map(r=>r.p.name).join(', ')}\n환자 정보를 먼저 채워주세요.\n(ID_match.xlsx 가져오기 또는 환자 수정에서 입력)`);return;}
   const sup=state.settings.supplier;
@@ -4761,7 +4785,7 @@ window.__selftest=function(){
   const fp=calcCore(89000,[{d:31,r:.2}],31,0,false,prices);
   if(fp.bonin===17800&&fp.gong===71200)ok5++;else console.warn('FAIL5-3',fp);
   /* 구간 분리(청구 단위) — 구간별 금액과 합계가 기존 검증값과 같아야 함 */
-  let ok6=0,ok7=0,ok8=0,ok9=0,ok10=0;
+  let ok6=0,ok7=0,ok8=0,ok9=0,ok10=0,ok11=0;
   {
     const saved=state;
     state={settings:{prices,rule2h:{enabled:false}}};
@@ -4831,9 +4855,12 @@ window.__selftest=function(){
       /* 날짜 없는 해외 일수(구버전 입력) + 재처방 분리 → 마지막 임대 구간에서 차감 */
       const c10a=calcPatientMonth(pr,'2026-09',{mask:false,abroad:'3'});
       if(c10a.units.length===2&&c10a.units[1].abroadDays===3&&c10a.units[1].rentDays===13&&c10a.abroad===3&&c10a.units[0].abroadDays===0)ok10++;else console.warn('FAIL10-6',c10a.units);
+      /* 기기 판정: LMTS 계약기기 유형 / 기본금액 */
+      if(devFromLmts('BiPAP')==='이중형'&&devFromLmts('APAP')==='자동형'&&devFromLmts('CPAP')==='수동형'&&devFromLmts('')===null&&devFromLmts('기타')===null)ok11++;else console.warn('FAIL11-1');
+      if(devFromBase(126000)==='이중형'&&devFromBase(89000)==='자동형'&&devFromBase(76000)==='수동형'&&devFromBase(12345)===null)ok11++;else console.warn('FAIL11-2');
     }finally{state=saved;}
   }
-  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6`;
+  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정 ${ok11}/2`;
   console.log(msg);
   return {ok,ok2,ok3,ok4,msg};
 };
