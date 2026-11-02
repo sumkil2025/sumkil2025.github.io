@@ -328,7 +328,7 @@
   <nav class="tabs" id="tabs">
     <button data-tab="month" class="on">📅 월별 청구</button>
     <button data-tab="patients">👥 환자 관리</button>
-    <button data-tab="nts">🧾 국세청 파일</button>
+    <button data-tab="nts">📤 업로드 파일</button>
     <button data-tab="recon">🔍 LMTS 대사</button>
     <button data-tab="stats">📊 통계</button>
     <button data-tab="settings">⚙️ 설정</button>
@@ -358,7 +358,7 @@
     <div class="hint" style="margin-bottom:8px">
       일수·해외·마스크를 수정하면 자동 저장됩니다. 일수 입력을 비우면 임대기간으로 자동 계산합니다.
       해외 일수는 출국심사일 다음날~입국심사일 전날 기준이며 전액(100%) 본인부담으로 계산됩니다.
-      순응중(50%)과 순응후(20%)가 같은 달에 있으면 <b>구간마다 청구서·세금계산서·현금영수증을 따로</b> 냅니다 — 그 환자는 아래에 구간 행 2개가 생기고 국세청 파일도 2건씩 만들어집니다.
+      순응중(50%)과 순응후(20%)가 같은 달에 있으면 <b>구간마다 청구서·세금계산서·현금영수증을 따로</b> 냅니다 — 그 환자는 아래에 구간 행 2개가 생기고 업로드 파일도 2건씩 만들어집니다.
       발행 후 홈택스에서 받은 <b>현금영수증 발급결과 상세조회·매출전자세금계산서목록</b>, 순응통과 환자의 LMTS <b>순응후관리</b>(평균사용시간)는 [📥 승인번호·순응후관리 가져오기]를 누르거나 이 화면에 끌어다 놓으면 이 달에 자동 등록됩니다.
     </div>
     <div class="tblwrap"><table class="grid" id="monthTable"></table></div>
@@ -402,10 +402,10 @@
   </div>
 </section>
 
-<!-- ===== 국세청 파일 ===== -->
+<!-- ===== 업로드 파일 ===== -->
 <section id="tab-nts" class="hidden">
   <div class="card">
-    <h2 style="display:flex;align-items:center;gap:10px">국세청 업로드 파일 생성 <small id="ntsMonthLbl"></small><span class="spacer"></span><button class="btn sm" id="btnNtsHelp" style="font-weight:600">📖 어떤 파일이 필요한가요?</button></h2>
+    <h2 style="display:flex;align-items:center;gap:10px">업로드 파일 생성 <span style="font-weight:400;font-size:.8rem;color:var(--muted)">홈택스 현금영수증·세금계산서 · CMS 이체</span> <small id="ntsMonthLbl"></small><span class="spacer"></span><button class="btn sm" id="btnNtsHelp" style="font-weight:600">📖 어떤 파일이 필요한가요?</button></h2>
     <div class="toolbar">
       <label style="font-size:.8rem;font-weight:700">작성일자</label>
       <input type="date" id="ntsDate">
@@ -621,7 +621,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.02.2';
+const APP_VERSION='2026.11.02.3';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -1234,7 +1234,7 @@ function renderMonth(){
   $('#monthTitle').textContent=`${y}년 ${Number(m)}월 청구`;
   $('#btnTwoLine').classList.toggle('primary',!!state.settings.monthTwoLine);
   $('#btnTwoLine').textContent=state.settings.monthTwoLine?'⇕ 두 줄 ✓':'⇕ 두 줄';
-  /* 담당자 필터 (화면 표시용 — 국세청 파일은 전체 기준) */
+  /* 담당자 필터 (화면 표시용 — 업로드 파일은 전체 기준) */
   const list=staffList();
   if(mStaffFilter&&mStaffFilter!=='(미지정)'&&!list.includes(mStaffFilter))mStaffFilter='';
   $('#mStaffFilter').innerHTML=`<option value="">담당자 전체</option>`
@@ -1395,7 +1395,7 @@ function renderMonth(){
     ${mTodoFilter?`<div class="todoWhy">🔎 <b>${TODO_DEFS.find(d=>d[0]===mTodoFilter)[1]}</b> ${rows.length}명 — ${rows.slice(0,40).map(r=>`<b>${esc(r.p.name)}</b>: ${esc(todoWhy(r))}`).join(' · ')}${rows.length>40?' …':''} <button class="btn sm" data-todo="${mTodoFilter}" style="margin-left:8px">필터 해제</button></div>`:''}
     ${mStaffFilter?`<div class="chip" style="border-color:var(--blue);background:#f3f8ff">
       <div class="t">담당자 필터</div><div class="v" style="font-size:.95rem">${esc(mStaffFilter)}
-      <span class="hint" style="display:block;font-weight:400">국세청 파일은 전체 기준</span></div></div>`:''}
+      <span class="hint" style="display:block;font-weight:400">업로드 파일은 전체 기준</span></div></div>`:''}
     <div class="chip"><div class="t">청구 인원</div><div class="v">${rows.length}명</div></div>
     <div class="chip"><div class="t">신규</div><div class="v">${nNew}명</div></div>
     <div class="chip"><div class="t">마스크(연1회)</div><div class="v">${maskCnt}건</div></div>
@@ -2487,13 +2487,13 @@ function showImportHelp(){
     <div class="helpstep">
       <b style="color:var(--navy)">한 달 청구 흐름</b><br>
       ① 청구 <b>전</b> — LMTS <b>월청구자료관리</b>(매달) + <b>고객정보</b>(신규·재처방 환자 있는 달) 넣기 → 주민번호 뒷자리 확인<br>
-      ② [국세청 파일]에서 현금영수증·세금계산서 일괄발급 파일 만들어 <b>홈택스 업로드</b><br>
+      ② [업로드 파일]에서 현금영수증·세금계산서 일괄발급 파일 만들어 <b>홈택스 업로드</b><br>
       ③ 발행 <b>후</b> — 홈택스 <b>현금영수증 발급결과 상세조회</b> + <b>매출전자세금계산서목록</b> 넣기 (순응후 재처방 환자 있으면 LMTS <b>순응중 관리</b>도) → 📋 보조창 보며 공단 입력<br>
       <span class="hint">넣는 곳은 모두 같습니다: [환자 관리 → 📥 엑셀 가져오기] 또는 그 아래 끌어다 놓기 칸, [월별 청구 → 📥]. 여러 파일을 한꺼번에 넣어도 되고 내용을 보고 자동 구분합니다.</span>
     </div>
     <div class="helpsec">1단계 · 청구자료를 만들려면 꼭 필요 — 3가지</div>
     ${tbl([
-      row('월청구자료관리.xlsx','<em>매달 필수</em>','LMTS → 환자 관리 → <b>월청구자료관리</b> → 청구년월 입력 → [청구자료생성] → [조회] → [엑셀다운]<div class="hint">[청구자료생성]은 아직 [확정]하지 않은 자료를 지우고 다시 만듭니다(확정한 달은 그대로). [세금계산서다운]·[현금영수증다운]은 LMTS가 만드는 홈택스 파일이며, 우리 [국세청 파일]과 같은 용도 — 한쪽만 쓰세요</div>','환자 자동 등록 · <b>그 달의 사용일수·요율(50/20%)·마스크·결제수단·순응통과일</b> · LMTS 금액과 검산'),
+      row('월청구자료관리.xlsx','<em>매달 필수</em>','LMTS → 환자 관리 → <b>월청구자료관리</b> → 청구년월 입력 → [청구자료생성] → [조회] → [엑셀다운]<div class="hint">[청구자료생성]은 아직 [확정]하지 않은 자료를 지우고 다시 만듭니다(확정한 달은 그대로). [세금계산서다운]·[현금영수증다운]은 LMTS가 만드는 홈택스 파일이며, 우리 [업로드 파일]과 같은 용도 — 한쪽만 쓰세요</div>','환자 자동 등록 · <b>그 달의 사용일수·요율(50/20%)·마스크·결제수단·순응통과일</b> · LMTS 금액과 검산'),
       row('고객정보.xlsx','신규·재처방 환자 있는 달','LMTS → 기초자료 입력 → <b>고객정보관리</b> → [조회] → [엑셀다운]','주소·연락처·생년월일(<b>주민번호 앞 6자리 자동</b>) · 계약기간·<b>처방종료일</b>(재처방 시 갱신) · 의사·병원 · 마스크 종류 · 주소로 <b>지사 자동 지정</b><div class="hint">빈칸만 채웁니다 — 이미 입력된 값과 다르면 보고서에 표시</div>'),
       row('주민번호 뒷자리','ID_match.xlsx 또는 직접 입력','직접 관리하는 파일(C:\\LMCS_Bill) 또는 [환자 관리] 표의 주민번호 칸','세금계산서 공급받는자 등록번호(13자리) · 현금영수증 발급번호<div class="hint">주민번호는 LMTS 어느 파일에도 없습니다</div>')])}
     <div class="helpsec">2단계 · 발행 후, 공단 청구 입력(📋 보조창)에 필요</div>
@@ -3662,7 +3662,7 @@ async function importChartWb(wb){
   }
 }
 
-/* ================== 국세청 파일 ================== */
+/* ================== 업로드 파일 ================== */
 /* 발행 대상 = 청구 단위(구간). 순응중·순응후가 같이 있는 달은 한 환자가 2건 */
 function ntsRows(ym,all){
   const rows=monthRows(ym);
@@ -4189,7 +4189,7 @@ function renderRecon(){
     const body=pairs.map(x=>{
       let st;
       if(x.sum){st='<span class="diff-bad">⚠️ 월 합산 1장으로 발행됨 — 구간별 2장이어야 합니다</span>';bad++;}
-      else if(x.rxGroup){st=`<span class="diff-ok">일치 ✓</span> <span class="hint">LMTS 미분리(압력 변경 재처방) — 차트 ${x.rxGroup.n}건 합계${x.rxGroup.diff?`, 절사 차이 ${x.rxGroup.diff>0?'+':''}${x.rxGroup.diff}원`:''} · 문서는 숨길이 국세청 파일로 ${x.rxGroup.n}건 발급</span>`;ok++;}
+      else if(x.rxGroup){st=`<span class="diff-ok">일치 ✓</span> <span class="hint">LMTS 미분리(압력 변경 재처방) — 차트 ${x.rxGroup.n}건 합계${x.rxGroup.diff?`, 절사 차이 ${x.rxGroup.diff>0?'+':''}${x.rxGroup.diff}원`:''} · 문서는 숨길이 업로드 파일로 ${x.rxGroup.n}건 발급</span>`;ok++;}
       else if(x.mine!=null&&x.lmts!=null&&x.mine===x.lmts){st='<span class="diff-ok">일치 ✓</span>';ok++;}
       else if(x.extra){st='<span class="diff-bad">차트에 해당 청구건(구간) 없음</span>';bad++;}
       else if(x.mine==null){st='<span class="diff-bad">차트에 없음 — 환자 등록 필요</span>';bad++;}
@@ -4805,8 +4805,9 @@ const NOTICE_HTML=`<p>양압기 건강보험 요양비 청구를 한 화면에�
 <ul><li>월청구자료관리 · 고객정보 · 순응중 관리 · 순응후관리 엑셀과 홈택스의 현금영수증·세금계산서 파일을 <b>끌어다 놓기만</b> 하면 됩니다. 파일 이름이 달라도 내용을 보고 자동으로 구분합니다.</li>
 <li>일수·마스크·결제수단·순응통과일·평균 사용시간·보험자격이 채워지고, 금액은 LMTS 값과 자동 검산됩니다.</li>
 <li>직접 입력한 값(주민번호·처방일 등)은 지켜지고, LMTS와 다른 값이 있으면 덮어쓰지 않고 환자마다 물어봅니다. 가져온 뒤 마음에 들지 않으면 "되돌리기" 한 번으로 이전 상태로 돌아갑니다.</li></ul>
-<p><b>3. 국세청 파일</b></p>
-<ul><li>현금영수증·세금계산서 일괄발급 파일을 홈택스 양식 그대로 만듭니다. 이미 발행한 건은 자동으로 빠져 이중발급을 막습니다.</li></ul>
+<p><b>3. 업로드 파일 (홈택스 · CMS)</b></p>
+<ul><li>현금영수증·세금계산서 일괄발급 파일을 홈택스 양식 그대로 만듭니다. 이미 발행한 건은 자동으로 빠져 이중발급을 막습니다.</li>
+<li>CMS 자동이체 등록 파일(환자 본인부담금)도 같은 곳에서 만듭니다. 회원번호는 차트번호 순으로 자동 부여되고, CMS 청구 파일을 가져오기에 넣으면 회원번호·회원명이 맞춰집니다.</li></ul>
 <p><b>4. 공단 청구 입력 보조창(📋)</b></p>
 <ul><li>공단 화면과 같은 자리 배치로 값을 보여주고, 클릭하면 복사됩니다. 압력 처방·연이은 30일 사용기간·4시간 이상 사용일수 같은 상세항목도 함께 나옵니다.</li>
 <li>"청구완료"를 누르면 그 달의 값이 그때 그대로 고정되어, 나중에 단가나 처방이 바뀌어도 청구 기록이 흔들리지 않습니다.</li></ul>
