@@ -610,7 +610,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.01.1';
+const APP_VERSION='2026.11.02.1';
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -2843,19 +2843,22 @@ function importApproval(kind,aoa,h,fname){
     /* 홈택스 두 형식: ① 매출내역(신분확인뒷4자리·총금액·매출일시) ② 발급결과상세조회(발급수단 '010****0109'·총거래금액·거래일시·발급결과·메모 '이름 양압기 대여료 2026.08') — ②가 이름·청구월이 있어 매칭이 확실 */
     const iLast4=col('신분확인뒷4자리')>=0?col('신분확인뒷4자리'):col('발급수단'),
           iTot=col('총금액')>=0?col('총금액'):col('총거래금액'),
-          iDate=col('매출일시')>=0?col('매출일시'):col('거래일시'),
-          iKindCol=col('거래구분'),iRes=col('발급결과'),iMemo=col('메모');
+          iDate=['매출일시','거래일시','거래일자','승인일시','승인일자','발급일자'].map(col).find(i=>i>=0)??-1,   /* 홈택스 형식마다 날짜 열 이름이 다름 (일괄발급 검증내역은 '거래일자') */
+          iKindCol=col('거래구분'),iRes=col('발급결과'),iMemo=col('메모'),iVer=col('검증결과');
     for(let r=1;r<aoa.length;r++){
       const row=aoa[r],app=String(row[iApp]||'').trim();
       if(!app)continue;
       const st=String(iKindCol>=0?row[iKindCol]||'':'');
       const res=String(iRes>=0?row[iRes]||'':'');
+      const ver=String(iVer>=0?row[iVer]||'':'').trim();
       if(st.includes('취소')){cancelApps.add(app);cancelRows.push({app,amt:num(row[iTot])});continue;}   /* 취소거래: 같은 승인번호의 원거래를 무효화 */
       if(res&&/실패|오류|거부/.test(res))continue;     /* 발급 실패분 제외 */
+      if(ver&&!/정상|성공|완료/.test(ver))continue;     /* 일괄발급 검증내역: 검증결과가 정상이 아닌 행(오류)은 발급되지 않은 것 */
       const memo=String(iMemo>=0?row[iMemo]||'':'').trim();
       const nm=(memo.match(/^([가-힣]{2,5})(?=\s|$)/)||[])[1]||'';
       const ymm=memo.match(/(20\d{2})[.\-\/](\d{1,2})/);
-      recs.push({app,last4:digits(row[iLast4]).slice(-4),amt:num(row[iTot]),when:String(row[iDate]||''),date:ymd8(String(row[iDate]||'').slice(0,10)),
+      const idDigits=digits(row[iLast4]);
+      recs.push({app,last4:idDigits.slice(-4),phone:idDigits.length>=10&&idDigits.length<=11?idDigits:null,amt:num(row[iTot]),when:String(iDate>=0?row[iDate]||'':''),date:iDate>=0?ymd8(String(row[iDate]||'').slice(0,10)):null,
         name:nm,ym:ymm?`${ymm[1]}-${ymm[2].padStart(2,'0')}`:null,memo});
     }
   }else{
@@ -2939,6 +2942,11 @@ function importApproval(kind,aoa,h,fname){
       hasId=!!rec.name;
       if(rec.name){cand=state.patients.filter(p=>p.name===rec.name);via='메모 이름';
         if(cand.length>1&&rec.last4)cand=cand.filter(p=>digits(p.phone).slice(-4)===rec.last4||digits(p.rrn).slice(-4)===rec.last4);}
+      if(!cand.length&&rec.phone){
+        /* 발급수단에 휴대폰 번호 전체가 있으면(일괄발급 검증내역) 번호 전체로 — 뒤4자리가 같은 다른 환자와 섞이지 않게 */
+        const byFull=state.patients.filter(p=>digits(p.phone)===rec.phone);
+        if(byFull.length){cand=byFull;via='연락처';}
+      }
       if(!cand.length&&rec.last4){
         /* 옛 형식의 '신분확인 뒤4자리'는 실자료상 휴대폰 번호 → 연락처 우선, 없으면 주민번호. 둘 다 맞는 사람이 여럿이면 뒤에서 보류 */
         const byPhone=state.patients.filter(p=>digits(p.phone).length>=10&&digits(p.phone).slice(-4)===rec.last4);
@@ -2978,8 +2986,9 @@ function importApproval(kind,aoa,h,fname){
     }
     if(!hit){
       const who=cand.length?cand.map(p=>p.name).join('/'):(rec.name||`뒤4자리 ${rec.last4||''}`);
+      const chartAmts=cand.length?months.slice(0,2).map(ym=>{const us=unitsOf(cand[0],ym).filter(u=>u.kind!=='exc'||kind==='cash');return `${ym.slice(2).replace('-','.')} ${us.length?us.map(u=>won(u[amtKey])+(u.kind==='exc'?'(해외)':u.phase==='pre'?'(순응중)':'(순응후)')).join('+'):'청구 없음'}`;}).join(' / '):'';
       miss.push(cand.length
-        ?`· ${who} — 승인 ${rec.app} (${won(rec.amt)}원): ${months.join('·')}에 금액이 맞는 구간이 없음`
+        ?`· ${who} — 승인 ${rec.app} (${won(rec.amt)}원): ${months.join('·')}에 금액이 맞는 구간이 없음 — 차트 ${chartAmts} · 순응통과일·해외·재처방 자료가 차트에 들어왔는지 확인`
         :`· ${who} — 승인 ${rec.app} (${won(rec.amt)}원): 해당 환자를 찾지 못함${kind==='cash'?(rec.name?' (메모의 이름과 차트 이름이 다름)':' (연락처 또는 주민번호 13자리 입력 필요)'):' (주민번호·이름이 차트와 다름)'}`);
       continue;
     }
