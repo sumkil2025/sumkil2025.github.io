@@ -836,7 +836,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.08.7';
+const APP_VERSION='2026.11.08.8';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -6069,7 +6069,7 @@ $('#tab-chart').addEventListener('keydown',e=>{
    기기 = S/N. 사용자는 환자 정보의 S/N·계약 기간(+ 변경 이력에 남은 S/N 바뀜)으로 자동 계산.
    기기 기록(회수·소독 / 장비 점검 / A/S / 폐기)은 state.devLogs, 기기 칸(제품관리번호·입고일·메모·숨김, 재고 기기 등록)은 state.devices
    — 둘 다 맨 위 목록(LMTS 가져오기 되돌리기와 무관). 엑셀 대장은 양압기_장비점검리스트-통합.xlsx 서식 그대로 */
-const snKey=v=>String(v||'').replace(/\s+/g,'').toUpperCase();
+const snKey=v=>String(v||'').replace(/[\s\-_./]+/g,'').toUpperCase();   /* LMTS·손 입력 표기 차이(공백·하이픈·대소문자)는 같은 기기로 */
 const DEV_CHK=[['leak','마스크 누출'],['tube','튜브 분리·막힘·누출'],['sd','SD메모리카드'],['sys','시스템 오류'],['act','동작 이상'],['power','전원인가시험'],['use','사용 이력 확인']];
 const DEV_CHK_OUT={leak:['PASS','FAIL'],tube:['PASS','FAIL'],sd:['無','有'],sys:['無','有'],act:['PASS','FAIL'],power:['PASS','FAIL'],use:['가능','불가']};
 const DEV_RET=[['insp','검사'],['state','상태'],['backup','백업'],['reset','초기화'],['setup','세팅'],['wash','세척'],['disinf','소독'],['consum','소모품 폐기']];
@@ -6094,7 +6094,10 @@ function snSegs(p){
   return segs.filter(g=>snKey(g.sn));
 }
 function devStatus(e,today){
-  const cur=e.users.find(u=>u.start&&u.start<=today&&(!u.end||u.end>=today))||null;
+  const act=e.users.filter(u=>u.start&&u.start<=today&&(!u.end||u.end>=today));
+  const cur=act.length?act[act.length-1]:null;   /* 기간이 겹치면(앞 환자 반납일 없음) 나중에 설치한 환자가 지금 사용자 */
+  const over=[];   /* 다른 환자와 기간이 겹침 — 앞 환자 계약종료일(반납일)이 없거나 뒤 환자 설치일보다 늦음 */
+  for(let i=1;i<e.users.length;i++){const a=e.users[i-1],b=e.users[i];if(a.pid!==b.pid&&b.start&&(!a.end||a.end>=b.start))over.push({a,b});}
   const asOpen=e.logs.filter(l=>l.kind==='as'&&!l.done);
   const lastEnd=e.users.map(u=>u.end).filter(d=>d&&d<today).sort().pop()||null;
   const retDone=!lastEnd||e.logs.some(l=>l.kind==='ret'&&l.done&&l.done>=lastEnd);
@@ -6109,18 +6112,19 @@ function devStatus(e,today){
   else if(asOpen.length)st='as';
   else if(!retDone)st='wait';
   else st='stock';
-  return {st,cur,asOpen,lastEnd,gaps,lastChk:e.logs.filter(l=>l.kind==='chk').pop()||null};
+  return {st,cur,asOpen,lastEnd,gaps,over,lastChk:e.logs.filter(l=>l.kind==='chk').pop()||null};
 }
 function devAll(today,withHidden){
   const m=new Map();
   const get=sn=>{const k=snKey(sn);if(!k)return null;if(!m.has(k))m.set(k,{k,sn:String(sn).trim(),rec:null,users:[],logs:[],dels:0});return m.get(k);};
   for(const d of (state.devices||[]))if(d&&!d.del){const e=get(d.sn);if(e){e.rec=d;e.sn=String(d.sn).trim();}}
-  for(const p of (state.patients||[]))for(const g of snSegs(p)){const e=get(g.sn);if(e)e.users.push({pid:p.id,name:p.name||'',code:p.mgmtCode||'',phone:p.phone||'',start:g.start,end:g.end,swap:g.swap||null,p});}
+  for(const p of (state.patients||[]))for(const g of snSegs(p)){const e=get(g.sn);if(e)e.users.push({sn:String(g.sn).trim(),pid:p.id,name:p.name||'',code:p.mgmtCode||'',phone:p.phone||'',start:g.start,end:g.end,swap:g.swap||null,p});}
   for(const l of (state.devLogs||[])){if(!l)continue;const e=get(l.sn);if(!e)continue;if(l.del)e.dels++;else e.logs.push(l);}
   for(const e of m.values()){
     e.users.sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
     e.logs.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.at||'').localeCompare(String(b.at||'')));
     const lp=e.users.length?e.users[e.users.length-1].p:null;
+    if(!e.rec&&e.users.length)e.sn=e.users[e.users.length-1].sn;   /* 표기가 여러 가지면 최근 사용자 쪽 표기로 */
     e.model=(e.rec&&e.rec.model)||(lp&&(lp.model||lp.device))||'';
     e.mfgYm=(e.rec&&e.rec.mfgYm)||(lp&&lp.mfgYm)||'';
     e.mgmtNo=(e.rec&&e.rec.mgmtNo)||'';
@@ -6303,10 +6307,10 @@ function renderDev0(){
   const today=fd(new Date());
   const allH=devAll(today,true),all=allH.filter(x=>!(x.rec&&x.rec.hide)),nHid=allH.length-all.length;
   const cnt={all:all.length,use:0,wait:0,stock:0,as:0,disp:0,hid:nHid,gap:0};
-  for(const x of all){cnt[x.st==='soon'?'use':x.st]++;if(x.gaps.length)cnt.gap++;}
+  for(const x of all){cnt[x.st==='soon'?'use':x.st]++;if(x.gaps.length||x.over.length)cnt.gap++;}
   const q=devUI.q.trim().toLowerCase();
   const src=devUI.f==='hid'?allH.filter(x=>x.rec&&x.rec.hide):all;
-  const shown=src.filter(x=>(devUI.f==='all'||devUI.f==='hid'||(devUI.f==='gap'?x.gaps.length:(x.st===devUI.f||(devUI.f==='use'&&x.st==='soon'))))
+  const shown=src.filter(x=>(devUI.f==='all'||devUI.f==='hid'||(devUI.f==='gap'?(x.gaps.length||x.over.length):(x.st===devUI.f||(devUI.f==='use'&&x.st==='soon'))))
       &&(!q||[x.sn,x.model,x.mgmtNo,...x.users.map(u=>u.name+' '+u.code)].join(' ').toLowerCase().includes(q)))
     .sort((a,b)=>(DEV_ORDER[a.st]-DEV_ORDER[b.st])||a.k.localeCompare(b.k,'ko',{numeric:true}));
   if(devUI.none)devUI.k=null;
@@ -6317,19 +6321,19 @@ function renderDev0(){
   const years=[...new Set((state.devLogs||[]).filter(l=>l&&!l.del&&l.date).map(l=>l.date.slice(0,4)).concat(all.flatMap(x=>x.users.map(u=>String(u.start||'').slice(0,4))).filter(Boolean)))].sort().reverse();
   const rowsH=shown.map(x=>{const lu=x.users[x.users.length-1];
     const who=x.cur?`👤 ${esc(x.cur.name)} ${esc(x.cur.code)} · ${String(x.cur.start||'').slice(2)} ~`:x.st==='soon'?`👤 ${esc(lu.name)} ${String(lu.start||'').slice(2)} 설치 예정`:lu?`↩ ${esc(lu.name)} ${lu.end?lu.end.slice(2)+' 반납':''}`:'사용 기록 없음';
-    return `<div class="dv-row${x.k===devUI.k?' sel':''}" data-dk="${esc(x.k)}"><span class="sn">${esc(x.sn)}</span><span class="md">${esc(x.model||'')}${x.mgmtNo?` · ${esc(x.mgmtNo)}`:''}</span><span>${stB(x.st)}${x.asOpen.length&&x.st!=='as'?' '+stB('as'):''}${x.gaps.length?' <span class="badge warn" title="다른 환자에게 넘어갈 때 회수·소독 기록 없음">⚠️</span>':''}</span>
+    return `<div class="dv-row${x.k===devUI.k?' sel':''}" data-dk="${esc(x.k)}"><span class="sn">${esc(x.sn)}</span><span class="md">${esc(x.model||'')}${x.mgmtNo?` · ${esc(x.mgmtNo)}`:''}</span><span>${stB(x.st)}${x.asOpen.length&&x.st!=='as'?' '+stB('as'):''}${x.gaps.length||x.over.length?` <span class="badge warn" title="${x.over.length?'다른 환자와 사용 기간이 겹침 — 앞 환자 반납일 확인':'다른 환자에게 넘어갈 때 회수·소독 기록 없음'}">⚠️</span>`:''}</span>
       <span class="who">${who}${x.lastChk?` · 점검 ${x.lastChk.date.slice(2)}`:''}</span></div>`;}).join('')
     ||`<div class="cx-empty">${all.length?'조건에 맞는 기기가 없습니다.':'아직 기기가 없습니다.<br>환자 정보에 S/N을 넣으면 자동으로 생기고,<br>재고 기기는 [＋ 기기 등록]으로 넣습니다.'}</div>`;
   const right=`<section class="cx-col">
     <div class="cx-head"><h2>기기 목록</h2><span class="sub">${all.length}대${nHid?` · 숨김 ${nHid}`:''}</span><span style="margin-left:auto;display:flex;gap:5px"><button class="btn sm" data-dact="newDev">＋ 기기 등록</button></span></div>
     <div class="cx-tools"><input type="search" id="dvQ" placeholder="🔍 S/N · 모델 · 관리번호 · 환자" value="${esc(devUI.q)}"></div>
-    <div class="cx-filters">${fchip('all','전체',cnt.all)}${fchip('wait','회수·소독 대기',cnt.wait)}${fchip('use','대여중',cnt.use)}${fchip('stock','재고',cnt.stock)}${fchip('as','A/S 중',cnt.as)}${fchip('disp','폐기',cnt.disp)}${cnt.gap?fchip('gap','⚠️ 소독 기록 빠짐',cnt.gap):''}${nHid?fchip('hid','숨김',nHid):''}</div>
+    <div class="cx-filters">${fchip('all','전체',cnt.all)}${fchip('wait','회수·소독 대기',cnt.wait)}${fchip('use','대여중',cnt.use)}${fchip('stock','재고',cnt.stock)}${fchip('as','A/S 중',cnt.as)}${fchip('disp','폐기',cnt.disp)}${cnt.gap?fchip('gap','⚠️ 확인 필요',cnt.gap):''}${nHid?fchip('hid','숨김',nHid):''}</div>
     <div class="cx-scroll" id="dvList">${rowsH}</div>
     <div class="cx-bottom"><span class="who">📥 엑셀 대장</span><select id="dvXy" style="width:auto"><option value="">전체 기간</option>${years.map(y=>`<option value="${y}" ${devUI.xy===y?'selected':''}>${y}년</option>`).join('')}</select>
       <button class="btn sm primary" data-dact="export" title="장비점검체크·회수기기 관리대장·AS관리대장·부적합장비대장·사용자변경이력 — 지금 쓰는 서식과 같은 칸">내려받기</button></div></section>`;
   const labbar=`<div class="cx-labbar">🧪 <b>실험실 기능</b> · 시험 중인 새 기능입니다. 기기 = S/N 기준 — 사용자는 환자 정보의 S/N·계약 기간으로 자동, 회수·소독·점검·A/S·폐기는 여기서 기록합니다.</div>`;
   if(!e){
-    sec.innerHTML=`${labbar}<div class="dv-grid"><section class="cx-col" style="grid-column:span 2"><div class="cx-empty" style="margin:auto">${all.length?`<b>오른쪽 목록</b>에서 기기를 고르세요.<br><br>회수·소독 대기 <b>${cnt.wait}</b>대 · A/S 중 <b>${cnt.as}</b>대${cnt.gap?` · ⚠️ 소독 기록 빠짐 <b>${cnt.gap}</b>대`:''}`:'아직 기기가 없습니다.<br>환자 정보에 S/N을 넣으면 자동으로 생기고, 재고 기기는 [＋ 기기 등록]으로 넣습니다.'}</div></section>${right}</div>`;
+    sec.innerHTML=`${labbar}<div class="dv-grid"><section class="cx-col" style="grid-column:span 2"><div class="cx-empty" style="margin:auto">${all.length?`<b>오른쪽 목록</b>에서 기기를 고르세요.<br><br>회수·소독 대기 <b>${cnt.wait}</b>대 · A/S 중 <b>${cnt.as}</b>대${cnt.gap?` · ⚠️ 확인 필요 <b>${cnt.gap}</b>대`:''}`:'아직 기기가 없습니다.<br>환자 정보에 S/N을 넣으면 자동으로 생기고, 재고 기기는 [＋ 기기 등록]으로 넣습니다.'}</div></section>${right}</div>`;
     devFit();return;}
   const lastU=e.users.filter(u=>u.end&&u.end<today).pop();
   const band=`<div class="cx-band"><span class="nm">🔧 ${esc(e.sn)}</span>${stB(e.st)}${e.asOpen.length&&e.st!=='as'?stB('as'):''}
@@ -6341,7 +6345,8 @@ function renderDev0(){
     <span class="spacer"></span>
     <button class="btn sm" data-dact="editDev" title="제품관리번호·모델·제조년월·입고일·메모">✏️ 기기 정보</button>
     <button class="btn sm" data-dact="unsel">✕ 선택 해제</button></div>`;
-  const warns=[...e.gaps.map(g=>`⚠️ <b>${esc(g.a.name)}</b>(${g.a.end.slice(2)} 반납) → <b>${esc(g.b.name)}</b>(${String(g.b.start).slice(2)} 설치) 사이에 회수·소독 기록이 없습니다 — 🧽 회수·소독을 남겨 주세요`),
+  const warns=[...e.over.map(g=>`⚠️ <b>${esc(g.a.name)}</b>(${String(g.a.start||'?').slice(2)} ~ ${g.a.end?g.a.end.slice(2):'<b>반납일 없음</b>'}) · <b>${esc(g.b.name)}</b>(${String(g.b.start).slice(2)} ~) — 두 환자의 사용 기간이 겹칩니다 — 앞 환자의 계약종료일(반납일)을 넣어 주세요 (👥 환자 관리 또는 LMTS 고객정보 가져오기)`),
+    ...e.gaps.map(g=>`⚠️ <b>${esc(g.a.name)}</b>(${g.a.end.slice(2)} 반납) → <b>${esc(g.b.name)}</b>(${String(g.b.start).slice(2)} 설치) 사이에 회수·소독 기록이 없습니다 — 🧽 회수·소독을 남겨 주세요`),
     ...(e.st==='wait'&&lastU?[`🧽 ${esc(lastU.name)} 반납(${lastU.end}) 뒤 회수·소독 <b>완료</b> 기록이 아직 없습니다`]:[]),
     ...e.asOpen.map(l=>`🛠 A/S 진행 중 — ${esc(l.detail||'')} (접수 ${l.date.slice(2)})`),
     ...(e.rec&&e.rec.memo?[`📝 ${esc(e.rec.memo)}`]:[])];
@@ -6758,7 +6763,7 @@ window.__selftest=function(){
         patients:[P('A',{sn:'pr-100',rentStart:'2026-01-05',rentEnd:'2026-06-30'}),P('B',{sn:'PR-100 ',rentStart:'2026-07-10'}),P('C',{sn:'X9',rentStart:'2026-02-01'})],
         hist:[{id:'h1',pid:'C',at:'2026-05-01T01:00:00.000Z',by:'',src:'',lines:[{k:'sn',a:'X1',b:'X9'}]}],
         devices:[{id:'d1',sn:'S5',model:'프리즈마',mgmtNo:'20260101001'}],devLogs:[]};
-      const T='2026-08-01',st=k=>(devAll(T).find(x=>x.k===k)||{});
+      const T='2026-08-01',st=k=>(devAll(T).find(x=>x.k===snKey(k))||{});
       const sg=snSegs(state.patients[2]);
       const a1=st('PR-100'),x1=st('X1'),x9=st('X9'),s5=st('S5');
       if(snKey('pr-100')===snKey('PR-100 ')&&sg.length===2&&sg[0].sn==='X1'&&sg[0].end==='2026-04-30'&&sg[1].start==='2026-05-01'
@@ -6776,10 +6781,14 @@ window.__selftest=function(){
       const chk=S('장비점검체크').aoa[5]||[],us=S('사용자변경이력').aoa;
       if(sh.length===5&&S('회수기기 관리대장').aoa.length===8&&S('AS관리대장').aoa.length===6&&S('부적합장비대장').aoa.length===6&&chk[4]==='有'&&chk[2]==='PASS'&&chk[9]==='20260715'
         &&us.length===8&&us.some(r=>r[3]==='시험A'&&r[4]==='20260105~20260630'&&r[6]==='시험B'&&r[7]==='20260710~사용중')&&sh.every(x=>x.mergesR.length===x.merges.length))ok13++;else console.warn('FAIL13-3',sh);
+      /* 4: LMTS로 같은 S/N 새 환자가 들어왔는데 앞 환자 반납일이 없을 때 — 새 환자가 지금 사용자, 겹침 경고 / 표기 차이(하이픈·공백)도 같은 기기 */
+      state.patients.push(P('D',{sn:'ZZ 50',rentStart:'2026-01-02'}),P('E',{sn:'zz-50',rentStart:'2026-07-20'}));
+      const z=st('ZZ50');
+      if(z.users&&z.users.length===2&&z.cur&&z.cur.pid==='E'&&z.over.length===1&&z.over[0].a.pid==='D')ok13++;else console.warn('FAIL13-4',z);
     }catch(e){console.warn('FAIL13-x',e);}
     finally{state=saved;}
   }
-  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/11 · 기기관리 ${ok13}/3`;
+  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/11 · 기기관리 ${ok13}/4`;
   console.log(msg);
   return {ok,ok2,ok3,ok4,msg};
 };
