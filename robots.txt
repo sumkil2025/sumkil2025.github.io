@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
 Disallow: /chart.html
+Disallow: /chart-next.html
 
 Sitemap: https://sumkil2025.github.io/sitemap.xml
