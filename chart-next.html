@@ -392,7 +392,10 @@
   .cx-rxbox{margin:0 0 8px;padding:7px 10px;border:1px dashed #f0b4cf;border-radius:9px;background:#fff7fb;font-size:.8rem}
   .cx-rxbox .t{font-size:.7rem;font-weight:800;color:#c2185b;margin-bottom:4px}
   .cx-rxbox .cx-frow{margin-bottom:5px}
-  .cx-rxl{margin-top:2px;font-size:.82rem;color:#ad1457;font-weight:800}
+  .cx-rxl{margin-top:2px;font-size:.82rem;color:#ad1457;font-weight:800}.cx-rxl.rv{text-decoration:line-through;color:#c99bb0}
+  .cx-hl.rv{color:#b45309}
+  .cx-hdate{margin-left:6px;border:1px solid var(--line);background:#fff;border-radius:6px;font-size:.68rem;padding:0 5px;color:var(--muted);cursor:pointer;opacity:0;font-family:inherit}
+  .cx-it:hover .cx-hdate{opacity:1}
   .cx-hl{margin-top:2px;font-size:.74rem;color:var(--muted)}.cx-hl span{color:#b0b6c3}
   .actions .effpick{margin-right:auto;display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}.actions .effpick input{width:9.5rem}
   .cx-supbox{margin:0 0 8px;padding:7px 10px;border:1px dashed #c9b8f0;border-radius:9px;background:#faf8ff;font-size:.8rem}
@@ -801,7 +804,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.08.4';
+const APP_VERSION='2026.11.08.5';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -5276,7 +5279,7 @@ window.addEventListener('pagehide',()=>{if(histHold)histUnhold();},true);
 const WHO_KEY='sumgilChart.who';
 const whoNow=()=>{try{return localStorage.getItem(WHO_KEY)||'';}catch(e){return '';}};
 const labOn=k=>!!(state&&state.settings&&state.settings.labs&&state.settings.labs[k]);
-const chartUI={pid:null,lf:'all',lq:'',rf:'all',rq:'',edit:null,formKey:null,olds:null,showDel:false,rs:(()=>{try{const v=JSON.parse(localStorage.getItem('sumgilChart.cxSort')||'null');if(v&&v.k)return {k:String(v.k),dir:v.dir<0?-1:1};}catch(e){}return {k:'todo',dir:1};})()};
+const chartUI={pid:null,lf:'all',lq:'',rf:'all',rq:'',edit:null,formKey:null,olds:null,showDel:false,none:false,rs:(()=>{try{const v=JSON.parse(localStorage.getItem('sumgilChart.cxSort')||'null');if(v&&v.k)return {k:String(v.k),dir:v.dir<0?-1:1};}catch(e){}return {k:'todo',dir:1};})()};
 const chartDrafts=new Map();   /* 쓰다 만 기록 (환자별, 메모리에만 — 잠그면 지움) */
 const NOTE_VIA=[['office','🏢 내방'],['phone','📞 전화'],['sms','💬 문자'],['visit','🏠 방문']];
 const NOTE_KIND=[['con','상담'],['chk','점검'],['sup','소모품'],['rx','💊 처방'],['cmp','불편 접수'],['etc','기타']];
@@ -5392,7 +5395,46 @@ function rxPlan(p,f){
     if(b.active&&a.units.length!==b.units.length)lines.push(`· ${Number(ym.slice(5))}월 청구: ${b.units.length}건 → ${a.units.length}건으로 나뉨`);}catch(e){}
   return {ops,lines,rx};
 }
-const rxNoteOn=(pid,date,type)=>(state.notes||[]).some(n=>n.pid===pid&&!n.del&&n.kind==='rx'&&n.rx&&n.date===date&&(!type||n.rx.type===type||(type==='press'&&n.rx.to)));
+const rxNoteOn=(pid,date,type)=>(state.notes||[]).some(n=>n.pid===pid&&!n.del&&!n.reverted&&n.kind==='rx'&&n.rx&&n.date===date&&(!type||n.rx.type===type||(type==='press'&&n.rx.to)));
+/* ↩ 처방 되돌리기 — 그 기록이 바꾼 재처방 이력·처방압력·처방 기간을 원래대로 (뒤에 다른 처방이 있거나 청구가 끝났으면 막음) */
+function rxRevertPlan(p,n){
+  const r=(n&&n.rx)||{},lines=[],ops={};
+  if(!p||!n)return {err:'기록을 찾지 못했습니다.'};
+  if(n.reverted)return {err:'이미 되돌린 기록입니다.'};
+  const rows=rxChangesOf(p);
+  if(r.to){
+    const row=rows.find(x=>x.date===n.date&&normP(x.to)===normP(r.to));
+    if(!row)return {err:`재처방 이력에 ${n.date} · ${r.from||'?'} → ${r.to} 줄이 없습니다 (이미 고쳤거나 지운 것 같습니다).\n기록만 정리하려면 [지우기]를 쓰세요.`};
+    const later=rows.filter(x=>x.date>n.date);
+    if(later.length)return {err:`이 처방 뒤에 다른 재처방(${later.map(x=>x.date).join(', ')})이 있어 되돌릴 수 없습니다.\n✏️ 정보 고치기 › 재처방 이력에서 직접 고쳐 주세요.`};
+    const lk=rxChangeLocked(p,[n.date]);
+    if(lk)return {err:`${lk.replace('-','년 ')}월에 승인번호나 청구완료가 있어 그 달 청구를 되돌릴 수 없습니다.\n먼저 📅 월별 청구에서 그 달의 승인번호·청구완료를 해제한 뒤 다시 해 주세요.`};
+    ops.rxcDel=row.date;
+    lines.push(`· 재처방(압력 변경) 이력에서 ${row.date} · ${row.from||'?'} → ${row.to} 줄을 뺍니다\n   그 달 청구 나눔도 풀립니다`);
+    const back=(r.prev&&r.prev.pressure)||r.from;
+    if(normP(p.pressure)===normP(r.to)&&back){ops.pressure=back;lines.push(`· 처방압력: ${p.pressure} → ${back}`);}
+    else lines.push(`· 처방압력은 그 뒤에 따로 바뀌어(${p.pressure||'—'}) 그대로 둡니다`);
+  }
+  if(r.type==='ext'){
+    if(p.rxStart!==r.start||p.rxEnd!==r.end)return {err:`처방 기간이 그 뒤에 바뀌어(${p.rxStart||'?'} ~ ${p.rxEnd||'?'}) 되돌릴 수 없습니다.\n✏️ 정보 고치기에서 직접 고쳐 주세요.`};
+    let prev=r.prev?{start:r.prev.rxStart||null,end:r.prev.rxEnd||null}:null,hi=-1;
+    const hs=Array.isArray(p.rxHist)?p.rxHist:[];
+    for(let i=hs.length-1;i>=0;i--){const h=hs[i];if(h&&h.src==='📋 환자 차트'&&(!prev||((h.start||null)===prev.start&&(h.end||null)===prev.end))){hi=i;if(!prev)prev={start:h.start||null,end:h.end||null};break;}}
+    if(!prev)return {err:'이전 처방 기간을 찾지 못했습니다. ✏️ 정보 고치기에서 직접 고쳐 주세요.'};
+    ops.period={start:prev.start,end:prev.end,hi};
+    lines.push(`· 처방 기간: ${r.start} ~ ${r.end} → ${prev.start||'없음'} ~ ${prev.end||'없음'} (원래대로)`);
+  }
+  if(!lines.length)return {err:'되돌릴 내용이 없습니다. 기록만 정리하려면 [지우기]를 쓰세요.'};
+  try{const ym=n.date.slice(0,7),ov=getOv(ym,p.id),b=calcPatientMonth(p,ym,ov),q=JSON.parse(JSON.stringify(p));rxRevertApply(q,ops);const a=calcPatientMonth(q,ym,ov);
+    if(b.active&&a.units.length!==b.units.length)lines.push(`· ${Number(ym.slice(5))}월 청구: ${b.units.length}건 → ${a.units.length}건`);}catch(e){}
+  return {ops,lines};
+}
+function rxRevertApply(p,ops){
+  if(ops.rxcDel){p.rxChanges=rxChangesOf(p).filter(x=>x.date!==ops.rxcDel);if(!p.rxChanges.length)delete p.rxChanges;}
+  if(ops.pressure)p.pressure=ops.pressure;
+  if(ops.period){p.rxStart=ops.period.start;p.rxEnd=ops.period.end;
+    if(ops.period.hi>=0&&Array.isArray(p.rxHist)){p.rxHist.splice(ops.period.hi,1);if(!p.rxHist.length)delete p.rxHist;}}
+}
 /* 자동 타임라인 항목: 계약·처방·순응·재처방·해외·청구 완료·마스크·서류·변경 */
 function chartAutoItems(p){
   const it=[],M=ym=>Number(ym.slice(5));
@@ -5421,7 +5463,7 @@ function chartAutoItems(p){
   for(const h of (state.hist||[]))if(h.pid===p.id){
     if(h.nid&&liveN.has(h.nid))continue;   /* 💊 처방 기록에서 바꾼 것은 그 기록 안에 보임 */
     const one=h.lines.length===1?HIST_ICON[h.lines[0].k]:null,inD=fd(new Date(h.at));
-    it.push({date:h.eff||inD,f:'chg',lab:'변경',hist:h,txt:`${h.src?esc0(h.src)+' — ':(one||'🔄')+' '}${h.lines.map(histLineTxt).join(' · ')}${h.by?` (${h.by})`:''}${h.eff&&h.eff!==inD?` · ${inD.slice(5)} 입력`:''}`,t:h.at});}
+    it.push({date:h.eff||inD,f:'chg',lab:'변경',hist:h,txt:`${h.src?esc0(h.src)+' — ':(one||'🔄')+' '}${h.lines.map(histLineTxt).join(' · ')}${h.by?` (${h.by})`:''}${h.eff&&h.eff!==inD?` · ${inD.slice(5)} 입력`:''}${h.effEdits&&h.effEdits.length?' · 날짜 고침':''}`,t:h.at});}
   return it;
 }
 const esc0=s=>String(s||'');
@@ -5433,7 +5475,7 @@ function chartCopy(el){
 function goChart(pid){
   if(!labOn('chart'))return;
   if($('#cxForm')&&!$('#tab-chart').classList.contains('hidden'))chartKeepDraft();
-  chartUI.formKey=null;chartUI.pid=pid;chartUI.edit=null;chartUI.olds=null;chartUI.lf='all';chartUI.lq='';
+  chartUI.formKey=null;chartUI.none=false;chartUI.pid=pid;chartUI.edit=null;chartUI.olds=null;chartUI.lf='all';chartUI.lq='';
   showTab('chart');
 }
 function showTab(t){
@@ -5521,7 +5563,7 @@ async function chartSaveNote(){
     if(prevLink&&f.maskLinked!==prevLink)showMsg('월별 청구 마스크',`${Number(prevLink.slice(5))}월 월별 청구의 '마스크' 체크는 그대로 두었습니다.\n빼야 하면 📅 월별 청구에서 끄세요.`);
     if(ed){noteApplyEdit(ed,f,whoNow()||f.by,at);chartDrafts.delete('e:'+ed.id);chartUI.edit=null;}
     else{const nn=noteNew(p.id,f,at);
-      if(rxP){nn.rx=rxP.rx;rxApply(p,rxP.ops);histTag('💊 처방 기록');histEffNext=f.date;histNidNext=nn.id;}
+      if(rxP){nn.rx={...rxP.rx,prev:{pressure:p.pressure||'',rxStart:p.rxStart||null,rxEnd:p.rxEnd||null}};rxApply(p,rxP.ops);histTag('💊 처방 기록');histEffNext=f.date;histNidNext=nn.id;}
       state.notes.push(nn);chartDrafts.delete(p.id);}
     chartUI.formKey=null;
     persist();renderChart();
@@ -5566,7 +5608,8 @@ function renderChart0(){
       else if(rs.k==='memo')r=txt(a.p.memo,b.p.memo);
       else r=dir*byTodo(a,b);
       return r||byTodo(a,b)||patOrder(a.p,b.p);});
-  if(!chartUI.pid||!state.patients.some(x=>x.id===chartUI.pid))chartUI.pid=(shown[0]||rows[0]||{p:{}}).p.id||null;
+  if(chartUI.none)chartUI.pid=null;
+  else if(!chartUI.pid||!state.patients.some(x=>x.id===chartUI.pid))chartUI.pid=(shown[0]||rows[0]||{p:{}}).p.id||null;
   const p=state.patients.find(x=>x.id===chartUI.pid);
   const plist=shown.map(r=>{const t=r.hard[0]||r.td[0];const over=t&&!t.soft&&t.date<today;
     return `<div class="cx-prow${r.p.id===chartUI.pid?' sel':''}" data-pid="${r.p.id}">
@@ -5586,7 +5629,7 @@ function renderChart0(){
   const us=lsUsage();
   const warn=(us.pct>=0.8?`<div class="cx-warn">⚠️ 브라우저 저장 공간을 ${Math.round(us.pct*100)}% 쓰고 있습니다 — 💾 백업을 받고 ⚙️ 설정 › 저장 공간을 확인하세요.</div>`:'')
     +(!whoNow()?`<div class="cx-warn">👤 위쪽 <b>누가 쓰나요?</b>에서 이 컴퓨터를 쓰는 사람을 골라 주세요 — 기록 담당자와 변경 이력에 들어갑니다.</div>`:'');
-  if(!p){chartUI.formKey=null;sec.innerHTML=`${labbar}${warn}<div class="cx-grid"><section class="cx-col" style="grid-column:span 2"><div class="cx-empty">환자가 없습니다. [👥 환자 관리]에서 환자를 추가하거나 LMTS 파일을 넣으세요.</div></section>${right}</div>`;chartFit();return;}
+  if(!p){chartUI.formKey=null;sec.innerHTML=`${labbar}${warn}<div class="cx-grid"><section class="cx-col" style="grid-column:span 2"><div class="cx-empty"${state.patients.length?' style="padding-top:70px;line-height:1.9"':''}>${state.patients.length?`👉 고른 환자가 없습니다.<br>오른쪽 <b>환자 목록</b>에서 환자를 누르면 지난 기록과 기록 쓰기가 나옵니다.<br><span class="hint">할 일 있는 환자 ${cnt.todo}명 · ${Number(thisYM.slice(5))}월 점검 아직 ${cnt.chk}명</span>`:'환자가 없습니다. [👥 환자 관리]에서 환자를 추가하거나 LMTS 파일을 넣으세요.'}</div></section>${right}</div>`;chartFit();return;}
   /* ── 환자 띠 ── */
   const ns=nsOf(p.id),ph=patPhase(p,today),age=ageAt(p,today),rr=digits(p.rrn);
   const sex=rr.length===13?(Number(rr[6])%2===1?'남':'여'):'';
@@ -5598,7 +5641,8 @@ function renderChart0(){
     ${insOf(p).code!=='IB'?`<span class="badge warn">${esc(insOf(p).n)}</span>`:''}
     ${p.staff?`<span class="badge cash">담당 ${esc(p.staff)}</span>`:''}${p.branch?`<span class="badge end">${esc(p.branch)}</span>`:''}
     <span class="spacer"></span><span class="hint">칩을 누르면 복사</span>
-    <button class="btn sm" data-act="editPat" title="S/N·압력·주소·주민번호·연락처 등 — 바꾸면 왼쪽 기록(변경 이력)에 남습니다">✏️ 정보 고치기</button></div>`;
+    <button class="btn sm" data-act="editPat" title="S/N·압력·주소·주민번호·연락처 등 — 바꾸면 왼쪽 기록(변경 이력)에 남습니다">✏️ 정보 고치기</button>
+    <button class="btn sm" data-act="unsel" title="고른 환자를 화면에서 내립니다 — 쓰다 만 기록은 남아 있습니다">✕ 선택 해제</button></div>`;
   /* ── 왼쪽: 지난 기록 ── */
   const items=[];
   for(const n of ns)items.push({date:n.date,f:noteF(n),note:n,t:n.at});
@@ -5615,17 +5659,19 @@ function renderChart0(){
     const ed=(n.edits||[]).filter(e=>e.prev);
     const tm=fd(new Date(n.at))===n.date?new Date(n.at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}):'';
     const chk=n.kind==='chk'?`<div class="cx-chk">${NOTE_CHECKS.map(([k,l])=>`<span class="${n.checks&&n.checks[k]?'':'no'}">${n.checks&&n.checks[k]?'✓':'·'} ${l}</span>`).join('')}</div>`:'';
-    const lh=n.kind==='rx'?(state.hist||[]).filter(h=>h.nid===n.id):[];
-    const rxl=n.kind==='rx'&&n.rx?`<div class="cx-rxl">${n.rx.type==='ext'?`📋 처방 기간 연장 ${esc(String(n.rx.start||'').slice(2))} ~ ${esc(String(n.rx.end||'').slice(2))}${n.rx.to?` · 압력 ${esc(n.rx.from||'?')} → ${esc(n.rx.to)}`:''}`:`💊 압력 변경 재처방 ${esc(n.rx.from||'?')} → ${esc(n.rx.to||'?')} cmH₂O`}</div>${lh.length?`<div class="cx-hl">바뀐 정보 · ${lh.flatMap(h=>h.lines.map(histLineTxt)).map(esc).join(' · ')}${fd(new Date(n.at))!==n.date?` <span>(${fd(new Date(n.at)).slice(5)} 입력)</span>`:''}</div>`:''}`:'';
+    const lhAll=n.kind==='rx'?(state.hist||[]).filter(h=>h.nid===n.id):[],RVS='↩ 처방 되돌리기';
+    const lh=lhAll.filter(h=>h.src!==RVS),lr=lhAll.filter(h=>h.src===RVS);
+    const rxl=n.kind==='rx'&&n.rx?`<div class="cx-rxl${n.reverted?' rv':''}">${n.rx.type==='ext'?`📋 처방 기간 연장 ${esc(String(n.rx.start||'').slice(2))} ~ ${esc(String(n.rx.end||'').slice(2))}${n.rx.to?` · 압력 ${esc(n.rx.from||'?')} → ${esc(n.rx.to)}`:''}`:`💊 압력 변경 재처방 ${esc(n.rx.from||'?')} → ${esc(n.rx.to||'?')} cmH₂O`}</div>${lh.length?`<div class="cx-hl">바뀐 정보 · ${lh.flatMap(h=>h.lines.map(histLineTxt)).map(esc).join(' · ')}${fd(new Date(n.at))!==n.date?` <span>(${fd(new Date(n.at)).slice(5)} 입력)</span>`:''}</div>`:''}${lr.length?`<div class="cx-hl rv">↩ 되돌림 ${fd(new Date(lr[0].at)).slice(5)} ${esc(lr[0].by||'')} · ${lr.flatMap(h=>h.lines.map(histLineTxt)).map(esc).join(' · ')}</div>`:''}`:'';
     const sp=n.kind==='sup'?`<div class="cx-sup">${esc(supTxt(n.sup))||'—'}${n.sup&&n.sup.maskBill?` <span class="badge cash" title="월별 청구 그 달 '마스크' 칸에 체크됨">${Number(n.sup.maskBill.slice(5))}월 공단 청구 마스크</span>`:''}</div>`:'';
     const nx=n.next&&n.next.date?`<div class="cx-next${n.next.done?' done':''}">▶ 다음 할 일 ${n.next.date.slice(5)} · ${esc(n.next.text)}${n.next.done?` (했음 ${fd(new Date(n.next.done)).slice(5)})`:''}</div>`:'';
     const olds=chartUI.olds===n.id?(n.edits||[]).slice().reverse().map(e=>e.prev?`<div class="cx-old"><b>${fd(new Date(e.at)).slice(5)} ${new Date(e.at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false})} ${esc(e.by||'')} 고치기 전</b> · ${e.prev.date.slice(5)} ${esc(VIA_KO[e.prev.via]||'')} ${esc(KIND_KO[e.prev.kind]||'')} ${esc(e.prev.by||'')}<br>${esc(e.prev.text)}${e.prev.sup?`<br>${esc(supTxt(e.prev.sup))}`:''}${e.prev.next&&e.prev.next.date?`<br>▶ ${e.prev.next.date.slice(5)} ${esc(e.prev.next.text)}`:''}</div>`
-      :`<div class="cx-old"><b>${fd(new Date(e.at)).slice(5)} ${esc(e.by||'')}</b> · ${e.act==='del'?'지움':'되살림'}</div>`).join(''):'';
+      :`<div class="cx-old"><b>${fd(new Date(e.at)).slice(5)} ${esc(e.by||'')}</b> · ${e.act==='del'?'지움':e.act==='revert'?'↩ 처방 되돌림':'되살림'}</div>`).join(''):'';
     return `<div class="cx-it${n.del?' del':''}"><div class="cx-k k-${n.kind}">${KIND_KO[n.kind]||'기록'}</div><div class="cx-body">
       <div class="cx-meta"><span class="cx-via">${esc(VIA_KO[n.via]||'')}</span>${esc(n.by||'')}${tm?` · ${tm}`:''}
         ${ed.length?`<button class="cx-edited" data-act="olds" data-nid="${n.id}" title="고친 때·사람과 고치기 전 글 보기">고침 ${ed.length}</button>`:''}
         ${n.del?`<span class="badge warn" title="${esc(n.delBy||'')} ${fd(new Date(n.del))} 지움 — 글은 남아 있습니다">지움 ${fd(new Date(n.del)).slice(5)}</span>`:''}
-        <span class="cx-acts">${n.del?`<button data-act="undel" data-nid="${n.id}">되살리기</button>`:`<button data-act="edit" data-nid="${n.id}">고치기</button><button data-act="del" data-nid="${n.id}">지우기</button>`}</span></div>
+        ${n.reverted?`<span class="badge warn" title="${esc(n.reverted.by||'')} ${fd(new Date(n.reverted.at))} 되돌림 — 이 처방이 바꾼 환자 정보는 원래대로 돌아갔습니다">↩ 되돌림 ${fd(new Date(n.reverted.at)).slice(5)}</span>`:''}
+        <span class="cx-acts">${n.del?`<button data-act="undel" data-nid="${n.id}">되살리기</button>`:`<button data-act="edit" data-nid="${n.id}">고치기</button>${n.kind==='rx'&&n.rx&&!n.reverted?`<button data-act="rxRevert" data-nid="${n.id}" title="이 처방이 바꾼 재처방 이력·처방압력·처방 기간을 원래대로">되돌리기</button>`:''}<button data-act="del" data-nid="${n.id}">지우기</button>`}</span></div>
       ${rxl}${n.text?`<div class="tx">${esc(n.text)}</div>`:''}${chk}${sp}${nx}${olds}</div></div>`;};
   for(const x of list){
     const y=x.date.slice(0,4);
@@ -5633,7 +5679,7 @@ function renderChart0(){
     if(x.date!==curD){if(curD)tl+='</div>';curD=x.date;
       const auto=!list.some(z=>z.date===x.date&&z.note),fut=x.date>today;
       tl+=`<div class="cx-day"><div class="cx-dayh"><b>${x.date.slice(5)}</b><span class="dw">(${dowOf(x.date)})</span>${fut?'<span class="badge" style="background:#fff3e0;color:var(--amber)">예정</span>':auto?'<span class="badge">자동</span>':''}</div>`;}
-    tl+=x.note?noteHtml(x.note):`<div class="cx-it cx-auto"><div class="cx-k k-${x.f}">${esc(x.lab)}</div><div class="cx-body">${esc(x.txt)}</div></div>`;
+    tl+=x.note?noteHtml(x.note):`<div class="cx-it cx-auto"><div class="cx-k k-${x.f}">${esc(x.lab)}</div><div class="cx-body">${esc(x.txt)}${x.hist?`<button class="cx-hdate" data-act="histDate" data-hid="${x.hist.id}" title="실제로 바뀐 날짜로 옮기기 — 입력한 날·사람은 그대로 남음">📅 날짜</button>`:''}</div></div>`;
   }
   if(curD)tl+='</div>';
   /* 12개월 띠: 지난 10개월 + 이번 달 + 다음 달 */
@@ -5757,7 +5803,7 @@ $('#tab-chart').addEventListener('click',e=>{
   const t=e.target;
   const cp=t.closest('.cx-chip[data-copy]');if(cp){chartCopy(cp);return;}
   const pr=t.closest('.cx-prow[data-pid]');
-  if(pr){if(pr.dataset.pid===chartUI.pid)return;chartKeepDraft();chartUI.formKey=null;chartUI.pid=pr.dataset.pid;chartUI.edit=null;chartUI.olds=null;chartUI.lf='all';chartUI.lq='';renderChart();return;}
+  if(pr){if(pr.dataset.pid===chartUI.pid)return;chartKeepDraft();chartUI.formKey=null;chartUI.none=false;chartUI.pid=pr.dataset.pid;chartUI.edit=null;chartUI.olds=null;chartUI.lf='all';chartUI.lq='';renderChart();return;}
   const rsb=t.closest('.cx-prow.h [data-rs]');
   if(rsb){const k=rsb.dataset.rs;chartUI.rs=chartUI.rs.k===k?{k,dir:-chartUI.rs.dir}:{k,dir:1};try{localStorage.setItem(CXSORT_KEY,JSON.stringify(chartUI.rs));}catch(e){}chartUI.scrollSel=true;renderChart();return;}
   const fc=t.closest('.cx-fchip[data-lf],.cx-fchip[data-rf]');
@@ -5781,6 +5827,20 @@ $('#tab-chart').addEventListener('click',e=>{
       if(!ok)return;const at=new Date().toISOString(),by=whoNow();n.del=at;n.delBy=by;(n.edits=n.edits||[]).push({at,by,act:'del'});persist();renderChart();});return;}
   if(act==='undel'&&n){const at=new Date().toISOString(),by=whoNow();n.del=null;n.delBy=null;(n.edits=n.edits||[]).push({at,by,act:'undel'});persist();renderChart();return;}
   if(act==='done'&&n&&n.next){n.next.done=new Date().toISOString();n.next.doneBy=whoNow();persist();renderChart();return;}
+  if(act==='rxRevert'&&n){const q0=state.patients.find(x=>x.id===n.pid);const pl=rxRevertPlan(q0,n);if(pl.err){showMsg('↩ 처방 되돌리기',pl.err);return;}
+    confirmModal('↩ 처방 되돌리기',`${q0.name} · ${n.date} 처방 기록을 되돌립니다.\n\n${pl.lines.join('\n')}\n\n기록은 지워지지 않고 '되돌림'으로 남습니다.\n되돌린 뒤 맞는 내용으로 💊 처방을 새로 쓰세요.`,'되돌리기',true).then(ok=>{
+      if(!ok||!state)return;const q=state.patients.find(x=>x.id===n.pid),pl2=rxRevertPlan(q,n);if(pl2.err){showMsg('↩ 처방 되돌리기',pl2.err);return;}
+      rxRevertApply(q,pl2.ops);const at=new Date().toISOString(),by=whoNow();n.reverted={at,by};(n.edits=n.edits||[]).push({at,by,act:'revert'});
+      histTag('↩ 처방 되돌리기');histNidNext=n.id;persist();renderChart();});return;}
+  if(act==='histDate'){const h=(state.hist||[]).find(x=>x.id===b.dataset.hid);if(!h)return;const inD=fd(new Date(h.at));
+    askModal('📅 바뀐 날짜',`이 변경이 실제로 있었던 날짜를 고르세요.\n입력한 날(${inD})과 입력한 사람은 그대로 남습니다.`,h.eff||inD,'date').then(v=>{
+      if(v==null||!state)return;v=String(v).trim();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(v)){showMsg('날짜 확인','날짜를 골라 주세요.');return;}
+      if(v>fd(new Date())){showMsg('날짜 확인','오늘보다 뒤 날짜는 고를 수 없습니다.');return;}
+      const old=h.eff||inD;if(v===old)return;
+      (h.effEdits=h.effEdits||[]).push({at:new Date().toISOString(),by:whoNow(),from:old,to:v});
+      if(v===inD)delete h.eff;else h.eff=v;persist();renderChart();});return;}
+  if(act==='unsel'){chartKeepDraft();chartUI.formKey=null;chartUI.pid=null;chartUI.none=true;chartUI.edit=null;chartUI.olds=null;renderChart();return;}
   if(!p)return;
   if(act==='docs'){openDocsFor(p.id);return;}
   if(act==='claim'){openClaimView(p.id,0);return;}
@@ -6052,10 +6112,17 @@ window.__selftest=function(){
       if(!pa.err&&tr.pressure==='4-7'&&tr.rxChanges.length===1&&tr.rxChanges[0].from==='4-15'&&pressureAt(tr,'2026-10-01')==='4-15'&&pressureAt(tr,'2026-10-20')==='4-7'
         &&hr&&hr.eff==='2026-10-15'&&hr.nid==='nX'&&hr.src==='💊 처방 기록'&&!pb.err&&q2.rxStart==='2026-10-15'&&q2.rxEnd==='2027-04-14'&&q2.rxHist&&q2.rxHist[0].end==='2026-11-30'&&!!pc.err&&!!pz.err)ok12++;
       else console.warn('FAIL12-9',pa,pb,pc,pz,tr,hr,q2);
+      /* 10: ↩ 처방 되돌리기 — 압력(이력 줄 빼고 압력 원래대로), 기간 연장(이전 기간·처방 이력 원래대로), 뒤에 다른 재처방 있으면 막음 */
+      const rv=rxRevertPlan(tr,{date:'2026-10-15',rx:{type:'press',from:'4-15',to:'4-7',prev:{pressure:'4-15'}}});if(!rv.err)rxRevertApply(tr,rv.ops);
+      const rv2=rxRevertPlan(q2,{date:'2026-10-15',rx:{type:'ext',start:'2026-10-15',end:'2027-04-14',to:''}});if(!rv2.err)rxRevertApply(q2,rv2.ops);
+      const tz={...tr,pressure:'5-9',rxChanges:[{date:'2026-10-15',from:'4-15',to:'4-7'},{date:'2026-10-25',from:'4-7',to:'5-9'}]};
+      const rv3=rxRevertPlan(tz,{date:'2026-10-15',rx:{type:'press',from:'4-15',to:'4-7'}}),rv4=rxRevertPlan(tz,{date:'2026-10-15',reverted:{at:'x'},rx:{type:'press',to:'4-7'}});
+      if(!rv.err&&tr.pressure==='4-15'&&!tr.rxChanges&&!rv2.err&&q2.rxStart==='2026-06-01'&&q2.rxEnd==='2026-11-30'&&!q2.rxHist&&!!rv3.err&&!!rv4.err)ok12++;
+      else console.warn('FAIL12-10',rv,rv2,rv3,rv4,tr,q2);
     }catch(e){console.warn('FAIL12-x',e);}
     finally{state=saved;histBase=savedBase;histHold=savedHold;histSrcNext=savedSrc;}
   }
-  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/9`;
+  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/10`;
   console.log(msg);
   return {ok,ok2,ok3,ok4,msg};
 };
