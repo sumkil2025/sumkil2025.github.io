@@ -319,6 +319,8 @@
   .dv-users>div{display:grid;grid-template-columns:1.4rem minmax(0,1fr) auto;gap:6px;padding:5px 10px;border-top:1px solid #eef1f6;align-items:center}
   .dv-users>div:first-child{border-top:none}
   .dv-users>div[data-pid]{cursor:pointer}.dv-users>div[data-pid]:hover{background:#f6f9ff}
+  .dv-free{flex:none;display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap;margin:0 12px 8px;padding:6px 10px;border-radius:9px;background:#f3f7ff;border:1px solid #d6e2fb;font-size:.8rem}
+  .dv-free .btn{margin-left:auto}
   .dv-warn{flex:none;margin:0 14px 8px;padding:6px 10px;border-radius:9px;background:#fff6f0;border:1px solid #f5c9a6;color:#8a4300;font-size:.78rem;line-height:1.6}
   .dv-box{margin:0 0 8px;padding:7px 10px;border:1px dashed #b9cbe8;border-radius:9px;background:#f8fbff;font-size:.8rem}
   .dv-box .t{font-size:.7rem;font-weight:800;color:var(--blue);margin-bottom:5px}
@@ -843,7 +845,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.09.1';
+const APP_VERSION='2026.11.09.2';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -2904,6 +2906,7 @@ function showImportHelp(){
       row('순응중 관리.xlsx','순응후 재처방 환자 있는 달','LMTS → 환자 관리 → <b>순응중 관리</b> → 왼쪽 <b>순응상태</b> 칸을 "통과"(또는 "실패")로 바꾸고 → [조회] → [엑셀다운]<div class="hint">기본값 "순응중"으로 조회하면 통과한 환자가 안 나옵니다</div>','보조창 상세항목: <b>연이은 30일 사용기간·4시간 이상 사용일수</b> · 순응기간(순응중 처방기간) · 순응판정일 · PSG 검사일 · 순응 상태')])}
     <div class="helpsec">있으면 좋지만 없어도 되는 것</div>
     ${tbl([
+      row('기기사용이력.xlsx','기기 관리용','LMTS → <b>기기사용이력</b> 화면 → [조회] → [엑셀다운]','🔧 기기 관리에 <b>LMTS에 등록된 기기 전부</b>(S/N·모델·상태) → <b>임대 전·쉬는 기기 목록</b> · 사용중 환자의 S/N 빈칸 채움 · 차트와 다르면 ⚠️'),
       row('순응후관리.xlsx','','LMTS → 환자 관리 → <b>순응후 관리</b> → 조회년월 선택 → [조회] → [엑셀다운]','순응통과 환자의 평균사용시간·적용기간시작일 ↔ 순응통과일 대조 (월청구자료관리에 평균시간이 있어 선택)'),
       row('현금영수증내역_YYYYMM.xlsx<br>세금계산서내역_YYYYMM.xlsx','','LMTS → 발행 내역','[LMTS 대사]에서 계산액과 실제 발행액 대조 (검산용). [📥 월별 청구에 반영]도 가능'),
       row('고객현황 (N월) 시트','','예전에 쓰던 관리 엑셀','과거 자료를 처음 옮겨올 때만 (금액을 역산해 사용일수를 맞춤)')])}
@@ -3057,6 +3060,7 @@ function tryImportSheets(sheets,fname){
       if(hn.includes('관리코드')&&hn.includes('청구번호')&&hn.includes('청구시작일')&&hn.includes('청구구분')){return importMonthlyClaims(aoa.slice(hr),h,fname)||true;}
       if(hn.includes('관리번호')&&(hn.includes('주민(외국인)번호')||hn.includes('현금발급번호'))){return importIdMatch(aoa.slice(hr),fname)||true;}
       if(hn.includes('관리코드')&&hn.includes('계약시작일')&&hn.includes('성명')){return importCustomerInfo(aoa.slice(hr),h,fname)||true;}
+      if(hn.includes('기기번호')&&hn.includes('기기존재')&&hn.includes('사용자수')){return importDevList(aoa.slice(hr),h,fname)||true;}
       /* 국세청 홈택스 — 발급 후 받는 승인번호 자료 */
       if(hn.includes('승인번호')&&hn.includes('신분확인뒷4자리')){return importApproval('cash',aoa.slice(hr),h,fname)||true;}
       if(hn.includes('승인번호')&&hn.includes('발급수단')&&(hn.includes('총거래금액')||hn.includes('발급결과'))){return importApproval('cash',aoa.slice(hr),h,fname)||true;}
@@ -5250,6 +5254,7 @@ const NOTICE_HTML=`<p>양압기 건강보험 요양비 청구를 한 화면에�
 <p><b>8. 🔧 기기 관리 (실험실 · 2026-11 새로)</b></p>
 <ul><li>기기(S/N)마다 어느 환자가 언제 썼는지가 환자 정보에서 자동으로 이어지고, 회수·소독 · 장비 점검 · A/S · 폐기를 기록합니다. 반납 뒤 소독 기록이 없는 기기는 맨 위에 '회수·소독 대기'로 보입니다.</li>
 <li>[엑셀 대장]으로 장비점검체크 · 회수기기 관리대장 · AS관리대장 · 부적합장비대장 · 사용자변경이력을 서식 그대로 내려받습니다.</li>
+<li>LMTS <b>기기사용이력</b> 엑셀을 넣으면 공단·LMTS에 등록한 기기가 모두 들어오고, <b>임대 전</b>(한 번도 안 나간 기기)·<b>쉬는 중</b>(반납 뒤 대기) 기기를 [📋 목록·엑셀]로 봅니다.</li>
 <li>현금영수증·세금계산서 <b>승인번호나 청구완료가 있는 달</b>은 일수·마스크·해외·100%·결제 방식처럼 금액이 바뀌는 값이 잠깁니다 — 발행한 영수증과 금액이 어긋나지 않게.</li></ul>
 <h4>꼭 지켜 주세요 — 데이터 저장</h4>
 <div class="warnbox"><ul>
@@ -6188,8 +6193,9 @@ const DEV_KIND=[['ret','🧽 회수·소독'],['chk','🔍 장비 점검'],['as'
 const DEV_KIND_KO={ret:'회수·소독',chk:'장비 점검',as:'A/S',disp:'폐기'};
 const DEV_DATE_KO={ret:'회수일',chk:'점검일',as:'접수일',disp:'폐기일'};
 const DEV_BY_KO={ret:'확인자',chk:'담당자',as:'확인자',disp:'관리자 확인'};
-const DEV_ST={use:['대여중','b20'],soon:['설치 예정','cash'],wait:['회수·소독 대기','warn'],as:['A/S 중','card'],stock:['재고','cash'],disp:['폐기','end']};
-const DEV_ORDER={wait:0,as:1,stock:2,soon:3,use:4,disp:5};
+/* 지금 쓰는 사람이 없는 기기는 둘로 (2026-11-09): 임대 전 = 한 번도 안 나감(공단·LMTS 등록만) / 쉬는 중 = 반납·소독 끝, 다시 나갈 수 있음 */
+const DEV_ST={use:['대여중','b20'],soon:['설치 예정','cash'],wait:['회수·소독 대기','warn'],as:['A/S 중','card'],new:['임대 전','cash'],idle:['쉬는 중','split'],disp:['폐기','end']};
+const DEV_ORDER={wait:0,as:1,idle:2,new:3,soon:4,use:5,disp:6};
 const devUI={k:null,f:'all',q:'',lf:'all',edit:null,showDel:false,olds:null,none:false,formKey:null,xy:''};
 const devDrafts=new Map();
 const dYmd=d=>String(d||'').replace(/-/g,'');
@@ -6216,17 +6222,20 @@ function devStatus(e,today){
   for(let i=1;i<e.users.length;i++){const a=e.users[i-1],b=e.users[i];
     if(!a.end||!b.start||(a.pid||a.dpid)===(b.pid||b.dpid))continue;
     if(!e.logs.some(l=>l.kind==='ret'&&(l.date||'')>=addDays(a.end,-7)&&(l.date||'')<=b.start))gaps.push({a,b});}
-  let st;
+  let st,lmtsUse=false;
   if(e.logs.some(l=>l.kind==='disp'))st='disp';
   else if(cur)st='use';
+  /* 차트엔 이 S/N을 쓴 환자가 아직 없는데 최근 LMTS 기기 목록엔 '사용중' → 대여중 (환자 S/N이 빠진 것 — 경고로 알림) */
+  else if(e.lmtsNow&&/사용중/.test(e.lmts.st||'')&&!e.users.some(u=>u.start&&u.start<=today)){st='use';lmtsUse=true;}
   else if(e.users.some(u=>!u.end&&(!u.start||u.start>today)))st='soon';   /* 계약시작일이 아직 없거나 앞날 */
   else if(asOpen.length)st='as';
   else if(!retDone)st='wait';
-  else st='stock';
-  return {st,cur,asOpen,lastEnd,gaps,over,lastChk:e.logs.filter(l=>l.kind==='chk').pop()||null};
+  else st=(e.users.length||(e.lmts&&Number(e.lmts.users)>0))?'idle':'new';
+  const idleDays=(st==='idle'||st==='wait'||st==='as')&&lastEnd?diffDays(lastEnd,today):null;
+  return {st,cur,lmtsUse,idleDays,asOpen,lastEnd,gaps,over,lastChk:e.logs.filter(l=>l.kind==='chk').pop()||null};
 }
 function devAll(today,withHidden){
-  const m=new Map();
+  const m=new Map(),lb=devLmtsLatest();
   const get=sn=>{const k=snKey(sn);if(!k)return null;if(!m.has(k))m.set(k,{k,sn:String(sn).trim(),rec:null,users:[],logs:[],dels:0});return m.get(k);};
   for(const d of (state.devices||[]))if(d&&!d.del){const e=get(d.sn);if(e){e.rec=d;e.sn=String(d.sn).trim();}}
   {const live=new Set((state.patients||[]).map(p=>p.id));   /* 지운 환자의 사용 기간 (변경 이력에 남긴 것) */
@@ -6242,9 +6251,132 @@ function devAll(today,withHidden){
     e.model=(e.rec&&e.rec.model)||(lp&&(lp.model||lp.device))||'';
     e.mfgYm=(e.rec&&e.rec.mfgYm)||(lp&&lp.mfgYm)||'';
     e.mgmtNo=(e.rec&&e.rec.mgmtNo)||'';
+    e.lmts=(e.rec&&e.rec.lmts)||null;e.lmtsNow=!!(e.lmts&&lb&&e.lmts.batch===lb.batch);e.lmtsLatest=lb;
     Object.assign(e,devStatus(e,today));
+    e.lw=devLmtsWarn(e);
   }
   return [...m.values()].filter(e=>withHidden||!(e.rec&&e.rec.hide));
+}
+/* ── LMTS 기기사용이력 (2026-11-09) ──
+   LMTS에 등록된 기기 전부(= 공단에 등록한 기기). 열: NO·기기번호·기기구분·기기유형·기기존재·용도·상태(사용중/이력없음…)·관리번호·성명·ID·계약시작일·사용자수·최초사용일·최종사용일·총 사용일·N3MIN·N4MIN
+   기기 칸(state.devices)에 LMTS 요약(d.lmts)을 붙이고, '사용중' 환자의 S/N이 비었으면 채움 (빈칸만 — 다르면 보고만) */
+function devLmtsLatest(){
+  let b=null;
+  for(const d of (state.devices||[]))if(d&&!d.del&&d.lmts&&d.lmts.batch&&(!b||d.lmts.batch>b.batch))b={batch:d.lmts.batch,date:d.lmts.date||fd(new Date(d.lmts.batch)),file:d.lmts.file||''};
+  return b;
+}
+function devLmtsWarn(e){
+  const w=[],L=e.lmts,lb=e.lmtsLatest;
+  if(!lb||e.st==='disp')return w;
+  if(!L)return [`최근 LMTS 기기 목록(${lb.date.slice(5)})에 없는 S/N — 번호가 맞는지, 공단·LMTS에 등록했는지 확인`];
+  if(!e.lmtsNow)return [`전에는 LMTS 기기 목록에 있었는데 최근 목록(${lb.date.slice(5)})엔 없습니다 — 등록 해지·다른 지점 이동인지 확인`];
+  const used=/사용중/.test(L.st||'');
+  if(e.lmtsUse)w.push(`LMTS엔 ${L.code||'관리번호 없음'} 사용중(${L.cs||'?'} ~)인데 차트엔 이 S/N을 쓰는 환자가 없습니다 — 그 환자 정보에 S/N을 넣어 주세요`);
+  else if(used&&!e.cur)w.push(`LMTS엔 ${L.code||''} 사용중인데 차트엔 지금 쓰는 환자가 없습니다 — 환자 S/N·계약종료일 확인`);
+  else if(used&&e.cur&&L.code&&e.cur.code&&L.code!==e.cur.code)w.push(`LMTS 사용자 ${L.code} ↔ 차트 사용자 ${e.cur.name} ${e.cur.code} — 어느 쪽이 맞는지 확인`);
+  else if(!used&&e.cur&&e.cur.start&&e.cur.start<=L.date)w.push(`LMTS엔 '${L.st||'사용 안 함'}'인데 차트엔 ${e.cur.name} ${e.cur.code} 사용중(${e.cur.start} ~) — LMTS에서 기기 연결 확인`);
+  return w;
+}
+const devLmtsTip=L=>L?`LMTS 기기사용이력 ${L.date||''}${L.file?` (${L.file})`:''}\n기기구분 ${L.grp||'—'} · 기기유형 ${L.model||'—'} · 기기존재 ${L.exist||'—'} · 용도 ${L.use||'—'}\n상태 ${L.st||'—'}${L.code?` · ${L.code}`:''} · 사용자수 ${L.users}${L.first?` · 최초사용 ${L.first}`:''}${L.last?` · 최종사용 ${L.last}`:''} · 총 사용일 ${L.days}`:'';
+function devLmtsParse(aoa,h){
+  const hn=h.map(normH),col=k=>hn.indexOf(k);
+  const I={sn:col('기기번호'),grp:col('기기구분'),model:col('기기유형'),exist:col('기기존재'),use:col('용도'),st:col('상태'),code:col('관리번호'),name:col('성명'),
+    cs:col('계약시작일'),users:col('사용자수'),first:col('최초사용일'),last:col('최종사용일'),days:col('총사용일')};
+  const g=(row,k)=>I[k]>=0?String(row[I[k]]??'').trim():'';
+  const out=[];
+  for(let r=1;r<aoa.length;r++){const row=aoa[r]||[];const sn=g(row,'sn');if(!snKey(sn))continue;
+    out.push({sn,grp:g(row,'grp'),model:g(row,'model'),exist:g(row,'exist'),use:g(row,'use'),st:g(row,'st'),code:g(row,'code'),name:g(row,'name'),
+      cs:ymd8(g(row,'cs')),users:Number(g(row,'users'))||0,first:ymd8(g(row,'first')),last:ymd8(g(row,'last')),days:Number(g(row,'days'))||0});}
+  return out;
+}
+function devLmtsApply(recs,fname){
+  if(!Array.isArray(state.devices))state.devices=[];
+  let at=new Date().toISOString();const date=fd(new Date()),by=whoNow(),lb0=devLmtsLatest();
+  if(lb0&&lb0.batch>=at)at=new Date(Date.parse(lb0.batch)+1).toISOString();   /* 같은 순간에 두 번 넣어도 '최근 목록'이 하나로 */
+  const R={n:recs.length,nNew:0,nUpd:0,fill:[],warn:[],gone:[],st:{},free:[]};
+  const seen=new Set();
+  for(const x of recs){const k=snKey(x.sn);
+    if(seen.has(k))R.warn.push(`⚠️ S/N ${x.sn}: 파일에 두 번 나옵니다 — 아래 줄 기준`);
+    seen.add(k);
+    R.st[x.st||'—']=(R.st[x.st||'—']||0)+1;
+    const used=/사용중/.test(x.st);if(!used)R.free.push(x.sn);
+    let d=state.devices.find(z=>z&&!z.del&&snKey(z.sn)===k);
+    if(!d){d={id:rid('d'),sn:x.sn,model:x.model,mgmtNo:'',mfgYm:'',inDate:'',memo:'',hide:false,at,by,upd:null,del:null,edits:[],src:'lmts'};state.devices.push(d);R.nNew++;}
+    else{if(!d.model&&x.model)d.model=x.model;d.upd=at;R.nUpd++;}
+    d.lmts={batch:at,date,file:fname,grp:x.grp,model:x.model,exist:x.exist,use:x.use,st:x.st,code:x.code,cs:x.cs,users:x.users,first:x.first,last:x.last,days:x.days};
+    if(!used||!x.code)continue;
+    const fx=findPatientEx(x.code,x.name),iss=matchIssue(fx,x.name||x.code,x.code);
+    if(iss){R.warn.push(iss.replace('(건너뜀)','(S/N 확인 건너뜀)'));continue;}
+    const p=fx.p;
+    if(!p){R.warn.push(`· ${x.code}${x.name?' '+x.name:''}: 차트에 없는 환자 — 월청구자료·고객정보를 먼저 넣으세요 (LMTS S/N ${x.sn})`);continue;}
+    if(!snKey(p.sn)){p.sn=x.sn;if(!p.model&&x.model)p.model=x.model;R.fill.push(`✓ ${p.name}(${p.mgmtCode||x.code}): S/N 빈칸 → ${x.sn}`);}
+    else if(snKey(p.sn)!==k)R.warn.push(`⚠️ ${p.name}(${p.mgmtCode||x.code}): 차트 S/N ${p.sn} ↔ LMTS ${x.sn} — 기기 교체면 환자 정보의 S/N을 바꾸세요 (그대로 둠)`);
+    if(p.rentEnd&&p.rentEnd<date)R.warn.push(`⚠️ ${p.name}(${p.mgmtCode||x.code}): 차트엔 계약종료 ${p.rentEnd}인데 LMTS엔 ${x.sn} 사용중`);
+  }
+  for(const d of state.devices)if(d&&!d.del&&d.lmts&&d.lmts.batch!==at&&!seen.has(snKey(d.sn)))R.gone.push(d.sn);
+  return R;
+}
+function importDevList(aoa,h,fname){
+  const recs=devLmtsParse(aoa,h);
+  if(!recs.length){showMsg('안내',`${fname}: 기기 목록을 찾지 못했습니다.`);return true;}
+  const R=devLmtsApply(recs,fname);
+  persist();renderAll();
+  showMsg('LMTS 기기 목록 가져오기 완료',`${fname}\n기기 ${R.n}대 — ${Object.entries(R.st).map(([k,v])=>`${k} ${v}`).join(' · ')}\n🔧 기기 관리: 새로 등록 ${R.nNew}대 · 갱신 ${R.nUpd}대${R.fill.length?` · 환자 S/N 빈칸 채움 ${R.fill.length}명`:''}`
+    +`\n\n임대 안 나간 기기 (LMTS '사용중' 아님) ${R.free.length}대${R.free.length?': '+R.free.join(', '):''}`
+    +`\n→ 🔧 기기 관리 › [📋 목록·엑셀]에서 임대 전·쉬는 기기를 한눈에 보고 엑셀로 받을 수 있습니다.${labOn('dev')?'':' (⚙️ 설정 › 실험실에서 기기 관리를 켜세요)'}`
+    +(R.gone.length?`\n\n[이번 LMTS 목록에 없는 기기 ${R.gone.length}대 — 전 목록엔 있던 것: 등록 해지·다른 지점인지 확인]\n· ${R.gone.join(', ')}`:'')
+    +(R.fill.length?`\n\n[환자 S/N 채움]\n${R.fill.join('\n')}`:'')
+    +(R.warn.length?`\n\n[확인 필요]\n${R.warn.join('\n')}`:''));
+  return true;
+}
+/* 임대 안 나간 기기 — ① 임대 전(등록만) ② 지금 쉬는 기기(반납 뒤 사용자 없음: 쉬는 중·회수·소독 대기·A/S 중) */
+function devFreeLists(today){
+  const all=devAll(today,false),byK=(a,b)=>a.k.localeCompare(b.k,'ko',{numeric:true});
+  return {neu:all.filter(x=>x.st==='new').sort(byK),
+    idle:all.filter(x=>x.st==='idle'||x.st==='wait'||x.st==='as').sort((a,b)=>((b.idleDays??-1)-(a.idleDays??-1))||byK(a,b)),
+    soon:all.filter(x=>x.st==='soon').length,lb:devLmtsLatest()};
+}
+function devFreeRow(x){
+  const lu=x.users[x.users.length-1],ret=x.logs.filter(l=>l.kind==='ret'&&l.done).pop();
+  return {sn:x.sn,model:x.model||'',no:x.mgmtNo||'',inDate:(x.rec&&x.rec.inDate)||'',memo:(x.rec&&x.rec.memo)||'',st:DEV_ST[x.st][0],
+    user:lu?`${lu.name}${lu.code?' '+lu.code:''}`:(x.lmts&&x.lmts.users>0?`(LMTS 사용 이력 ${x.lmts.users}명)`:''),
+    end:x.lastEnd||(!lu&&x.lmts&&x.lmts.last)||'',days:x.idleDays,clean:ret?ret.done:'',
+    lmts:x.lmts?(x.lmtsNow?(x.lmts.st||'—'):'최근 목록에 없음'):(x.lmtsLatest?'목록에 없음':''),warn:[...x.gaps.length?['회수·소독 기록 빠짐']:[],...x.over.length?['사용 기간 겹침']:[],...x.lw].join(' / ')};
+}
+function openDevFree(){
+  const today=fd(new Date()),F=devFreeLists(today);
+  const R1=F.neu.map(devFreeRow),R2=F.idle.map(devFreeRow);
+  const lm=v=>v==='목록에 없음'||v==='최근 목록에 없음'?`<span style="color:var(--red)">${esc(v)}</span>`:esc(v||'—');
+  const wn=v=>v?`<span class="badge warn" title="${esc(v)}">⚠️</span>`:'';
+  const t1=R1.length?`<table class="grid" style="font-size:.84rem"><thead><tr><th>NO</th><th>S/N</th><th>모델</th><th>제품관리번호</th><th>입고일</th><th>LMTS</th><th>메모</th><th></th></tr></thead><tbody>
+    ${R1.map((r,i)=>`<tr data-dk="${esc(snKey(r.sn))}" style="cursor:pointer"><td>${i+1}</td><td><b>${esc(r.sn)}</b></td><td>${esc(r.model)}</td><td>${esc(r.no)}</td><td>${esc(r.inDate)}</td><td>${lm(r.lmts)}</td><td>${esc(r.memo)}</td><td>${wn(r.warn)}</td></tr>`).join('')}</tbody></table>`
+    :'<div class="hint" style="padding:6px 2px">없음</div>';
+  const t2=R2.length?`<table class="grid" style="font-size:.84rem"><thead><tr><th>NO</th><th>S/N</th><th>모델</th><th>상태</th><th>마지막 사용자</th><th>반납일</th><th class="num">쉰 날</th><th>소독 완료</th><th>LMTS</th><th></th></tr></thead><tbody>
+    ${R2.map((r,i)=>`<tr data-dk="${esc(snKey(r.sn))}" style="cursor:pointer"><td>${i+1}</td><td><b>${esc(r.sn)}</b></td><td>${esc(r.model)}</td><td>${esc(r.st)}</td><td>${esc(r.user)}</td><td>${esc(r.end)}</td><td class="num">${r.days==null?'—':r.days+'일'}</td><td>${esc(r.clean||'—')}</td><td>${lm(r.lmts)}</td><td>${wn(r.warn)}</td></tr>`).join('')}</tbody></table>`
+    :'<div class="hint" style="padding:6px 2px">없음</div>';
+  $('#dlgHost').innerHTML=`<div class="modalBack" id="dfBack" style="z-index:70"><div class="modal" style="width:900px">
+    <h3>📋 임대 안 나간 기기 — 임대 전 ${R1.length}대 · 쉬는 기기 ${R2.length}대</h3>
+    <div class="hint" style="margin-bottom:8px">${F.lb?`LMTS 기기 목록 ${esc(F.lb.date)} 기준 (공단·LMTS 등록 기기) + 환자 정보의 S/N·계약 기간.`:'아직 LMTS 기기 목록을 넣지 않았습니다 — 환자 정보 S/N과 [＋ 기기 등록]한 기기만 보입니다. LMTS <b>기기사용이력</b> 엑셀을 넣으면 등록 기기가 모두 들어옵니다.'} 줄을 누르면 그 기기를 엽니다.${F.soon?` · 설치 예정 ${F.soon}대는 빠짐`:''}</div>
+    <div class="helpsec">🏷 임대 전 — 등록만 하고 아직 한 번도 안 나간 기기 (${R1.length}대)</div>
+    <div class="tblwrap" style="max-height:30vh">${t1}</div>
+    <div class="helpsec">🌙 지금 쉬는 기기 — 반납 뒤 사용자 없음 (${R2.length}대 · 오래 쉰 순)</div>
+    <div class="tblwrap" style="max-height:30vh">${t2}</div>
+    <div class="actions"><button class="btn" id="dfX">📥 엑셀로 내려받기</button><button class="btn primary" id="dfOk">닫기</button></div></div></div>`;
+  const close=()=>$('#dlgHost').innerHTML='';
+  $('#dfOk').onclick=close;$('#dfBack').onclick=ev=>{if(ev.target.id==='dfBack')close();};
+  $('#dfX').onclick=()=>devFreeExport(R1,R2,F.lb);
+  $('#dfBack').querySelectorAll('tr[data-dk]').forEach(tr=>tr.onclick=()=>{close();devKeepDraft();devUI.formKey=null;devUI.k=tr.dataset.dk;devUI.none=false;devUI.edit=null;devUI.lf='all';devUI.f='all';devUI.q='';devUI.scrollSel=true;renderDev();});
+}
+function devFreeExport(R1,R2,lb){
+  const sup=(state.settings&&state.settings.supplier&&state.settings.supplier.name)||'';
+  const sub=`${sup?sup+' · ':''}출력 ${fd(new Date())}${lb?` · LMTS 기기 목록 ${lb.date} 기준`:''}`;
+  const wb=XLSX.utils.book_new();
+  const add=(name,title,head,rows,cols)=>{const aoa=[[title],[sub],[],head,...rows];const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=cols.map(w=>({wch:w}));textFormatCells(ws,4,aoa.length-1);XLSX.utils.book_append_sheet(wb,ws,name);};
+  add('임대 전 기기','임대 전 기기 (등록만 하고 아직 안 나간 기기)',['NO','시리얼번호','제품명','제품관리번호','입고일','LMTS 상태','메모','확인'],
+    R1.map((r,i)=>[i+1,r.sn,r.model,r.no,r.inDate,r.lmts,r.memo,r.warn]),[5,14,18,14,11,14,20,40]);
+  add('쉬는 기기','지금 쉬는 기기 (반납 뒤 사용자 없음)',['NO','시리얼번호','제품명','제품관리번호','상태','마지막 사용자','반납일','쉰 날(일)','소독 완료일','LMTS 상태','확인'],
+    R2.map((r,i)=>[i+1,r.sn,r.model,r.no,r.st,r.user,r.end,r.days==null?'':r.days,r.clean,r.lmts,r.warn]),[5,14,18,14,13,18,11,9,11,14,40]);
+  XLSX.writeFile(wb,`양압기_임대안나간기기_${dYmd(fd(new Date()))}.xlsx`);
 }
 const devLogPid=(e,l)=>l.pid||'';
 function devLogTxt(l,pname){
@@ -6420,11 +6552,12 @@ function renderDev0(){
   if($('#dvForm'))devKeepDraft();
   const today=fd(new Date());
   const allH=devAll(today,true),all=allH.filter(x=>!(x.rec&&x.rec.hide)),nHid=allH.length-all.length;
-  const cnt={all:all.length,use:0,wait:0,stock:0,as:0,disp:0,hid:nHid,gap:0};
-  for(const x of all){cnt[x.st==='soon'?'use':x.st]++;if(x.gaps.length||x.over.length)cnt.gap++;}
+  const cnt={all:all.length,use:0,wait:0,new:0,idle:0,as:0,disp:0,hid:nHid,gap:0};
+  for(const x of all){cnt[x.st==='soon'?'use':x.st]++;if(x.gaps.length||x.over.length||x.lw.length)cnt.gap++;}
+  const lbD=devLmtsLatest();
   const q=devUI.q.trim().toLowerCase();
   const src=devUI.f==='hid'?allH.filter(x=>x.rec&&x.rec.hide):all;
-  const shown=src.filter(x=>(devUI.f==='all'||devUI.f==='hid'||(devUI.f==='gap'?(x.gaps.length||x.over.length):(x.st===devUI.f||(devUI.f==='use'&&x.st==='soon'))))
+  const shown=src.filter(x=>(devUI.f==='all'||devUI.f==='hid'||(devUI.f==='gap'?(x.gaps.length||x.over.length||x.lw.length):(x.st===devUI.f||(devUI.f==='use'&&x.st==='soon'))))
       &&(!q||[x.sn,x.model,x.mgmtNo,...x.users.map(u=>u.name+' '+u.code)].join(' ').toLowerCase().includes(q)))
     .sort((a,b)=>(DEV_ORDER[a.st]-DEV_ORDER[b.st])||a.k.localeCompare(b.k,'ko',{numeric:true}));
   if(devUI.none)devUI.k=null;
@@ -6434,20 +6567,27 @@ function renderDev0(){
   const fchip=(k,label,n)=>`<button class="cx-fchip${devUI.f===k?' on':''}" data-df="${k}">${label}<em>${n}</em></button>`;
   const years=[...new Set((state.devLogs||[]).filter(l=>l&&!l.del&&l.date).map(l=>l.date.slice(0,4)).concat(all.flatMap(x=>x.users.map(u=>String(u.start||'').slice(0,4))).filter(Boolean)))].sort().reverse();
   const rowsH=shown.map(x=>{const lu=x.users[x.users.length-1];
-    const who=x.cur?`👤 ${esc(x.cur.name)} ${esc(x.cur.code)} · ${String(x.cur.start||'').slice(2)} ~`:x.st==='soon'?`👤 ${esc(lu.name)} ${String(lu.start||'').slice(2)} 설치 예정`:lu?`↩ ${esc(lu.name)} ${lu.end?lu.end.slice(2)+(lu.swap?' 교체로 회수':' 반납'):''}`:'사용 기록 없음';
-    return `<div class="dv-row${x.k===devUI.k?' sel':''}" data-dk="${esc(x.k)}"><span class="sn">${esc(x.sn)}</span><span class="md">${esc(x.model||'')}${x.mgmtNo?` · ${esc(x.mgmtNo)}`:''}</span><span>${stB(x.st)}${x.asOpen.length&&x.st!=='as'?' '+stB('as'):''}${x.gaps.length||x.over.length?` <span class="badge warn" title="${x.over.length?'다른 환자와 사용 기간이 겹침 — 앞 환자 반납일 확인':'다른 환자에게 넘어갈 때 회수·소독 기록 없음'}">⚠️</span>`:''}</span>
+    const idl=x.idleDays!=null&&x.st!=='use'?` · ${x.idleDays}일째 쉼`:'';
+    const who=x.cur?`👤 ${esc(x.cur.name)} ${esc(x.cur.code)} · ${String(x.cur.start||'').slice(2)} ~`
+      :x.lmtsUse?`👤 LMTS ${esc(x.lmts.code||'')} 사용중${x.lmts.cs?` · ${x.lmts.cs.slice(2)} ~`:''} · 차트에 환자 S/N 없음`
+      :x.st==='soon'?`👤 ${esc(lu.name)} ${String(lu.start||'').slice(2)} 설치 예정`
+      :lu?`↩ ${esc(lu.name)} ${lu.end?lu.end.slice(2)+(lu.swap?' 교체로 회수':' 반납'):''}${idl}`
+      :x.lmts&&x.lmts.users>0?`↩ LMTS 사용 이력 ${x.lmts.users}명${x.lmts.last?` · 최종 사용 ${x.lmts.last.slice(2)}`:''}`
+      :`${x.lmts?'🏷 LMTS 등록 · 임대 이력 없음':'사용 기록 없음'}${x.rec&&x.rec.inDate?` · 입고 ${x.rec.inDate.slice(2)}`:''}`;
+    return `<div class="dv-row${x.k===devUI.k?' sel':''}" data-dk="${esc(x.k)}"><span class="sn">${esc(x.sn)}</span><span class="md">${esc(x.model||'')}${x.mgmtNo?` · ${esc(x.mgmtNo)}`:''}</span><span>${stB(x.st)}${x.asOpen.length&&x.st!=='as'?' '+stB('as'):''}${x.gaps.length||x.over.length||x.lw.length?` <span class="badge warn" title="${esc(x.over.length?'다른 환자와 사용 기간이 겹침 — 앞 환자 반납일 확인':x.gaps.length?'다른 환자에게 넘어갈 때 회수·소독 기록 없음':x.lw[0])}">⚠️</span>`:''}</span>
       <span class="who">${who}${x.lastChk?` · 점검 ${x.lastChk.date.slice(2)}`:''}</span></div>`;}).join('')
-    ||`<div class="cx-empty">${all.length?'조건에 맞는 기기가 없습니다.':'아직 기기가 없습니다.<br>환자 정보에 S/N을 넣으면 자동으로 생기고,<br>재고 기기는 [＋ 기기 등록]으로 넣습니다.'}</div>`;
+    ||`<div class="cx-empty">${all.length?'조건에 맞는 기기가 없습니다.':'아직 기기가 없습니다.<br>환자 정보에 S/N을 넣으면 자동으로 생기고,<br>재고 기기는 [＋ 기기 등록],<br>공단·LMTS 등록 기기는 [📥 LMTS 기기]로 한꺼번에 넣습니다.'}</div>`;
   const right=`<section class="cx-col">
-    <div class="cx-head"><h2>기기 목록</h2><span class="sub">${all.length}대${nHid?` · 숨김 ${nHid}`:''}</span><span style="margin-left:auto;display:flex;gap:5px"><button class="btn sm" data-dact="newDev">＋ 기기 등록</button></span></div>
+    <div class="cx-head"><h2>기기 목록</h2><span class="sub">${all.length}대${nHid?` · 숨김 ${nHid}`:''}</span><span style="margin-left:auto;display:flex;gap:5px"><button class="btn sm" data-dact="lmtsDev" title="LMTS 기기사용이력 엑셀을 넣으면 공단·LMTS에 등록된 기기가 모두 목록에 들어옵니다">📥 LMTS 기기</button><button class="btn sm" data-dact="newDev">＋ 기기 등록</button></span></div>
     <div class="cx-tools"><input type="search" id="dvQ" placeholder="🔍 S/N · 모델 · 관리번호 · 환자" value="${esc(devUI.q)}"></div>
-    <div class="cx-filters">${fchip('all','전체',cnt.all)}${fchip('wait','회수·소독 대기',cnt.wait)}${fchip('use','대여중',cnt.use)}${fchip('stock','재고',cnt.stock)}${fchip('as','A/S 중',cnt.as)}${fchip('disp','폐기',cnt.disp)}${cnt.gap?fchip('gap','⚠️ 확인 필요',cnt.gap):''}${nHid?fchip('hid','숨김',nHid):''}</div>
+    <div class="cx-filters">${fchip('all','전체',cnt.all)}${fchip('wait','회수·소독 대기',cnt.wait)}${fchip('use','대여중',cnt.use)}${fchip('new','🏷 임대 전',cnt.new)}${fchip('idle','🌙 쉬는 중',cnt.idle)}${fchip('as','A/S 중',cnt.as)}${fchip('disp','폐기',cnt.disp)}${cnt.gap?fchip('gap','⚠️ 확인 필요',cnt.gap):''}${nHid?fchip('hid','숨김',nHid):''}</div>
+    <div class="dv-free"><span>임대 안 나간 기기 <b>${cnt.new+cnt.idle+cnt.wait+cnt.as}</b>대</span><span class="hint">임대 전 ${cnt.new} · 쉬는 중 ${cnt.idle}${cnt.wait?` · 소독 대기 ${cnt.wait}`:''}${cnt.as?` · A/S ${cnt.as}`:''}${lbD?` · LMTS ${lbD.date.slice(5)}`:''}</span><button class="btn sm" data-dact="free" title="임대 전 기기와 지금 쉬는 기기를 표로 보고 엑셀로 받기">📋 목록·엑셀</button></div>
     <div class="cx-scroll" id="dvList">${rowsH}</div>
     <div class="cx-bottom"><span class="who">📥 엑셀 대장</span><select id="dvXy" style="width:auto"><option value="">전체 기간</option>${years.map(y=>`<option value="${y}" ${devUI.xy===y?'selected':''}>${y}년</option>`).join('')}</select>
       <button class="btn sm primary" data-dact="export" title="장비점검체크·회수기기 관리대장·AS관리대장·부적합장비대장·사용자변경이력 — 지금 쓰는 서식과 같은 칸">내려받기</button></div></section>`;
   const labbar=`<div class="cx-labbar">🧪 <b>실험실 기능</b> · 시험 중인 새 기능입니다. 기기 = S/N 기준 — 사용자는 환자 정보의 S/N·계약 기간으로 자동, 회수·소독·점검·A/S·폐기는 여기서 기록합니다.</div>`;
   if(!e){
-    sec.innerHTML=`${labbar}<div class="dv-grid"><section class="cx-col" style="grid-column:span 2"><div class="cx-empty" style="margin:auto">${all.length?`<b>오른쪽 목록</b>에서 기기를 고르세요.<br><br>회수·소독 대기 <b>${cnt.wait}</b>대 · A/S 중 <b>${cnt.as}</b>대${cnt.gap?` · ⚠️ 확인 필요 <b>${cnt.gap}</b>대`:''}`:'아직 기기가 없습니다.<br>환자 정보에 S/N을 넣으면 자동으로 생기고, 재고 기기는 [＋ 기기 등록]으로 넣습니다.'}</div></section>${right}</div>`;
+    sec.innerHTML=`${labbar}<div class="dv-grid"><section class="cx-col" style="grid-column:span 2"><div class="cx-empty" style="margin:auto">${all.length?`<b>오른쪽 목록</b>에서 기기를 고르세요.<br><br>회수·소독 대기 <b>${cnt.wait}</b>대 · A/S 중 <b>${cnt.as}</b>대<br>🏷 임대 전 <b>${cnt.new}</b>대 · 🌙 쉬는 중 <b>${cnt.idle}</b>대${cnt.gap?` · ⚠️ 확인 필요 <b>${cnt.gap}</b>대`:''}`:'아직 기기가 없습니다.<br>환자 정보에 S/N을 넣으면 자동으로 생기고, 재고 기기는 [＋ 기기 등록], 공단·LMTS 등록 기기는 [📥 LMTS 기기]로 한꺼번에 넣습니다.'}</div></section>${right}</div>`;
     devFit();return;}
   const lastU=e.users.filter(u=>u.end&&u.end<today).pop();
   const band=`<div class="cx-band"><span class="nm">🔧 ${esc(e.sn)}</span>${stB(e.st)}${e.asOpen.length&&e.st!=='as'?stB('as'):''}
@@ -6455,6 +6595,7 @@ function renderDev0(){
     ${e.model?`<span class="cx-chip" data-copy="${esc(e.model)}"><small>모델</small>${esc(e.model)}</span>`:''}
     <span class="cx-chip"${e.mgmtNo?` data-copy="${esc(e.mgmtNo)}"`:''}><small>제품관리번호</small>${e.mgmtNo?esc(e.mgmtNo):'<span class="hint">없음</span>'}</span>
     ${e.mfgYm?`<span class="cx-chip"><small>제조</small>${esc(e.mfgYm)}</span>`:''}${e.rec&&e.rec.inDate?`<span class="cx-chip"><small>입고</small>${esc(e.rec.inDate)}</span>`:''}
+    ${e.lmts?`<span class="cx-chip" title="${esc(devLmtsTip(e.lmts))}"><small>LMTS</small>${e.lmtsNow?esc(e.lmts.st||'—')+(e.lmts.code?' '+esc(e.lmts.code):'')+(e.lmts.last?` · 최종 ${esc(e.lmts.last.slice(2))}`:''):'<span style="color:var(--red)">최근 목록에 없음</span>'}</span>`:(e.lmtsLatest?'<span class="cx-chip"><small>LMTS</small><span style="color:var(--red)">목록에 없음</span></span>':'')}
     ${e.cur?(labOn('chart')?`<button class="btn sm" data-dact="goPat" data-pid="${e.cur.pid}" title="환자 차트 열기">👤 ${esc(e.cur.name)} ${esc(e.cur.code)}</button>`:`<span class="badge b20">👤 ${esc(e.cur.name)} ${esc(e.cur.code)}</span>`):''}
     <span class="spacer"></span>
     <button class="btn sm" data-dact="editDev" title="제품관리번호·모델·제조년월·입고일·메모">✏️ 기기 정보</button>
@@ -6463,9 +6604,10 @@ function renderDev0(){
     ...e.gaps.map(g=>`⚠️ <b>${esc(g.a.name)}</b>(${g.a.end.slice(2)} 반납) → <b>${esc(g.b.name)}</b>(${String(g.b.start).slice(2)} 설치) 사이에 회수·소독 기록이 없습니다 — 🧽 회수·소독을 남겨 주세요`),
     ...(e.st==='wait'&&lastU?[`🧽 ${esc(lastU.name)} ${lastU.swap?'기기 교체로 회수':'반납'}(${lastU.end}) 뒤 회수·소독 <b>완료</b> 기록이 아직 없습니다${lastU.ref?' — S/N을 잘못 넣었다 고친 것이면 위 [번호 고침이면]을 누르세요':''}`]:[]),
     ...e.asOpen.map(l=>`🛠 A/S 진행 중 — ${esc(l.detail||'')} (접수 ${l.date.slice(2)})`),
+    ...e.lw.map(s=>`⚠️ ${esc(s)}`),
     ...(e.rec&&e.rec.memo?[`📝 ${esc(e.rec.memo)}`]:[])];
   const usersH=e.users.length?`<div class="dv-users">${e.users.map((u,i)=>`<div${labOn('chart')&&u.pid?` data-pid="${u.pid}" title="환자 차트 열기"`:''}><span class="hint">${i+1}</span><span><b>${esc(u.name)}</b> <span class="hint">${esc(u.code)}</span>${u.swap?' <span class="badge end">기기 교체</span>':''}${u.ref||u.inRef?` <button class="cx-hdate" data-dact="snFix" data-ref="${esc(u.ref||u.inRef)}" title="S/N을 잘못 넣었다가 고친 것이면 눌러서 한 기기로 합칩니다">번호 고침이면</button>`:''}</span><span>${esc(String(u.start||'?'))} ~ ${u.end?esc(u.end):'<b style="color:var(--green)">사용중</b>'}</span></div>`).join('')}</div>`
-    :'<div class="dv-users"><div><span></span><span class="hint">사용한 환자 없음 (재고)</span><span></span></div></div>';
+    :`<div class="dv-users"><div><span></span><span class="hint">${e.lmtsUse?`차트엔 사용한 환자 없음 · LMTS엔 ${esc(e.lmts.code||'')} 사용중`:e.lmts&&e.lmts.users>0?`차트엔 사용한 환자 없음 · LMTS 사용 이력 ${e.lmts.users}명${e.lmts.last?` (최종 사용 ${esc(e.lmts.last)})`:''}`:'사용한 환자 없음 (임대 전)'}</span><span></span></div></div>`;
   /* 기록 타임라인: 기기 기록 + 설치·반납·교체(자동) */
   const pname=pid=>{const p=state.patients.find(x=>x.id===pid);return p?p.name:'';};
   const delLogs=(state.devLogs||[]).filter(l=>l&&l.del&&snKey(l.sn)===e.k);
@@ -6585,6 +6727,8 @@ $('#tab-dev').addEventListener('click',e=>{
   const b=t.closest('[data-dact]');if(!b)return;
   const act=b.dataset.dact,l=b.dataset.lid?(state.devLogs||[]).find(x=>x.id===b.dataset.lid):null;
   if(act==='newDev'){openDevModal(null);return;}
+  if(act==='lmtsDev'){$('#importFile').click();return;}
+  if(act==='free'){openDevFree();return;}
   if(act==='editDev'){openDevModal(devUI.k);return;}
   if(act==='export'){devUI.xy=$('#dvXy').value;devExport(devUI.xy);return;}
   if(act==='unsel'){devKeepDraft();devUI.formKey=null;devUI.k=null;devUI.none=true;devUI.edit=null;renderDev();return;}
@@ -6656,6 +6800,8 @@ const IC={
   pin:'<path class="f" d="M12 21s6.6-5.7 6.6-11.2a6.6 6.6 0 0 0-13.2 0C5.4 15.3 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.4"/>',
   check:'<circle class="f" cx="12" cy="12" r="8.6"/><path d="M8.2 12.3l2.6 2.6 5.1-5.3"/>',
   sign:'<path class="f" d="M6.5 3.5H14l4.5 4.5v11.3a1.2 1.2 0 0 1-1.2 1.2H6.5a1.2 1.2 0 0 1-1.2-1.2V4.7a1.2 1.2 0 0 1 1.2-1.2z"/><path d="M14 3.7V8h4.3M8 16.5c.9-1.6 1.8-1.6 2.3-.2.5 1.3 1.4 1.3 2.2.1.6-.9 1.3-1.1 2.2-.3"/>',
+  tag:'<path class="f" d="M3.8 12.4V5.2a1.4 1.4 0 0 1 1.4-1.4h7.2l7.8 7.8a1.4 1.4 0 0 1 0 2l-6.2 6.2a1.4 1.4 0 0 1-2 0z"/><circle class="s" cx="8.3" cy="8.3" r="1.5"/>',
+  moon:'<path class="f" d="M19.6 14.4A7.8 7.8 0 0 1 9.6 4.4a7.8 7.8 0 1 0 10 10z"/><path d="M15.4 3.6h3.2l-3.2 3.6h3.2"/>',
   box:'<path class="f" d="M12 3.4l8.1 4.1v9L12 20.6l-8.1-4.1v-9z"/><path d="M3.9 7.5 12 11.6l8.1-4.1M12 11.6v9M7.9 5.5l8.1 4.1"/>',
   buoy:'<circle class="f" cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="3.6"/><path d="M5.9 5.9l3.6 3.6M18.1 5.9l-3.6 3.6M5.9 18.1l3.6-3.6M18.1 18.1l-3.6-3.6"/>',
   timer:'<circle class="f" cx="12" cy="13.4" r="7.4"/><path d="M12 13.4V9.6M9.6 2.8h4.8M12 2.8V6M18.2 6.6l1.3-1.3"/>',
@@ -6678,7 +6824,7 @@ const EMO_MAP=[['📅','cal'],['👥','users'],['📋','clip'],['🔧','wrench']
   ['📊','chart'],['⚙','gear'],['💾','save'],['📢','mega'],['🔒','lock'],['🔐','lock'],['✏','pencil'],['📄','doc'],['💊','pill'],['✈','plane'],['🧽','drop'],['🗑','trash'],
   ['👤','user'],['🧪','flask'],['📝','note'],['📖','book'],['📠','printer'],['😷','mask'],['📍','pin'],['📌','pin'],['✅','check'],['🤝','sign'],['📦','box'],['🛟','buoy'],
   ['⏱','timer'],['📞','phone'],['🏠','home'],['🏢','building'],['💬','chat'],['🔁','repeat'],['🔄','repeat'],['↩','undo'],['↺','undo'],['📁','folder'],['📂','folder'],
-  ['🔗','link'],['💳','card'],['🪪','idcard'],['⚠','warn'],['✚','plus'],['✖','x'],['👉','arrow']];
+  ['🔗','link'],['💳','card'],['🪪','idcard'],['⚠','warn'],['✚','plus'],['✖','x'],['👉','arrow'],['🏷','tag'],['🌙','moon']];
 const EMO_KEY=new Map(EMO_MAP);
 const EMO_RE=new RegExp('('+EMO_MAP.map(([k])=>k).sort((a,b)=>b.length-a.length).join('|')+')\\uFE0F?','gu');
 const EMO_TEST=new RegExp(EMO_RE.source,'u');
@@ -7002,7 +7148,7 @@ window.__selftest=function(){
       const sg=snSegs(state.patients[2]);
       const a1=st('PR-100'),x1=st('X1'),x9=st('X9'),s5=st('S5');
       if(snKey('pr-100')===snKey('PR-100 ')&&sg.length===2&&sg[0].sn==='X1'&&sg[0].end==='2026-04-30'&&sg[1].start==='2026-05-01'
-        &&a1.st==='use'&&a1.users.length===2&&a1.gaps.length===1&&x1.st==='wait'&&x9.st==='use'&&s5.st==='stock'&&s5.mgmtNo==='20260101001')ok13++;else console.warn('FAIL13-1',sg,a1,x1,x9,s5);
+        &&a1.st==='use'&&a1.users.length===2&&a1.gaps.length===1&&x1.st==='wait'&&x9.st==='use'&&s5.st==='new'&&s5.mgmtNo==='20260101001')ok13++;else console.warn('FAIL13-1',sg,a1,x1,x9,s5);
       const L=(o)=>state.devLogs.push({id:rid('v'),at:'2026-08-01T00:00:00.000Z',del:null,edits:[],...o});
       L({sn:'PR-100',kind:'ret',date:'2026-07-02',done:'2026-07-05',pid:'A',checks:{insp:true,wash:true,disinf:true}});
       L({sn:'X1',kind:'ret',date:'2026-05-02',done:'',pid:'C',checks:{}});
@@ -7011,7 +7157,7 @@ window.__selftest=function(){
       L({sn:'S5',kind:'as',date:'2026-07-20',detail:'메인보드 교체',done:'',pid:''});const s5a=st('S5');
       L({sn:'S5',kind:'disp',date:'2026-07-28',reason:'파손'});
       L({sn:'X9',kind:'chk',date:'2026-07-15',items:{sd:'bad'}});
-      if(st('PR-100').gaps.length===0&&x1b.st==='wait'&&st('X1').st==='stock'&&s5a.st==='as'&&st('S5').st==='disp'&&/SD메모리카드/.test(devLogTxt(st('X9').lastChk,'')))ok13++;else console.warn('FAIL13-2',state.devLogs,devAll(T));
+      if(st('PR-100').gaps.length===0&&x1b.st==='wait'&&st('X1').st==='idle'&&st('X1').idleDays===93&&s5a.st==='as'&&st('S5').st==='disp'&&/SD메모리카드/.test(devLogTxt(st('X9').lastChk,'')))ok13++;else console.warn('FAIL13-2',state.devLogs,devAll(T));
       const sh=devSheets(devAll(T,true),'2026'),S=n=>sh.find(x=>x.name===n)||{aoa:[]};
       const chk=S('장비점검체크').aoa[5]||[],us=S('사용자변경이력').aoa;
       if(sh.length===5&&S('회수기기 관리대장').aoa.length===8&&S('AS관리대장').aoa.length===6&&S('부적합장비대장').aoa.length===6&&chk[4]==='有'&&chk[2]==='PASS'&&chk[9]==='20260715'
@@ -7028,6 +7174,20 @@ window.__selftest=function(){
       histBase=histSnap();const gone=state.patients.find(x=>x.id==='A');state.patients=state.patients.filter(x=>x.id!=='A');histCapture();
       const g6=st('PR-100');
       if(g6.users&&g6.users.length===2&&g6.users[0].gone&&/삭제된 환자/.test(g6.users[0].name)&&g6.users[0].start==='2026-01-05'&&g6.users[0].end==='2026-06-30'&&g6.cur&&g6.cur.pid==='B')ok13++;else console.warn('FAIL13-6',g6,state.hist,gone);
+      /* 7: LMTS 기기사용이력 — 등록 기기 전부 들어옴 · 임대 전/쉬는 중 · 사용중 환자 S/N 빈칸 채움(다르면 그대로+경고) · 다음 목록에서 빠지면 표시 */
+      state.patients.push(P('G',{sn:'',rentStart:'2026-07-01'}),P('H',{sn:'OTHER1',rentStart:'2026-07-01'}));
+      const hd=['NO','기기번호','기기구분','기기유형','기기존재','용도','상태','관리번호','성명','ID','계약시작일','사용자수','최초사용일','최종사용일','총 사용일','N3MIN(시간)','N4MIN(시간)'];
+      const rw=(sn,s7,code,cs,u)=>[0,sn,'APAP','prisma SMART max','A','R',s7,code,'','',cs,u,cs,cs?'20260731':'',cs?30:0,0,0];
+      const lr=devLmtsParse([hd,rw('L-1','이력없음','','',0),rw('L2','사용중','TG','20260701',1),rw('L3','사용중','TH','20260701',1),rw('X9','사용중','TC','20260201',1),rw('Q7','사용종료','','',1),rw('NEW1','이력없음','','',0)],hd);
+      const R7=devLmtsApply(lr,'기기사용이력.xlsx');
+      const G=state.patients.find(x=>x.id==='G'),H=state.patients.find(x=>x.id==='H');
+      const l1=st('L1'),l2=st('L2'),l3=st('L3'),q7=st('Q7'),x9b=st('X9'),n1=st('NEW1'),F7=devFreeLists(T);
+      const ok7a=lr.length===6&&lr[1].cs==='2026-07-01'&&R7.nNew===6&&R7.fill.length===1&&G.sn==='L2'&&H.sn==='OTHER1'&&R7.warn.some(w=>w.includes('OTHER1'))&&R7.free.length===3
+        &&l1.st==='new'&&l1.lmtsNow&&l2.st==='use'&&l2.cur&&l2.cur.pid==='G'&&l2.lw.length===0&&l3.st==='use'&&l3.lmtsUse&&l3.lw.length===1&&q7.st==='idle'&&x9b.lw.length===0&&n1.st==='soon'
+        &&st('PR-100').lw.length===1&&F7.neu.some(x=>x.k==='L1')&&F7.idle.some(x=>x.k==='Q7')&&!F7.neu.concat(F7.idle).some(x=>x.k==='L2'||x.k==='L3')&&/임대 전/.test(devFreeRow(l1).st);
+      const R7b=devLmtsApply(devLmtsParse([hd,rw('L-1','이력없음','','',0)],hd),'기기사용이력 (2).xlsx');
+      const ok7b=R7b.nUpd===1&&R7b.nNew===0&&R7b.gone.length===5&&st('L2').st==='use'&&/최근 목록/.test(st('L2').lw[0]||'')&&st('L3').st!=='use'&&st('L1').lmts.file==='기기사용이력 (2).xlsx';
+      if(ok7a&&ok7b)ok13++;else console.warn('FAIL13-7',ok7a,ok7b,lr,R7,R7b,devAll(T));
     }catch(e){console.warn('FAIL13-x',e);}
     finally{state=saved;histBase=savedBase;histHold=savedHold;histSrcNext=savedSrc;}
   }
@@ -7044,7 +7204,7 @@ window.__selftest=function(){
     }catch(e){console.warn('FAIL14-x',e);}
     finally{state=saved;}
   }
-  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/12 · 기기관리 ${ok13}/6 · 승인잠금 ${ok14}/1`;
+  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/12 · 기기관리 ${ok13}/7 · 승인잠금 ${ok14}/1`;
   console.log(msg);
   return {ok,ok2,ok3,ok4,msg};
 };
