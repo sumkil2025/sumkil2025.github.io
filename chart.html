@@ -332,6 +332,8 @@
   .k-ret{color:#0f766e;background:#ecfdf8}.k-dchk{color:#1d4ed8;background:#eef4ff}.k-as{color:#b45309;background:#fff7ed}.k-disp{color:#6b7280;background:#f3f4f6}.k-use{color:#15803d;background:#effaf3}.k-dev{color:#28507a;background:#eef4fb}
   .dv-mf{display:grid;grid-template-columns:6.5rem minmax(0,1fr);gap:8px 10px;align-items:center;margin-bottom:12px}
   .dv-mf>label{font-size:.8rem;font-weight:700;color:var(--muted)}
+  .dv-mp{display:flex;flex-wrap:wrap;gap:5px;margin-top:-3px}
+  .dv-tb{grid-column:1/-1;padding:7px 10px;border:1px solid #f0d9a8;background:#fff9ec;border-radius:8px;font-size:.8rem;line-height:1.6}
   @media (max-width:1100px){.dv-grid{grid-template-columns:1fr;overflow:auto}}
   .cx-labbar{flex:none;display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:10px;background:#f6f3ff;border:1px solid #e1d9fb;color:#4a3a9e;font-size:.8rem}
   .cx-labbar .x{margin-left:auto;color:#8b7fc7;cursor:pointer;border:none;background:none;font-size:.9rem}
@@ -845,7 +847,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.09.3';
+const APP_VERSION='2026.11.09.4';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -5253,6 +5255,7 @@ const NOTICE_HTML=`<p>양압기 건강보험 요양비 청구를 한 화면에�
 <ul><li>기기(S/N)마다 어느 환자가 언제 썼는지가 환자 정보에서 자동으로 이어지고, 회수·소독 · 장비 점검 · A/S · 폐기를 기록합니다. 반납 뒤 소독 기록이 없는 기기는 맨 위에 '회수·소독 대기'로 보입니다.</li>
 <li>[엑셀 대장]으로 장비점검체크 · 회수기기 관리대장 · AS관리대장 · 부적합장비대장 · 사용자변경이력을 서식 그대로 내려받습니다.</li>
 <li>LMTS <b>기기사용이력</b> 엑셀을 넣으면 공단·LMTS에 등록한 기기가 모두 들어오고, <b>임대 전</b>(한 번도 안 나간 기기)·<b>쉬는 중</b>(반납 뒤 대기) 기기를 [📋 목록·엑셀]로 봅니다.</li>
+<li>S/N을 잘못 등록한 기기는 [✏️ 기기 정보] › <b>[🗑 기기 지우기]</b>로 지웁니다 (환자 정보의 S/N이 그 번호면 환자 쪽부터 고침). [＋ 기기 등록]에는 자주 들이는 모델(<b>프리즈마 SMART max</b>) 단추가 있습니다.</li>
 <li>현금영수증·세금계산서 <b>승인번호나 청구완료가 있는 달</b>은 일수·마스크·해외·100%·결제 방식처럼 금액이 바뀌는 값이 잠깁니다 — 발행한 영수증과 금액이 어긋나지 않게.</li></ul>
 <h4>꼭 지켜 주세요 — 데이터 저장</h4>
 <div class="warnbox"><ul>
@@ -6286,7 +6289,77 @@ function devAll(today,withHidden){
     Object.assign(e,devStatus(e,today));
     e.lw=devLmtsWarn(e);
   }
-  return [...m.values()].filter(e=>withHidden||!(e.rec&&e.rec.hide));
+  /* 지운 기기 (2026-11-09): 지운 기기 칸(del)만 남고 환자 사용·살아 있는 기록이 없으면 목록에서 뺌 — 나중에 환자 S/N이 이 번호가 되면 다시 보임 */
+  const tomb=new Set((state.devices||[]).filter(d=>d&&d.del).map(d=>snKey(d.sn)));
+  return [...m.values()].filter(e=>!(tomb.has(e.k)&&!e.rec&&!e.users.length&&!e.logs.length)).filter(e=>withHidden||!(e.rec&&e.rec.hide));
+}
+/* ── 기기 지우기 (2026-11-09 사용자: "기기번호 잘못 등록한거 있으면 지울 수 있어야") ──
+   기기 칸에 del 표시(지운 사람·때)만 남기고, 그 기기에 남긴 기록도 '지움'(devDel=같은 때)으로 → [＋ 기기 등록]에 같은 S/N을 넣으면 함께 되살아남.
+   환자 정보의 S/N이 이 번호인 기기는 못 지움 — 환자 쪽 S/N을 고치면 저절로 없어짐. LMTS 기기를 다시 가져와도 지운 번호는 다시 넣지 않음 */
+function devTomb(k){
+  const ds=(state.devices||[]).filter(d=>d&&snKey(d.sn)===k);
+  if(ds.some(d=>!d.del))return null;
+  return ds.filter(d=>d.del).sort((a,b)=>String(a.del).localeCompare(String(b.del))).pop()||null;
+}
+function devDelBlock(e){
+  if(!e||!e.users.length)return '';
+  const ln=e.users.map(u=>u.gone?`· ${u.name} — 지운 환자의 사용 기록 (${u.start||'?'} ~ ${u.end||''})`
+    :u.ref?`· ${u.name} ${u.code} — 예전에 이 번호였다가 다른 번호로 바꾼 기록 → 번호를 잘못 넣었다 고친 것이면 사용자 칸의 [번호 고침이면]을 누르세요`
+    :`· ${u.name} ${u.code} — 환자 정보의 S/N이 지금 이 번호입니다 → 환자 정보에서 바른 S/N으로 고치세요`);
+  return `S/N ${e.sn} 은(는) 환자 사용 기록과 이어져 있어 바로 지울 수 없습니다.\n\n${ln.join('\n')}\n\n환자 쪽을 고치면 이 기기 줄은 저절로 없어집니다.\n실제로 쓴 기기라면 지우지 말고 [✏️ 기기 정보] › '목록에서 숨기기'를 쓰세요.`;
+}
+function devDeleteApply(k,today){
+  const e=devAll(today||fd(new Date()),true).find(x=>x.k===k);
+  if(!e||e.users.length)return null;
+  const at=new Date().toISOString(),by=whoNow();
+  if(!Array.isArray(state.devices))state.devices=[];
+  const recs=state.devices.filter(d=>d&&!d.del&&snKey(d.sn)===k);
+  if(!recs.length){const d={id:rid('d'),sn:e.sn,model:e.model||'',mgmtNo:'',mfgYm:'',inDate:'',memo:'',hide:false,at,by,upd:null,del:null,edits:[],src:'del'};state.devices.push(d);recs.push(d);}   /* 기록으로만 생긴 기기 — 지운 표시를 남길 칸을 만듦 */
+  for(const d of recs){d.del=at;d.delBy=by;(d.edits=d.edits||[]).push({at,by,act:'del'});}
+  let n=0;
+  for(const l of (state.devLogs||[]))if(l&&!l.del&&snKey(l.sn)===k){l.del=at;l.delBy=by;l.devDel=at;(l.edits=l.edits||[]).push({at,by,act:'del'});n++;}
+  devDrafts.delete(k);
+  return {sn:e.sn,logs:n};
+}
+/* 지운 기기 되살리기 — 지운 칸에 새로 넣은 값을 씌우고, 함께 지웠던 기록도 되살림 */
+function devRestoreApply(tb,sn,v){
+  const at=new Date().toISOString(),by=whoNow(),delAt=tb.del;
+  const prev={model:tb.model||'',mgmtNo:tb.mgmtNo||'',mfgYm:tb.mfgYm||'',inDate:tb.inDate||'',memo:tb.memo||'',hide:!!tb.hide};
+  (tb.edits=tb.edits||[]).push({at,by,act:'undel',prev});
+  Object.assign(tb,v,{sn,del:null,delBy:null,upd:at});
+  let n=0;
+  for(const l of (state.devLogs||[]))if(l&&l.del&&l.devDel&&l.devDel===delAt&&snKey(l.sn)===snKey(sn)){l.del=null;l.delBy=null;l.devDel=null;(l.edits=l.edits||[]).push({at,by,act:'undel'});n++;}
+  return n;
+}
+async function devAskDelete(k){
+  const today=fd(new Date()),e=devAll(today,true).find(x=>x.k===k);if(!e)return;
+  const blk=devDelBlock(e);
+  if(blk){const lp=e.users.find(u=>u.p&&!u.ref&&!u.gone);
+    if(lp){if(await confirmModal('🗑 기기 지우기 — 환자 정보부터',blk,`👤 ${lp.name} 환자 정보 열기`,false,'닫기')&&state)openPatModal(lp.pid);}
+    else showMsg('🗑 기기 지우기 — 환자 기록부터',blk);
+    return;}
+  const kinds={};for(const l of e.logs)kinds[DEV_KIND_KO[l.kind]]=(kinds[DEV_KIND_KO[l.kind]]||0)+1;
+  const ks=Object.entries(kinds).map(([a,b])=>`${a} ${b}`).join(' · ');
+  const ok=await confirmModal('🗑 기기 지우기',`S/N ${e.sn}${e.model?` · ${e.model}`:''}${e.mgmtNo?` · 관리번호 ${e.mgmtNo}`:''}\n\n이 기기를 기기 목록에서 지울까요?`
+    +(e.logs.length?`\n이 기기에 남긴 기록 ${e.logs.length}건(${ks})도 같이 지웁니다.`:'')
+    +(e.lmts?`\n\nLMTS 기기 목록${e.lmtsNow&&e.lmtsLatest?`(${e.lmtsLatest.date})`:''}에 있던 번호입니다. 다음에 LMTS 기기를 가져와도 다시 넣지 않습니다 — LMTS·공단 등록이 잘못된 것이면 그쪽에서도 정리하세요.`:'')
+    +`\n\n잘못 지웠으면 [＋ 기기 등록]에 같은 S/N을 넣으면 예전 정보·기록이 되살아납니다.`,'지우기',true);
+  if(!ok||!state)return;
+  const r=devDeleteApply(k,today);if(!r)return;
+  if(devUI.k===k){devUI.k=null;devUI.none=true;devUI.edit=null;devUI.formKey=null;}
+  persist();renderDev();
+}
+/* 기기 등록 모델 프리셋 (2026-11-09 사용자: "프리셋으로 지금 잘 사는 기기들 넣을 수 있었으면 — 프리즈마 스마트 맥스")
+   표기는 환자 정보·LMTS 기본값과 같게. 실제로 쓰는 모델은 많이 쓴 순서로 뒤에 붙음 */
+const DEV_MODEL_PRESET=['프리즈마 SMART max'];
+function devModelPresets(){
+  const key=x=>String(x||'').replace(/prisma/ig,'프리즈마').replace(/\s+/g,'').toLowerCase();
+  const n=new Map(),nm=new Map();
+  const add=(x,w)=>{x=String(x||'').trim();if(!x||/^(자동형|수동형|양압기)$/.test(x))return;const k=key(x);n.set(k,(n.get(k)||0)+w);if(!nm.has(k))nm.set(k,x);};
+  DEV_MODEL_PRESET.forEach((x,i)=>add(x,1e6-i));
+  for(const p of (state.patients||[]))add(p.model,1);
+  for(const d of (state.devices||[]))if(d&&!d.del)add(d.model,1);
+  return [...n.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k])=>nm.get(k));
 }
 /* ── LMTS 기기사용이력 (2026-11-09) ──
    LMTS에 등록된 기기 전부(= 공단에 등록한 기기). 열: NO·기기번호·기기구분·기기유형·기기존재·용도·상태(사용중/이력없음…)·관리번호·성명·ID·계약시작일·사용자수·최초사용일·최종사용일·총 사용일·N3MIN·N4MIN
@@ -6324,14 +6397,15 @@ function devLmtsApply(recs,fname){
   if(!Array.isArray(state.devices))state.devices=[];
   let at=new Date().toISOString();const date=fd(new Date()),by=whoNow(),lb0=devLmtsLatest();
   if(lb0&&lb0.batch>=at)at=new Date(Date.parse(lb0.batch)+1).toISOString();   /* 같은 순간에 두 번 넣어도 '최근 목록'이 하나로 */
-  const R={n:recs.length,nNew:0,nUpd:0,fill:[],warn:[],gone:[],st:{},free:[]};
+  const R={n:recs.length,nNew:0,nUpd:0,fill:[],warn:[],gone:[],st:{},free:[],skipDel:[]};
   const seen=new Set();
   for(const x of recs){const k=snKey(x.sn);
     if(seen.has(k))R.warn.push(`⚠️ S/N ${x.sn}: 파일에 두 번 나옵니다 — 아래 줄 기준`);
     seen.add(k);
     R.st[x.st||'—']=(R.st[x.st||'—']||0)+1;
-    const used=/사용중/.test(x.st);if(!used)R.free.push(x.sn);
     let d=state.devices.find(z=>z&&!z.del&&snKey(z.sn)===k);
+    if(!d&&devTomb(k)){R.skipDel.push(x.sn);continue;}   /* 앱에서 지운 기기 — 다시 넣지 않음 (환자 S/N 채우기도 안 함) */
+    const used=/사용중/.test(x.st);if(!used)R.free.push(x.sn);
     if(!d){d={id:rid('d'),sn:x.sn,model:x.model,mgmtNo:'',mfgYm:'',inDate:'',memo:'',hide:false,at,by,upd:null,del:null,edits:[],src:'lmts'};state.devices.push(d);R.nNew++;}
     else{if(!d.model&&x.model)d.model=x.model;d.upd=at;R.nUpd++;}
     d.lmts={batch:at,date,file:fname,grp:x.grp,model:x.model,exist:x.exist,use:x.use,st:x.st,code:x.code,cs:x.cs,users:x.users,first:x.first,last:x.last,days:x.days};
@@ -6356,6 +6430,7 @@ function importDevList(aoa,h,fname){
     +`\n\n임대 안 나간 기기 (LMTS '사용중' 아님) ${R.free.length}대${R.free.length?': '+R.free.join(', '):''}`
     +`\n→ 🔧 기기 관리 › [📋 목록·엑셀]에서 임대 전·쉬는 기기를 한눈에 보고 엑셀로 받을 수 있습니다.${labOn('dev')?'':' (⚙️ 설정 › 실험실에서 기기 관리를 켜세요)'}`
     +(R.gone.length?`\n\n[이번 LMTS 목록에 없는 기기 ${R.gone.length}대 — 전 목록엔 있던 것: 등록 해지·다른 지점인지 확인]\n· ${R.gone.join(', ')}`:'')
+    +(R.skipDel.length?`\n\n[숨길이에서 지운 기기 ${R.skipDel.length}대 — 다시 넣지 않음]\n· ${R.skipDel.join(', ')}\n다시 쓰려면 🔧 기기 관리 › [＋ 기기 등록]에 같은 S/N을 넣으세요. LMTS·공단 등록이 잘못된 것이면 그쪽에서 정리하세요.`:'')
     +(R.fill.length?`\n\n[환자 S/N 채움]\n${R.fill.join('\n')}`:'')
     +(R.warn.length?`\n\n[확인 필요]\n${R.warn.join('\n')}`:''));
   return true;
@@ -6495,21 +6570,35 @@ function openDevModal(k){
   const today=fd(new Date());
   const e=k?devAll(today,true).find(x=>x.k===k):null;
   const r=(e&&e.rec)||{};
-  $('#dlgHost').innerHTML=`<div class="modalBack" id="dvmBack" style="z-index:70"><div class="modal" style="width:480px">
+  const mps=devModelPresets(),model0=r.model||(e?e.model:'')||(e?'':mps[0]||'');
+  $('#dlgHost').innerHTML=`<div class="modalBack" id="dvmBack" style="z-index:70"><div class="modal" style="width:500px">
     <h3>${e?`✏️ 기기 정보 — ${esc(e.sn)}`:'＋ 기기 등록 (재고·새로 들인 기기)'}</h3>
     <div class="hint" style="margin-bottom:10px">${e?'환자 정보의 S/N·모델은 그대로 두고, 기기 관리에만 쓰는 칸입니다.':'환자에게 아직 안 나간 기기를 등록합니다. 환자 정보에 같은 S/N을 넣으면 자동으로 이어집니다.'}</div>
     <div class="dv-mf">
       <label>S/N</label><input id="dvmSn" value="${esc(e?e.sn:'')}" ${e?'disabled':''} placeholder="기기 뒷면 시리얼 번호">
-      <label>모델</label><input id="dvmModel" value="${esc(r.model||(e?e.model:'')||'')}" placeholder="예: 프리즈마 스마트">
+      <div class="dv-tb hidden" id="dvmTb"></div>
+      <label>모델</label><input id="dvmModel" value="${esc(model0)}" placeholder="아래 단추로 고르거나 직접 입력" list="dvmModels"><datalist id="dvmModels">${mps.map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
+      <label style="font-weight:400">자주 쓰는</label><span class="dv-mp" id="dvmMp" title="자주 들이는 모델 — 누르면 모델 칸에 들어갑니다">${mps.map(x=>`<button type="button" class="cx-fchip" data-mp="${esc(x)}">${esc(x)}</button>`).join('')}</span>
       <label>제품관리번호</label><span style="display:flex;gap:6px"><input id="dvmNo" value="${esc(r.mgmtNo||'')}" placeholder="예: 20201007001" style="flex:1"><button type="button" class="btn sm" id="dvmAuto" title="입고일(없으면 오늘) + 순번 3자리">자동 번호</button></span>
       <label>제조년월</label><input type="month" id="dvmMfg" value="${esc(r.mfgYm||(e?e.mfgYm:'')||'')}">
       <label>입고일</label><input type="date" id="dvmIn" value="${esc(r.inDate||'')}">
       <label>메모</label><input id="dvmMemo" value="${esc(r.memo||'')}">
-      ${e?`<label></label><label style="font-weight:400;display:flex;gap:6px;align-items:center"><input type="checkbox" id="dvmHide" ${r.hide?'checked':''}>목록에서 숨기기 (S/N을 잘못 넣어 생긴 줄 등)</label>`:''}
+      ${e?`<label></label><label style="font-weight:400;display:flex;gap:6px;align-items:center"><input type="checkbox" id="dvmHide" ${r.hide?'checked':''}>목록에서 숨기기 (지우지 않고 감춰 두기)</label>`:''}
     </div>
-    <div class="actions"><button class="btn" id="dvmCancel">취소</button><button class="btn primary" id="dvmSave">저장</button></div></div></div>`;
+    <div class="actions">${e?`<button class="btn danger" id="dvmDel" style="margin-right:auto" title="S/N을 잘못 등록한 기기를 목록에서 지웁니다">🗑 기기 지우기</button>`:''}<button class="btn" id="dvmCancel">취소</button><button class="btn primary" id="dvmSave">저장</button></div></div></div>`;
   const close=()=>$('#dlgHost').innerHTML='';
   $('#dvmCancel').onclick=close;$('#dvmBack').onclick=ev=>{if(ev.target.id==='dvmBack')close();};
+  const mk=x=>String(x||'').replace(/prisma/ig,'프리즈마').replace(/\s+/g,'').toLowerCase();   /* prisma SMART max = 프리즈마 SMART max */
+  const mpOn=()=>{const v=mk($('#dvmModel').value);document.querySelectorAll('#dvmMp [data-mp]').forEach(b=>b.classList.toggle('on',mk(b.dataset.mp)===v));};
+  $('#dvmMp').onclick=ev=>{const b=ev.target.closest('[data-mp]');if(!b)return;$('#dvmModel').value=b.dataset.mp;mpOn();};
+  $('#dvmModel').oninput=mpOn;mpOn();
+  if(e)$('#dvmDel').onclick=()=>{close();devAskDelete(e.k);};
+  else{let shown=null;   /* 지운 기기의 S/N을 넣으면 예전 정보를 채우고 되살린다고 알림 */
+    $('#dvmSn').oninput=()=>{const tb=devTomb(snKey($('#dvmSn').value)),box=$('#dvmTb');
+      if(!tb){box.classList.add('hidden');shown=null;return;}
+      const nl=(state.devLogs||[]).filter(l=>l&&l.del&&l.devDel===tb.del&&snKey(l.sn)===snKey(tb.sn)).length;
+      box.innerHTML=`🗑 <b>${esc(fd(new Date(tb.del)))}${tb.delBy?' '+esc(tb.delBy):''}</b> 지운 기기입니다 — 저장하면 되살립니다${nl?` (같이 지운 기록 ${nl}건도)`:''}.`;box.classList.remove('hidden');
+      if(shown!==tb.id){shown=tb.id;if(tb.model)$('#dvmModel').value=tb.model;$('#dvmNo').value=tb.mgmtNo||'';$('#dvmMfg').value=tb.mfgYm||'';$('#dvmIn').value=tb.inDate||'';$('#dvmMemo').value=tb.memo||'';mpOn();}};}
   $('#dvmAuto').onclick=()=>{$('#dvmNo').value=devNextMgmt($('#dvmIn').value);};
   $('#dvmSave').onclick=()=>{
     const sn=(e?e.sn:$('#dvmSn').value).trim();
@@ -6519,10 +6608,12 @@ function openDevModal(k){
     if(v.mgmtNo&&(state.devices||[]).some(d=>d&&!d.del&&d.mgmtNo===v.mgmtNo&&snKey(d.sn)!==snKey(sn))){showMsg('입력 확인',`제품관리번호 ${v.mgmtNo} 은(는) 다른 기기가 쓰고 있습니다.`);return;}
     const at=new Date().toISOString(),by=whoNow();
     let d=(state.devices||[]).find(x=>x&&!x.del&&snKey(x.sn)===snKey(sn));
+    const tb=!e&&!d?devTomb(snKey(sn)):null;
+    if(tb){devRestoreApply(tb,sn,v);close();devUI.k=snKey(sn);devUI.none=false;devUI.scrollSel=true;persist();renderDev();return;}
     if(d){const prev={model:d.model||'',mgmtNo:d.mgmtNo||'',mfgYm:d.mfgYm||'',inDate:d.inDate||'',memo:d.memo||'',hide:!!d.hide};
       if(JSON.stringify(prev)===JSON.stringify(v)){close();return;}
       (d.edits=d.edits||[]).push({at,by,prev});Object.assign(d,v,{upd:at});}
-    else{d={id:rid('d'),sn,...v,at,by,upd:null,del:null,edits:[]};state.devices.push(d);}
+    else{d={id:rid('d'),sn,...v,at,by,upd:null,del:null,edits:[]};state.devices.push(d);devUI.scrollSel=true;}
     close();devUI.k=snKey(sn);devUI.none=false;persist();renderDev();
   };
 }
@@ -6632,7 +6723,7 @@ function renderDev0(){
     ${e.lmts?`<span class="cx-chip" title="${esc(devLmtsTip(e.lmts))}"><small>LMTS</small>${e.lmtsNow?esc(e.lmts.st||'—')+(e.lmts.code?' '+esc(e.lmts.code):'')+(e.lmts.last?` · 최종 ${esc(e.lmts.last.slice(2))}`:''):'<span style="color:var(--red)">최근 목록에 없음</span>'}</span>`:(e.lmtsLatest?'<span class="cx-chip"><small>LMTS</small><span style="color:var(--red)">목록에 없음</span></span>':'')}
     ${e.cur?(labOn('chart')?`<button class="btn sm" data-dact="goPat" data-pid="${e.cur.pid}" title="환자 차트 열기">👤 ${esc(e.cur.name)} ${esc(e.cur.code)}</button>`:`<span class="badge b20">👤 ${esc(e.cur.name)} ${esc(e.cur.code)}</span>`):''}
     <span class="spacer"></span>
-    <button class="btn sm" data-dact="editDev" title="제품관리번호·모델·제조년월·입고일·메모">✏️ 기기 정보</button>
+    <button class="btn sm" data-dact="editDev" title="제품관리번호·모델·제조년월·입고일·메모 · 숨기기 · 🗑 잘못 등록한 기기 지우기">✏️ 기기 정보</button>
     <button class="btn sm" data-dact="unsel">✕ 선택 해제</button></div>`;
   const warns=[...e.over.map(g=>`⚠️ <b>${esc(g.a.name)}</b>(${String(g.a.start||'?').slice(2)} ~ ${g.a.end?g.a.end.slice(2):'<b>반납일 없음</b>'}) · <b>${esc(g.b.name)}</b>(${String(g.b.start).slice(2)} ~) — 두 환자의 사용 기간이 겹칩니다 — 앞 환자의 계약종료일(반납일)을 넣어 주세요 (👥 환자 관리 또는 LMTS 고객정보 가져오기)`),
     ...e.gaps.map(g=>`⚠️ <b>${esc(g.a.name)}</b>(${g.a.end.slice(2)} 반납) → <b>${esc(g.b.name)}</b>(${String(g.b.start).slice(2)} 설치) 사이에 회수·소독 기록이 없습니다 — 🧽 회수·소독을 남겨 주세요`),
@@ -7222,6 +7313,17 @@ window.__selftest=function(){
       const R7b=devLmtsApply(devLmtsParse([hd,rw('L-1','이력없음','','',0)],hd),'기기사용이력 (2).xlsx');
       const ok7b=R7b.nUpd===1&&R7b.nNew===0&&R7b.gone.length===5&&st('L2').st==='use'&&/최근 목록/.test(st('L2').lw[0]||'')&&st('L3').st!=='use'&&st('L1').lmts.file==='기기사용이력 (2).xlsx';
       if(ok7a&&ok7b)ok13++;else console.warn('FAIL13-7',ok7a,ok7b,lr,R7,R7b,devAll(T));
+      /* 8: 기기 지우기 — 등록·LMTS 기기는 지움(기록도 같이) · 환자 S/N 기기는 못 지움 · LMTS 다시 넣어도 안 살아남 · 같은 S/N 등록 = 되살림 */
+      state.devices.push({id:'dz',sn:'ZZ-9',model:'',mgmtNo:'20261109001',at:'2026-08-01T00:00:00.000Z',del:null,edits:[]});
+      L({sn:'zz9',kind:'chk',date:'2026-07-30',items:{}});L({sn:'ZZ9',kind:'ret',date:'2026-07-31',done:'2026-07-31',checks:{}});
+      const blkG=devDelBlock(st('L2')),noG=devDeleteApply('L2',T),dz=devDeleteApply('ZZ9',T),dl=devDeleteApply('L1',T);
+      const R8=devLmtsApply(devLmtsParse([hd,rw('L-1','이력없음','','',0),rw('ZZ9','이력없음','','',0)],hd),'기기사용이력 (3).xlsx');
+      const ok8a=/환자 정보의 S\/N/.test(blkG)&&noG===null&&dz&&dz.logs===2&&dl&&!st('ZZ9').k&&!st('L1').k&&st('L2').k==='L2'
+        &&R8.skipDel.length===2&&R8.nNew===0&&!st('L1').k&&state.devLogs.filter(x=>x.sn&&snKey(x.sn)==='ZZ9'&&x.del&&x.devDel).length===2;
+      const tz=devTomb('ZZ9'),nz=tz?devRestoreApply(tz,'ZZ9',{model:'프리즈마 SMART max',mgmtNo:'20261109001',mfgYm:'',inDate:'',memo:'',hide:false}):-1;
+      const z2=st('ZZ9'),mp=devModelPresets();
+      const ok8b=nz===2&&z2.k==='ZZ9'&&z2.logs.length===2&&z2.mgmtNo==='20261109001'&&!devTomb('ZZ9')&&devTomb('L1')&&mp[0]==='프리즈마 SMART max'&&mp.filter(x=>/smart\s*max/i.test(x)).length===1;
+      if(ok8a&&ok8b)ok13++;else console.warn('FAIL13-8',ok8a,ok8b,blkG,noG,dz,dl,R8,nz,z2,mp,devAll(T));
     }catch(e){console.warn('FAIL13-x',e);}
     finally{state=saved;histBase=savedBase;histHold=savedHold;histSrcNext=savedSrc;}
   }
@@ -7238,7 +7340,7 @@ window.__selftest=function(){
     }catch(e){console.warn('FAIL14-x',e);}
     finally{state=saved;}
   }
-  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/12 · 기기관리 ${ok13}/7 · 승인잠금 ${ok14}/1`;
+  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/12 · 기기관리 ${ok13}/8 · 승인잠금 ${ok14}/1`;
   console.log(msg);
   return {ok,ok2,ok3,ok4,msg};
 };
