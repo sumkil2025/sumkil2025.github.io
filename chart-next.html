@@ -845,7 +845,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.09.2';
+const APP_VERSION='2026.11.09.3';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -1503,10 +1503,8 @@ $('#btnLock').onclick=lockApp;
 
 /* ================== 탭/월 선택 ================== */
 $('#tabs').addEventListener('click',e=>{
-  const b=e.target.closest('button');if(!b)return;
-  $$('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
-  $$('main > section').forEach(s=>s.classList.toggle('hidden',s.id!=='tab-'+b.dataset.tab));
-  renderAll();
+  const b=e.target.closest('button');if(!b||!b.dataset.tab)return;
+  showTab(b.dataset.tab);
 });
 $('#curYM').addEventListener('change',renderAll);
 const curYM=()=>$('#curYM').value;
@@ -5705,13 +5703,43 @@ function goChart(pid){
   if(!labOn('chart'))return;
   if($('#cxForm')&&!$('#tab-chart').classList.contains('hidden'))chartKeepDraft();
   chartUI.formKey=null;chartUI.none=false;chartUI.pid=pid;chartUI.edit=null;chartUI.olds=null;chartUI.lf='all';chartUI.lq='';
+  chartUI.scrollSel=true;   /* 오른쪽 환자 목록에서 그 환자 줄이 보이게 */
   showTab('chart');
 }
+/* ── 스크롤 자리 기억 (2026-11-09 사용자: "환자 클릭하면 스크롤이 다시 위로 올라가버려서 연속적으로 업무를 못하겠어") ──
+   · 탭마다 창 스크롤 — 월별 청구·환자 관리에서 환자를 눌러 차트에 갔다 와도 보던 자리로
+   · 환자 차트·기기 관리는 칸마다(data-sk): 목록(list)·좁은 화면에서 세 칸 전체(grid)는 다른 환자·기기를 눌러도 그 자리(고른 이름은 위 띠에 보임), 기록(tl)·쓰기(form)는 같은 환자·기기일 때만 */
+const scrollMem={},scrollFresh={},scrollDrop={};
+function scrollSave(tab){
+  const sec=$('#tab-'+tab);if(!sec||sec.classList.contains('hidden'))return;
+  const m=scrollMem[tab]=scrollMem[tab]||{y:0,sk:{},owner:''};
+  if(tab!=='chart'&&tab!=='dev')m.y=window.scrollY;
+  if(scrollFresh[tab]){delete scrollFresh[tab];return;}   /* 다른 탭에서 막 돌아옴 — 숨겨져 있던 칸의 스크롤 값은 쓰지 않음 */
+  sec.querySelectorAll('[data-sk]').forEach(el=>{m.sk[el.dataset.sk]=el.scrollTop;});
+  m.owner=sec.dataset.skOwner||'';
+}
+function scrollRestore(tab,owner,keepList){
+  const sec=$('#tab-'+tab);if(!sec)return;
+  sec.dataset.skOwner=owner||'';
+  const m=scrollMem[tab],drop=scrollDrop[tab]||{};delete scrollDrop[tab];
+  if(!m)return;
+  const same=(m.owner||'')===(owner||'');
+  sec.querySelectorAll('[data-sk]').forEach(el=>{const k=el.dataset.sk,v=m.sk[k];
+    if(!v||drop[k])return;
+    if((k==='list'||k==='grid')?keepList:same)el.scrollTop=v;});
+}
+/* 검색·거르기로 내용이 바뀐 칸은 맨 위부터 */
+const scrollTopNext=(tab,k)=>{(scrollDrop[tab]=scrollDrop[tab]||{})[k]=1;};
 function showTab(t){
+  const cur=($('#tabs button.on')||{dataset:{}}).dataset.tab;
+  if(state&&cur&&cur!==t){scrollSave(cur);if(t==='chart'||t==='dev')scrollFresh[t]=true;}
   $$('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.tab===t));
   $$('main > section').forEach(s=>s.classList.toggle('hidden',s.id!=='tab-'+t));
   renderAll();
+  delete scrollFresh[t];
   if(t==='chart'||t==='dev')window.scrollTo(0,0);
+  else if(cur!==t){const y=(scrollMem[t]&&scrollMem[t].y)||0;window.scrollTo(0,y);
+    if(y)requestAnimationFrame(()=>{if(Math.abs(window.scrollY-y)>2)window.scrollTo(0,y);});}
 }
 /* 실험실 켬/끔에 따라 탭·사람 고르기 보이기 */
 function applyLabs(){try{applyLabs0();}catch(e){console.error('실험실 표시 오류',e);}}
@@ -5813,9 +5841,12 @@ async function chartSaveNote(){
 }
 /* 차트 화면에서 오류가 나도 다른 탭은 그대로 — 자리에 안내만 */
 function renderChart(){
+  scrollSave('chart');const keepList=!chartUI.scrollSel;
   try{renderChart0();}
   catch(e){console.error('환자 차트 화면 오류',e);const sec=$('#tab-chart');
     if(sec)sec.innerHTML=`<div style="margin:14px 0;padding:16px 18px;border:1px solid #f3c2c2;background:#fff6f6;border-radius:10px;line-height:1.7">⚠️ <b>환자 차트 화면을 그리지 못했습니다.</b> 자료는 그대로이고, 다른 탭은 평소처럼 쓸 수 있습니다.<br><span class="hint">오류: ${esc(String((e&&e.message)||e))} — 📢 안내의 문의로 알려 주세요. (⚙️ 설정 › 실험실에서 숨길 수 있습니다)</span></div>`;}
+  chartUI.scrollSel=false;   /* 못 찾았어도 한 번만 — 다음에 누를 때 목록이 다시 맨 위로 가지 않게 */
+  scrollRestore('chart',chartUI.none?'':(chartUI.pid||''),keepList);
 }
 function renderChart0(){
   const sec=$('#tab-chart');if(!sec||!state)return;
@@ -5865,7 +5896,7 @@ function renderChart0(){
     <div class="cx-head"><h2>환자 목록</h2><span class="sub">${rows.length}명 · ${RS_KO[chartUI.rs.k]||'할 일'} 순${chartUI.rs.dir<0?'(거꾸로)':''}</span></div>
     <div class="cx-tools"><input type="search" id="cxRq" placeholder="🔍 이름 · 차트번호 · 생년월일 · 연락처" value="${esc(chartUI.rq)}">
       <div class="fl">${fchip('all','전체',cnt.all,'rf')}${fchip('pre','순응중',cnt.pre,'rf')}${fchip('post','순응후',cnt.post,'rf')}${fchip('end','종료·반납',cnt.end,'rf')}${fchip('todo','할 일 있음',cnt.todo,'rf')}${fchip('chk',`${Number(thisYM.slice(5))}월 점검 아직`,cnt.chk,'rf')}</div></div>
-    <div class="cx-scroll" id="cxPlist"><div class="cx-prow h">${rsh('no','차트')}${rsh('nm','이름')}${rsh('ph','상태')}${rsh('staff','담당')}${rsh('todo','할 일')}${rsh('memo','📌 사유 · 📝 특이사항')}</div>
+    <div class="cx-scroll" id="cxPlist" data-sk="list"><div class="cx-prow h">${rsh('no','차트')}${rsh('nm','이름')}${rsh('ph','상태')}${rsh('staff','담당')}${rsh('todo','할 일')}${rsh('memo','📌 사유 · 📝 특이사항')}</div>
       ${plist||'<div class="cx-empty">맞는 환자가 없습니다.</div>'}</div></section>`;
   const labbar=state.settings.labs.barOff?'':`<div class="cx-labbar">🧪 <b>실험실 기능</b> · 시험 중인 새 기능입니다. 써 둔 기록은 지금 자료와 함께 저장되고 💾 백업 파일에도 들어갑니다. 숨기려면 ⚙️ 설정 › 실험실. <button class="x" data-act="labbarOff" title="이 안내 줄 닫기">✕</button></div>`;
   const us=lsUsage();
@@ -5958,7 +5989,7 @@ function renderChart0(){
     <div class="cx-filters">${fchip('all','전체',fc.all,'lf')}${fchip('con','상담',fc.con,'lf')}${fchip('chk','점검',fc.chk,'lf')}${fchip('sup','소모품',fc.sup,'lf')}${fchip('rx','처방·계약',fc.rx,'lf')}${fchip('bill','청구',fc.bill,'lf')}${fchip('chg','변경 이력',fc.chg,'lf')}${fc.dev?fchip('dev','기기',fc.dev,'lf'):''}
       ${nDel?`<button class="cx-fchip${chartUI.showDel?' on':''}" data-act="showDel" title="지운 기록도 보기 (글은 지워지지 않고 남아 있습니다)">🗑 지운 것<em>${nDel}</em></button>`:''}
       <input type="search" id="cxLq" placeholder="글자 찾기 (예: 마스크)" value="${esc(chartUI.lq)}"></div>
-    <div class="cx-scroll" id="cxTl">${tl||'<div class="cx-empty">아직 기록이 없습니다.<br>가운데 [기록 쓰기]에서 상담·점검 내용을 남기세요.</div>'}<div style="height:10px"></div></div></section>`;
+    <div class="cx-scroll" id="cxTl" data-sk="tl">${tl||'<div class="cx-empty">아직 기록이 없습니다.<br>가운데 [기록 쓰기]에서 상담·점검 내용을 남기세요.</div>'}<div style="height:10px"></div></div></section>`;
   /* ── 가운데: 기록 쓰기 ── */
   const td=chartTodos(p,ns,today);
   const lastChk=ns.filter(n=>!n.del&&n.kind==='chk').sort((a,b)=>a.date<b.date?1:-1)[0];
@@ -6029,7 +6060,7 @@ function renderChart0(){
   const mid=`<section class="cx-col">
     <div class="cx-head"><h2>기록 쓰기</h2><span class="sub">${today} (${dowOf(today)})</span></div>
     ${flags}
-    <div class="cx-scroll">${form}
+    <div class="cx-scroll" data-sk="form">${form}
       <div class="cx-sec"><h4>최근 사용·청구</h4><table class="cx-mini"><thead><tr><th>월</th><th class="num">평균 사용</th><th class="num">사용일</th><th>비고</th><th>공단 청구</th><th>현금영수증</th></tr></thead><tbody>${mrows}</tbody></table></div>
       <div class="cx-sec"><h4>소모품 지급 <span class="hint" style="font-weight:400">종류별 마지막 지급</span></h4>${supLast||'<div class="hint">아직 기록이 없습니다. 종류에서 [소모품]을 골라 남기세요.</div>'}</div>
       <div class="cx-sec"><h4>이 환자 할 일</h4>${todoHtml}</div></div>
@@ -6038,7 +6069,7 @@ function renderChart0(){
       <button class="btn sm" data-act="claim"${active?'':` disabled title="${esc(curYM())} 청구 대상이 아닙니다 (위쪽 청구 월을 바꿔 보세요)"`}>📋 청구 보조창 ${Number(curYM().slice(5))}월</button>
       <button class="btn sm" data-act="editPat">✏️ 환자 정보</button>
       <span class="cx-fhint" style="margin-left:auto">다른 표에서 이름을 누르면 이 화면으로</span></div></section>`;
-  sec.innerHTML=`${labbar}${warn}${band}<div class="cx-grid">${left}${mid}${right}</div>`;
+  sec.innerHTML=`${labbar}${warn}${band}<div class="cx-grid" data-sk="grid">${left}${mid}${right}</div>`;
   chartUI.formKey=draftKey(p.id);
   chartRxSync();chartTripSync();
   chartFit();
@@ -6061,7 +6092,7 @@ $('#tab-chart').addEventListener('click',e=>{
   const rsb=t.closest('.cx-prow.h [data-rs]');
   if(rsb){const k=rsb.dataset.rs;chartUI.rs=chartUI.rs.k===k?{k,dir:-chartUI.rs.dir}:{k,dir:1};try{localStorage.setItem(CXSORT_KEY,JSON.stringify(chartUI.rs));}catch(e){}chartUI.scrollSel=true;renderChart();return;}
   const fc=t.closest('.cx-fchip[data-lf],.cx-fchip[data-rf]');
-  if(fc){if(fc.dataset.lf)chartUI.lf=fc.dataset.lf;else{chartUI.rf=fc.dataset.rf;chartUI.scrollSel=true;}renderChart();return;}
+  if(fc){if(fc.dataset.lf){chartUI.lf=fc.dataset.lf;scrollTopNext('chart','tl');}else{chartUI.rf=fc.dataset.rf;chartUI.scrollSel=true;}renderChart();return;}
   const sg=t.closest('.cx-seg2 button');
   if(sg){const g=sg.closest('.cx-seg2');g.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===sg));
     if(g.dataset.g==='kind'){$('#cxChk').classList.toggle('hidden',sg.dataset.v!=='chk');$('#cxSup').classList.toggle('hidden',sg.dataset.v!=='sup');if($('#cxRx'))$('#cxRx').classList.toggle('hidden',sg.dataset.v!=='rx');if($('#cxTrip'))$('#cxTrip').classList.toggle('hidden',sg.dataset.v!=='trip');}
@@ -6121,8 +6152,8 @@ $('#tab-chart').addEventListener('click',e=>{
 });
 $('#tab-chart').addEventListener('input',e=>{
   const t=e.target;
-  if(t.id==='cxRq'){chartUI.rq=t.value;clearTimeout(chartUI.rqT);chartUI.rqT=setTimeout(()=>{renderChart();const x=$('#cxRq');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length);}},200);return;}
-  if(t.id==='cxLq'){chartUI.lq=t.value;clearTimeout(chartUI.lqT);chartUI.lqT=setTimeout(()=>{renderChart();const x=$('#cxLq');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length);}},200);return;}
+  if(t.id==='cxRq'){chartUI.rq=t.value;clearTimeout(chartUI.rqT);chartUI.rqT=setTimeout(()=>{scrollTopNext('chart','list');renderChart();const x=$('#cxRq');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length);}},200);return;}
+  if(t.id==='cxLq'){chartUI.lq=t.value;clearTimeout(chartUI.lqT);chartUI.lqT=setTimeout(()=>{scrollTopNext('chart','tl');renderChart();const x=$('#cxLq');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length);}},200);return;}
   if(t.id==='cxBy'&&t.value==='__add'){const prev=chartUI.byPrev||'';
     askModal('담당자 등록','기록 담당자로 고를 이름 (예: 이실장)\n한 번 등록하면 목록에 계속 나옵니다. 지우기는 ⚙️ 설정 › 실험실.','').then(v=>{
       v=v==null?'':String(v).trim();if(v&&state){addUser(v);persist();}
@@ -6540,9 +6571,12 @@ async function devSaveLog(){
   }finally{devSaving=false;}
 }
 function renderDev(){
+  scrollSave('dev');const keepList=!devUI.scrollSel;
   try{renderDev0();}
   catch(err){console.error('기기 관리 화면 오류',err);const sec=$('#tab-dev');
     if(sec)sec.innerHTML=`<div style="margin:14px 0;padding:16px 18px;border:1px solid #f3c2c2;background:#fff6f6;border-radius:10px;line-height:1.7">⚠️ <b>기기 관리 화면을 그리지 못했습니다.</b> 자료는 그대로이고, 다른 탭은 평소처럼 쓸 수 있습니다.<br><span class="hint">오류: ${esc(String((err&&err.message)||err))} — 📢 안내의 문의로 알려 주세요. (⚙️ 설정 › 실험실에서 숨길 수 있습니다)</span></div>`;}
+  devUI.scrollSel=false;
+  scrollRestore('dev',devUI.none?'':(devUI.k||''),keepList);
 }
 function renderDev0(){
   const sec=$('#tab-dev');if(!sec||!state)return;
@@ -6582,7 +6616,7 @@ function renderDev0(){
     <div class="cx-tools"><input type="search" id="dvQ" placeholder="🔍 S/N · 모델 · 관리번호 · 환자" value="${esc(devUI.q)}"></div>
     <div class="cx-filters">${fchip('all','전체',cnt.all)}${fchip('wait','회수·소독 대기',cnt.wait)}${fchip('use','대여중',cnt.use)}${fchip('new','🏷 임대 전',cnt.new)}${fchip('idle','🌙 쉬는 중',cnt.idle)}${fchip('as','A/S 중',cnt.as)}${fchip('disp','폐기',cnt.disp)}${cnt.gap?fchip('gap','⚠️ 확인 필요',cnt.gap):''}${nHid?fchip('hid','숨김',nHid):''}</div>
     <div class="dv-free"><span>임대 안 나간 기기 <b>${cnt.new+cnt.idle+cnt.wait+cnt.as}</b>대</span><span class="hint">임대 전 ${cnt.new} · 쉬는 중 ${cnt.idle}${cnt.wait?` · 소독 대기 ${cnt.wait}`:''}${cnt.as?` · A/S ${cnt.as}`:''}${lbD?` · LMTS ${lbD.date.slice(5)}`:''}</span><button class="btn sm" data-dact="free" title="임대 전 기기와 지금 쉬는 기기를 표로 보고 엑셀로 받기">📋 목록·엑셀</button></div>
-    <div class="cx-scroll" id="dvList">${rowsH}</div>
+    <div class="cx-scroll" id="dvList" data-sk="list">${rowsH}</div>
     <div class="cx-bottom"><span class="who">📥 엑셀 대장</span><select id="dvXy" style="width:auto"><option value="">전체 기간</option>${years.map(y=>`<option value="${y}" ${devUI.xy===y?'selected':''}>${y}년</option>`).join('')}</select>
       <button class="btn sm primary" data-dact="export" title="장비점검체크·회수기기 관리대장·AS관리대장·부적합장비대장·사용자변경이력 — 지금 쓰는 서식과 같은 칸">내려받기</button></div></section>`;
   const labbar=`<div class="cx-labbar">🧪 <b>실험실 기능</b> · 시험 중인 새 기능입니다. 기기 = S/N 기준 — 사용자는 환자 정보의 S/N·계약 기간으로 자동, 회수·소독·점검·A/S·폐기는 여기서 기록합니다.</div>`;
@@ -6650,7 +6684,7 @@ function renderDev0(){
     ${usersH}
     <div class="cx-filters">${lfc('all','전체')}${lfc('use','설치·반납')}${lfc('ret','회수·소독')}${lfc('chk','점검')}${lfc('as','A/S')}${fc.disp?lfc('disp','폐기'):''}
       ${delLogs.length?`<button class="cx-fchip${devUI.showDel?' on':''}" data-dact="showDel">🗑 지운 것<em>${delLogs.length}</em></button>`:''}</div>
-    <div class="cx-scroll">${tl||'<div class="cx-empty">아직 기록이 없습니다.<br>가운데 [기록 쓰기]에서 남기세요.</div>'}<div style="height:10px"></div></div></section>`;
+    <div class="cx-scroll" data-sk="tl">${tl||'<div class="cx-empty">아직 기록이 없습니다.<br>가운데 [기록 쓰기]에서 남기세요.</div>'}<div style="height:10px"></div></div></section>`;
   /* 가운데: 기록 쓰기 */
   const ed=devUI.edit?(state.devLogs||[]).find(x=>x.id===devUI.edit&&snKey(x.sn)===e.k):null;
   if(devUI.edit&&!ed)devUI.edit=null;
@@ -6687,9 +6721,9 @@ function renderDev0(){
     <div class="cx-frow" style="margin:8px 0 0"><button class="btn primary" data-dact="save">${ed?'고친 내용 저장':'저장'}</button>
       <button class="btn" data-dact="${ed?'cancelEdit':'clear'}">${ed?'고치기 취소':'비우기'}</button><span class="cx-fhint">고치거나 지워도 이전 내용은 남음</span></div></div>`;
   const mid=`<section class="cx-col"><div class="cx-head"><h2>기록 쓰기</h2><span class="sub">${today} (${dowOf(today)})</span></div>
-    <div class="cx-scroll">${form}
+    <div class="cx-scroll" data-sk="form">${form}
       <div class="cx-sec"><h4>마지막 점검</h4>${e.lastChk?`${esc(e.lastChk.date)} ${esc(e.lastChk.by||'')} · ${esc(devLogTxt(e.lastChk,''))}`:'<span class="hint">아직 없음</span>'}</div></div></section>`;
-  sec.innerHTML=`${labbar}${band}<div class="dv-grid">${left}${mid}${right}</div>`;
+  sec.innerHTML=`${labbar}${band}<div class="dv-grid" data-sk="grid">${left}${mid}${right}</div>`;
   devUI.formKey=devDraftKey(e.k);
   {const a=$('#dvPidA'),r=$('#dvPid');if(a&&r){a.value=dft.pid||'';r.value=dft.pid||'';}}
   devFit();
@@ -6714,7 +6748,7 @@ $('#tab-dev').addEventListener('click',e=>{
   if(r){if(r.dataset.dk===devUI.k)return;devKeepDraft();devUI.formKey=null;devUI.k=r.dataset.dk;devUI.none=false;devUI.edit=null;devUI.olds=null;devUI.lf='all';renderDev();return;}
   const u=t.closest('.dv-users [data-pid]');if(u){goChart(u.dataset.pid);return;}
   const fcb=t.closest('[data-df]');if(fcb){devUI.f=fcb.dataset.df;devUI.scrollSel=true;renderDev();return;}
-  const lfb=t.closest('[data-dlf]');if(lfb){devUI.lf=lfb.dataset.dlf;renderDev();return;}
+  const lfb=t.closest('[data-dlf]');if(lfb){devUI.lf=lfb.dataset.dlf;scrollTopNext('dev','tl');renderDev();return;}
   const sg=t.closest('#dvForm .cx-seg2 button');
   if(sg){const g=sg.closest('.cx-seg2');g.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===sg));
     if(g.dataset.g==='dkind'){const k=sg.dataset.v;
@@ -6755,7 +6789,7 @@ $('#tab-dev').addEventListener('click',e=>{
 });
 $('#tab-dev').addEventListener('input',e=>{
   const t=e.target;
-  if(t.id==='dvQ'){devUI.q=t.value;clearTimeout(devUI.qT);devUI.qT=setTimeout(()=>{renderDev();const x=$('#dvQ');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length);}},200);return;}
+  if(t.id==='dvQ'){devUI.q=t.value;clearTimeout(devUI.qT);devUI.qT=setTimeout(()=>{scrollTopNext('dev','list');renderDev();const x=$('#dvQ');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length);}},200);return;}
   if(t.id==='dvDate')t.dataset.auto='';
   if(t.id==='dvPid'||t.id==='dvPidA'){const o=t.id==='dvPid'?$('#dvPidA'):$('#dvPid');if(o)o.value=t.value;}
   if(t.id==='dvBy'&&t.value==='__add'){
