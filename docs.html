@@ -26,6 +26,8 @@ main{flex:1;display:flex;min-height:0}
 .pg{margin:0 auto 14px;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.28)}
 .pg canvas{display:block;width:100%;height:100%}
 .zb{display:flex;align-items:center;gap:4px;margin-left:auto}
+@keyframes flashrow{0%{background:#ffe566;box-shadow:0 0 0 4px #ffe566}100%{background:transparent;box-shadow:0 0 0 4px transparent}}
+.flash{animation:flashrow 1.4s ease-out;border-radius:5px}
 #pvbar{display:flex;gap:8px;align-items:center;padding:8px 12px;background:#fff;border-bottom:1px solid var(--bd);flex-wrap:wrap}
 #pvmsg{color:var(--mu);font-size:12px}
 details{border:1px solid var(--bd);border-radius:8px;margin-bottom:10px;background:#fff}
@@ -78,7 +80,7 @@ footer{padding:6px 16px;color:var(--mu);font-size:11px;background:#fff;border-to
 <div id="form">
   <div class="warn" id="fontWarn"></div>
 
-  <details open>
+  <details open id="simpleSec">
     <summary>간단 입력 <span class="hint">이 칸만 채우면 나머지는 자동</span></summary>
     <div class="body">
       <div class="row"><label><b>*</b> 순응 단계</label><div class="inl"><label class="chk"><input type="radio" name="rxPhase" autocomplete="off" data-k="rxPhase" value="pre" checked> 순응 전 (순응기간 중)</label><label class="chk"><input type="radio" name="rxPhase" autocomplete="off" data-k="rxPhase" value="post"> 순응 후</label></div></div>
@@ -579,9 +581,8 @@ function buildPreviewDom(){
   if(anchor){const it=PV.items.find(x=>x.p===anchor.p);if(it)sc.scrollTop=it.el.offsetTop+anchor.off;}
 }
 /* 입력칸 하나가 서류의 어느 칸들에 들어가는지: 그 칸의 값만 바꿔 보고 달라지는 채움값을 찾는다 */
-function hlFor(el){
-  if(!el||!el.dataset||!el.dataset.k||!MFONT)return [];
-  const k=el.dataset.k, r0=raw(), V0=derive(r0), alts=[];
+function affectedKeys(el,r0,V0){
+  const k=el.dataset.k, alts=[];
   if(el.type==="checkbox")alts.push(!r0[k]);
   else if(el.type==="radio")document.querySelectorAll('input[name="'+el.name+'"]').forEach(o=>{if(o.value!==r0[k])alts.push(o.value);});
   else if(el.tagName==="SELECT")[...el.options].forEach(o=>{if(o.value!==r0[k])alts.push(o.value);});
@@ -590,11 +591,53 @@ function hlFor(el){
   const keys=new Set();
   for(const a of alts){const r1=Object.assign({},r0);r1[k]=a;const V1=derive(r1);
     for(const kk of Object.keys(Object.assign({},V0,V1))){if(kk.slice(0,2)==="__")continue;if(JSON.stringify(V0[kk])!==JSON.stringify(V1[kk]))keys.add(kk);}}
+  return keys;
+}
+function fieldBox(f){if(f.t!=="digits")return f.b;const B=f.boxes;
+  return [Math.min.apply(null,B.map(x=>x[0])),Math.min.apply(null,B.map(x=>x[1])),Math.max.apply(null,B.map(x=>x[2])),Math.max.apply(null,B.map(x=>x[3]))];}
+function hlFor(el){
+  if(!el||!el.dataset||!el.dataset.k||!MFONT)return [];
+  const r0=raw(), keys=affectedKeys(el,r0,derive(r0));
   const pages=selectedPages(), out=[], seen=new Set();
   for(const f of FIELDS){if(f.t==="white"||!keys.has(f.k)||!pages.has(f.p))continue;
-    let b=f.b; if(f.t==="digits"){const B=f.boxes;b=[Math.min.apply(null,B.map(x=>x[0])),Math.min.apply(null,B.map(x=>x[1])),Math.max.apply(null,B.map(x=>x[2])),Math.max.apply(null,B.map(x=>x[3]))];}
-    const id=f.p+":"+b.join(",");if(seen.has(id))continue;seen.add(id);out.push({p:f.p,b});}
+    const b=fieldBox(f); const id=f.p+":"+b.join(",");if(seen.has(id))continue;seen.add(id);out.push({p:f.p,b});}
   return out;
+}
+/* 서류의 칸을 눌렀을 때: 그 자리(쪽, x, y)에 있는 칸들을 작은 것부터 */
+function fieldsAt(p,x,y){
+  const pad=2.5, hit=[];
+  for(const f of FIELDS){if(f.p!==p||f.t==="white")continue;const b=fieldBox(f);
+    if(x>=b[0]-pad&&x<=b[2]+pad&&y>=b[1]-pad&&y<=b[3]+pad)hit.push({f,a:(b[2]-b[0])*(b[3]-b[1])});}
+  hit.sort((u,v)=>u.a-v.a); return hit.map(h=>h.f);
+}
+/* 그 칸을 채우는 입력칸 찾기: 그 칸에만 쓰이는(가장 적은 칸을 바꾸는) 입력칸을 먼저, 같으면 값이 있는 것·간단 입력·위쪽 순.
+   계약서 '을 성명'처럼 보호자가 없으면 환자 이름이 들어가는 칸은 환자 성명으로 보낸다. */
+const PREFER_INPUT={signerName:"name"};
+const AK={sig:null,map:null};   /* 입력값이 그대로면 다시 계산하지 않는다 */
+function inputForField(f){
+  const r0=raw(), sig=JSON.stringify(r0), seen=new Set(), simple=$("simpleSec"); let best=null, idx=0, V0=null;
+  if(AK.sig!==sig){AK.sig=sig;AK.map=new Map();}
+  document.querySelectorAll("#form [data-k]").forEach(el=>{
+    const k=el.dataset.k; idx++; if(seen.has(k))return; seen.add(k);
+    let keys=AK.map.get(k); if(!keys){if(!V0)V0=derive(r0);keys=affectedKeys(el,r0,V0);AK.map.set(k,keys);}
+    if(!keys.has(f.k))return;
+    let n=0; for(const g of FIELDS){if(g.t!=="white"&&keys.has(g.k))n++;}
+    if(PREFER_INPUT[f.k]===k)n=-1;
+    const filled=(el.type==="checkbox"||el.type==="radio"||el.tagName==="SELECT"||el.value)?0:1;
+    const c={el,n,filled,adv:simple&&simple.contains(el)?0:1,idx};
+    if(!best||c.n<best.n||(c.n===best.n&&(c.filled<best.filled||(c.filled===best.filled&&(c.adv<best.adv||(c.adv===best.adv&&c.idx<best.idx))))))best=c;
+  });
+  if(!best)return null;
+  let el=best.el; if(el.type==="radio"){const on=document.querySelector('input[name="'+el.name+'"]:checked');if(on)el=on;}
+  return el;
+}
+function goToInput(el){
+  for(let d=el.parentElement;d;d=d.parentElement){if(d.tagName==="DETAILS")d.open=true;}   /* 접힌 상세 입력을 펼친다 */
+  const row=el.closest(".row")||el.closest("label")||el;
+  try{el.focus({preventScroll:true});}catch(e){el.focus();}
+  try{row.scrollIntoView({block:"center",behavior:"smooth"});}catch(e){row.scrollIntoView();}
+  row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash");
+  if(el.select&&(el.type==="text"||el.type==="search"))try{el.select();}catch(e){}
 }
 /* 노란 네모가 화면에 하나도 안 보일 때만 가장 가까운 것으로 옮긴다. 값을 고치는 동안에는 움직이지 않는다. */
 function showHl(){
@@ -614,7 +657,7 @@ function refresh(){
   const missing=new Set(); PV.ops={}; pages.forEach(p=>{PV.ops[p]=layout(V,p,missing);});
   PV.hl=PV.hlEl?hlFor(PV.hlEl):[];
   paintAll();
-  $("pvmsg").textContent=pages.size?`${pages.size}쪽 미리보기`:"출력할 서류를 선택하세요.";
+  $("pvmsg").textContent=pages.size?`${pages.size}쪽 미리보기 · 서류의 칸을 누르면 입력칸으로 갑니다`:"출력할 서류를 선택하세요.";
   const fw=$("fontWarn"); if(missing.size){fw.style.display="block";fw.textContent="폰트에 없는 글자라 □로 표시됩니다: "+[...missing].join(" ");}else fw.style.display="none";
 }
 function schedule(){clearTimeout(timer);timer=setTimeout(refresh,120);}
@@ -637,6 +680,12 @@ async function ensureFresh(){
   form.addEventListener("focusin",e=>{const el=e.target;if(!el||!el.dataset||!el.dataset.k)return;PV.hlEl=el;PV.hl=hlFor(el);paintAll();if($("followHl").checked)showHl();});
   try{if(localStorage.getItem("sumgilDocs.follow")==="0")$("followHl").checked=false;}catch(e){}
   $("followHl").addEventListener("change",()=>{try{localStorage.setItem("sumgilDocs.follow",$("followHl").checked?"1":"0");}catch(e){}});
+  /* 미리보기의 칸을 누르면 그 칸을 채우는 왼쪽 입력칸으로 간다 */
+  const hitOf=e=>{const cv=e.target;if(!cv||cv.tagName!=="CANVAS")return null;const it=PV.items.find(x=>x.cv===cv);if(!it)return null;
+    const rc=cv.getBoundingClientRect(), k=rc.width/PAGE_SIZES[it.p-1][0];return {p:it.p,x:(e.clientX-rc.left)/k,y:(e.clientY-rc.top)/k};};
+  $("pvPages").addEventListener("click",e=>{const h=hitOf(e);if(!h)return;
+    for(const f of fieldsAt(h.p,h.x,h.y)){const el=inputForField(f);if(el){goToInput(el);return;}}});
+  $("pvPages").addEventListener("mousemove",e=>{const h=hitOf(e);if(!h)return;e.target.style.cursor=fieldsAt(h.p,h.x,h.y).length?"pointer":"default";});
   form.addEventListener("focusout",()=>{setTimeout(()=>{const ae=document.activeElement;if(ae&&ae.dataset&&ae.dataset.k&&form.contains(ae))return;PV.hlEl=null;PV.hl=[];paintAll();},0);});
 })();
 function fileName(){const n=$("name").value.trim()||"환자";const d=($("docDate").value||$("contractStart").value||isoToday()).replace(/-/g,"");return `${n}_${$("coName").value.trim()===DEF.coName?"숨길":""}양압기서류_${d}.pdf`;}
