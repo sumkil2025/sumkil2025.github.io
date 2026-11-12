@@ -847,7 +847,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.09.4';
+const APP_VERSION='2026.11.09.5';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -5084,6 +5084,7 @@ function docsPayload(p,opt){
   else{d.pMin=pr[0]||'';d.pMax=pr[1]||pr[0]||'';}
   if(p.ahi!=null&&String(p.ahi).trim()!=='')d.ahi=String(p.ahi).trim();
   d.payMethod=p.payMethod==='card'?'CARD':'CMS';
+  d.insType=p.insureType||'IB';if(d.insType==='MC')d.payMethod='';   /* 보험자격을 서류 창에 넘긴다 — 서류 창이 의료급여 서식·본인부담을 맞춘다. 의료급여는 본인부담이 없어 결제방법은 비운다 */
   if(p.docName)d.doctor=p.docName;
   if(p.hospital&&/의원|병원|클리닉|센터/.test(p.hospital))d.hospital=p.hospital;   /* LMTS의 짧은 이름('상쾌한')은 서류 프리셋을 덮지 않음 */
   if(p.staff&&!/^[A-Za-z]\d+$/.test(p.staff))d.staffName=p.staff;              /* 'E001' 같은 LMTS 코드는 제외 */
