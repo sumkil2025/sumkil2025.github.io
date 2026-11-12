@@ -848,7 +848,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.12.1';
+const APP_VERSION='2026.11.12.2';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -2943,6 +2943,8 @@ $('#btnDocsNew').onclick=()=>openDocs(null,{phase:'pre'});
    · 주소에는 **번호만** 싣는다 — 차트번호(c)와 내부 번호(i). 이름·주민번호·연락처는 싣지 않는다.
    · 서류보관함은 번호 둘이 모두 맞을 때만 바로 열고, 아니면 그쪽 화면에서 사람에게 묻는다. */
 const DOCBOX='http://localhost:5180';
+/* 서류보관함 설치 파일(늘 가장 새 판). 받은 파일을 실행하면 이 윈도우 계정에 설치되고, 그 뒤로는 프로그램이 스스로 새 판을 받는다 */
+const DOCBOX_SETUP='https://sumkil2025.github.io/docbox/SumgilDocBox-Setup.exe';
 let docboxBusy=false;
 /* 크롬이 '이 사이트 → 이 PC의 프로그램' 연결을 어떻게 해 두었는지: granted | denied | prompt | unknown(모르는 브라우저) */
 async function docboxPermission(){
@@ -2951,6 +2953,21 @@ async function docboxPermission(){
     try{const st=await navigator.permissions.query({name});if(st&&st.state)return st.state;}catch(e){}
   }
   return 'unknown';
+}
+/* 연결하지 못했을 때의 안내 창: [닫기] · [새 탭으로 열기] · [서류보관함 내려받기](설치 파일) */
+function docboxHelp(body){
+  return dlgQueue((finish,mark)=>{
+    $('#dlgHost').innerHTML=`<div class="modalBack" id="dbBack" data-mark="${mark}" style="z-index:70"><div class="modal" style="width:520px">
+      <h3>📁 서류보관함에 연결하지 못했습니다</h3>
+      <div style="white-space:pre-wrap;font-size:.85rem;line-height:1.7">${esc(body)}</div>
+      <div class="actions"><button class="btn" id="dbNo">닫기</button><button class="btn" id="dbTab">새 탭으로 열기</button>
+      <a class="btn primary" id="dbGet" href="${DOCBOX_SETUP}" download style="text-decoration:none">⬇ 서류보관함 내려받기</a></div></div></div>`;
+    const done=v=>{$('#dlgHost').innerHTML='';finish(v);};
+    $('#dbNo').onclick=()=>done(false);
+    $('#dbTab').onclick=()=>done(true);
+    $('#dbGet').onclick=()=>setTimeout(()=>done(false),300);   /* 내려받기가 시작되게 두고 창을 닫는다 */
+    $('#dbBack').onclick=e=>{if(e.target.id==='dbBack')done(false);};
+  });
 }
 async function openDocbox(p){
   if(!p||docboxBusy)return;docboxBusy=true;
@@ -2967,11 +2984,11 @@ async function openDocbox(p){
     const perm=await docboxPermission();
     /* 프로그램이 꺼져 있는지, 크롬이 막았는지는 여기서 가려낼 수 없다(막혀 있어도 꺼져 있을 수 있다) → 가능성이 큰 것부터 둘 다 알려 준다 */
     const body='이 PC의 [숨길이 서류보관함] 프로그램에 연결하지 못했습니다.\n\n'
-      +'① 서류보관함이 켜져 있나요?\n   바탕화면의 [숨길이 서류보관함]을 실행한 뒤 다시 📁 를 눌러 주세요.\n   (켜져 있으면 화면 오른쪽 아래 시계 옆에 작은 폴더 아이콘이 보입니다. 아직 설치하지 않은 PC라면 먼저 설치해야 합니다.)'
+      +'① 서류보관함이 켜져 있나요?\n   바탕화면의 [숨길이 서류보관함]을 실행한 뒤 다시 📁 를 눌러 주세요.\n   (켜져 있으면 화면 오른쪽 아래 시계 옆에 작은 폴더 아이콘이 보입니다.)\n   아직 설치하지 않은 PC라면 아래 [서류보관함 내려받기]로 받아서 실행하세요.\n   (받은 파일을 열 때 파란 "Windows의 PC 보호" 창이 뜨면 [추가 정보] → [실행])'
       +(perm==='denied'?'\n\n② 크롬에서 이 사이트의 "로컬 네트워크 액세스"가 [차단]으로 되어 있습니다.\n   주소창 왼쪽의 아이콘(사이트 정보)을 눌러 [허용]으로 바꾸거나, 아래 [새 탭으로 열기]를 누르세요.'
         :perm==='granted'?''
         :'\n\n② 방금 크롬이 "이 기기의 프로그램에 연결"을 물었을 때 [차단]을 누르셨나요?\n   그렇다면 아래 [새 탭으로 열기]를 눌러 보세요.');
-    const go=await confirmModal('📁 서류보관함에 연결하지 못했습니다',body,'새 탭으로 열기',false,'확인');
+    const go=await docboxHelp(body);
     if(go){
       const w=window.open(`${DOCBOX}/open#${q}`,'sumgilDocbox');   /* 징검다리 탭: 서류보관함 창을 앞으로 낸 뒤 스스로 닫힌다 */
       if(!w)showMsg('📁 서류함','새 탭이 막혔습니다. 주소창 오른쪽의 팝업 차단 표시를 눌러 허용해 주세요.');
@@ -7081,7 +7098,8 @@ function renderLabBox(){
     <div class="labitem${labOn('docbox')?'':' off'}"><button class="tog${labOn('docbox')?' on':''}" id="labDocboxTog" title="${labOn('docbox')?'끄기':'켜기'}"></button>
       <div><div class="ttl">📁 서류함 <span class="badge lab">시험 중</span></div>
       <div class="ds">이 PC의 <b>숨길이 서류보관함</b> 프로그램과 잇습니다. 켜면 환자 표와 환자 차트에 📁 버튼이 생기고, 누르면 서류보관함에서 그 환자가 바로 열립니다(스캔한 처방전·계약서·사용 보고서를 보고 넣는 곳). 서류보관함 프로그램이 이 PC에 켜져 있어야 합니다. 꺼도 서류는 서류보관함에 그대로 있습니다.
-        ${labOn('docbox')?'<br>환자 명단은 [환자 관리] 위쪽의 <b>📁 서류함 명단 내보내기</b>로 파일을 받아, 서류보관함의 [명단 가져오기]에서 고르면 한꺼번에 맞춰집니다.':''}</div></div></div>
+        ${labOn('docbox')?'<br>환자 명단은 [환자 관리] 위쪽의 <b>📁 서류함 명단 내보내기</b>로 파일을 받아, 서류보관함의 [명단 가져오기]에서 고르면 한꺼번에 맞춰집니다.':''}
+        <br><a href="${DOCBOX_SETUP}" download>⬇ 서류보관함 프로그램 내려받기</a> <span class="hint">— 이 PC에 아직 없으면 받아서 실행하세요(파란 "PC 보호" 창이 뜨면 [추가 정보] → [실행]). 한 번 설치하면 새 판은 저절로 받습니다.</span></div></div></div>
     <div class="snote">지금 저장된 상담·점검 기록 <b>${nN}건</b> · 변경 이력 <b>${nH}건</b> — 지금 자료와 같은 곳에 암호화되어 저장되고 💾 백업 파일에도 들어갑니다.<br>
       새 판이 나와도 실험실 기록은 그대로 이어집니다(지우지 않고 칸만 늘림).
       ${state.settings.labs.barOff?' <button class="btn sm" id="labBarOn">차트 위 안내 줄 다시 보기</button>':''}</div>
