@@ -848,7 +848,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.12.2';
+const APP_VERSION='2026.11.12.3';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -2969,11 +2969,52 @@ function docboxHelp(body){
     $('#dbBack').onclick=e=>{if(e.target.id==='dbBack')done(false);};
   });
 }
+/* 화면 아래에 잠깐 뜨는 알림(서류함 일에만 쓴다). ms 를 주면 그 뒤에 사라지고, 안 주면 다음 알림이 올 때까지 남는다. 빈 글이면 지운다. */
+let docboxNoteTimer=null;
+function docboxNote(text,ms){
+  let el=document.getElementById('docboxNote');
+  if(!text){if(el)el.remove();return;}
+  if(!el){el=document.createElement('div');el.id='docboxNote';
+    el.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:90;background:#1f2937;color:#fff;padding:10px 18px;border-radius:999px;font-size:.88rem;box-shadow:0 6px 24px rgba(0,0,0,.28);max-width:92vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none';
+    document.body.appendChild(el);}
+  el.textContent=text;clearTimeout(docboxNoteTimer);
+  if(ms)docboxNoteTimer=setTimeout(()=>{const e=document.getElementById('docboxNote');if(e)e.remove();},ms);
+}
+/* 📁 를 누를 때마다 환자 명단을 서류보관함에 보낸다 → 서류보관함이 새 환자를 등록하고, 달라진 환자(이름 · 차트번호 · 계약 · 기기 구간 …)를 고친다.
+   보내는 것은 [서류함 명단 내보내기]와 같은 명단이다(주민번호 뒷자리 · 연락처 · 주소 없음). 이 PC 안의 프로그램으로만 간다.
+   못 보내도 환자 열기는 한다(그때는 서류보관함의 [명단 가져오기]로 맞출 수 있다). */
+let docboxCheckSeen=0;   /* '확인이 필요한 환자' 수를 마지막으로 알린 값(누를 때마다 같은 말을 되풀이하지 않게) */
+async function docboxSendRoster(){
+  let slow=null,busyShown=false;
+  try{
+    const {roster}=docboxRosterData();
+    if(!roster.patients.length)return;
+    /* 금방 끝나면(보통 그렇다) 결과만 알리고, 오래 걸리면(처음 한꺼번에 등록할 때) '등록하는 중'을 띄워 둔다 */
+    slow=setTimeout(()=>{busyShown=true;docboxNote('📁 서류보관함에 환자를 등록하는 중…');},300);
+    const r=await fetch(`${DOCBOX}/api/chart/roster`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(roster),cache:'no-store'});
+    const b=await r.json().catch(()=>({}));
+    clearTimeout(slow);slow=null;
+    if(r.ok){
+      const parts=[];
+      if(b.created)parts.push(`새 환자 ${b.created}명 등록`);
+      if(b.updated)parts.push(`${b.updated}명 고침`);
+      /* 차트번호만 같은 환자 · 번호가 엇갈린 환자는 저절로 넘기지 않는다 — 그 환자의 📁 를 누르면 서류보관함이 묻는다 */
+      if(b.check&&(parts.length||b.check!==docboxCheckSeen))parts.push(`확인이 필요한 ${b.check}명은 그 환자의 📁 를 누를 때 묻습니다`);
+      docboxCheckSeen=b.check||0;
+      if(parts.length)docboxNote('📁 서류보관함: '+parts.join(' · '),6000);
+      else if(busyShown)docboxNote('');   /* 달라진 것이 없으면 조용히(앞서 띄운 결과 알림은 그대로 둔다) */
+    }else docboxNote('📁 서류보관함에 명단을 보내지 못했습니다'+(b.error?': '+b.error:''),6000);
+  }catch(e){clearTimeout(slow);if(busyShown)docboxNote('');}
+}
 async function openDocbox(p){
   if(!p||docboxBusy)return;docboxBusy=true;
   const q=`c=${encodeURIComponent(p.mgmtCode||'')}&i=${encodeURIComponent(p.id)}`;
   try{
     /* 크롬이 처음 한 번 "이 사이트가 이 기기의 프로그램에 연결하려고 합니다"를 묻는다 → [허용]하면 그 뒤로는 바로 열린다 */
+    /* ① 켜져 있는지 묻는다(못 이으면 아래 catch 로) → ② 명단을 받는 판이면 환자 명단을 보내 등록 → ③ 그 환자 열기 */
+    const h=await fetch(`${DOCBOX}/api/health`,{cache:'no-store'});
+    const hb=h.ok?await h.json().catch(()=>({})):{};
+    if(hb.chartRoster)await docboxSendRoster();
     const r=await fetch(`${DOCBOX}/api/open?${q}`,{cache:'no-store'});
     if(r.ok)return;
     const b=await r.json().catch(()=>({}));
@@ -7098,7 +7139,7 @@ function renderLabBox(){
     <div class="labitem${labOn('docbox')?'':' off'}"><button class="tog${labOn('docbox')?' on':''}" id="labDocboxTog" title="${labOn('docbox')?'끄기':'켜기'}"></button>
       <div><div class="ttl">📁 서류함 <span class="badge lab">시험 중</span></div>
       <div class="ds">이 PC의 <b>숨길이 서류보관함</b> 프로그램과 잇습니다. 켜면 환자 표와 환자 차트에 📁 버튼이 생기고, 누르면 서류보관함에서 그 환자가 바로 열립니다(스캔한 처방전·계약서·사용 보고서를 보고 넣는 곳). 서류보관함 프로그램이 이 PC에 켜져 있어야 합니다. 꺼도 서류는 서류보관함에 그대로 있습니다.
-        ${labOn('docbox')?'<br>환자 명단은 [환자 관리] 위쪽의 <b>📁 서류함 명단 내보내기</b>로 파일을 받아, 서류보관함의 [명단 가져오기]에서 고르면 한꺼번에 맞춰집니다.':''}
+        ${labOn('docbox')?'<br>📁 를 누르면 <b>환자 명단이 서류보관함으로 저절로 넘어가</b> 새 환자가 등록됩니다(화면 아래에 "등록하는 중"이 잠깐 보입니다). 예전 판의 서류보관함이면 [환자 관리] 위쪽의 <b>📁 서류함 명단 내보내기</b>로 파일을 받아 서류보관함의 [명단 가져오기]에서 고릅니다.':''}
         <br><a href="${DOCBOX_SETUP}" download>⬇ 서류보관함 프로그램 내려받기</a> <span class="hint">— 이 PC에 아직 없으면 받아서 실행하세요(파란 "PC 보호" 창이 뜨면 [추가 정보] → [실행]). 한 번 설치하면 새 판은 저절로 받습니다.</span></div></div></div>
     <div class="snote">지금 저장된 상담·점검 기록 <b>${nN}건</b> · 변경 이력 <b>${nH}건</b> — 지금 자료와 같은 곳에 암호화되어 저장되고 💾 백업 파일에도 들어갑니다.<br>
       새 판이 나와도 실험실 기록은 그대로 이어집니다(지우지 않고 칸만 늘림).
