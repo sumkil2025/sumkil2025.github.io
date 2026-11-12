@@ -848,7 +848,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.13.1';
+const APP_VERSION='2026.11.13.2';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -1564,6 +1564,10 @@ function todoOf(r){
   if(c.dayWarn)need.push('구간 일수 초과');
   if(p.rxChangePending)need.push(`압력 변경 감지(${p.rxChangePending.from||'?'}→${p.rxChangePending.to||'?'}) — 재처방일 입력`);
   if(isNoName(p))miss.push('성명 (LMTS 고객정보에 이름 없음 — 환자 관리에서 입력)');
+  {const px=proxyState(p);
+    if(px.k==='expired')need.push(`청구 위임 만료(${px.e}) — 새 위임장`);
+    else if(px.k==='soon')need.push(`청구 위임 만료 임박(D-${px.days} · ${px.e})`);
+    if(px.k!=='none'&&px.k!=='expired'&&!px.ok)need.push('청구 위임 공단 승인 미확인');}
   if(c.units.length>1){const cas=c.units.map(x=>uGet(ov,x.k,'cashApprove'));if(cas.every(Boolean)&&new Set(cas).size===1)need.push('현금영수증 월 합산 1장');}
   if(digits(p.rrn).length!==13)miss.push(digits(p.rrn).length===6?'주민번호 뒷자리 7자리 (세금계산서 공급받는자 번호)':'주민번호 13자리 (세금계산서 공급받는자 번호)');
   if(!p.docName&&!p.doctor)miss.push('의사 (처방의 — 환자 수정 또는 LMTS 고객정보)');
@@ -1950,6 +1954,22 @@ function setClaimed(ym,p,k,on){
   uSet(ym,p.id,k,{claimed:fd(new Date()),snap:u?claimSnapshot(p,ym,ov,c,u):null});
 }
 /* ===== 공단 청구 입력 보조창 — 값 클릭 = 복사 (k: 구간 번호, 0=단일) ===== */
+/* 요양비 지급청구 위임(시행규칙 별지 제19호의7서식): 업체가 공단에 직접 청구하려면 위임장(+신분증 사본)을 공단에 내고 승인을 확인해야 한다.
+   위임기간은 최장 5년이고, 끝나면 자동 해지되어 새 위임장을 받아야 한다(서식 작성방법 ⑤). 근거: 원무 지식창고 검증본 '업체 대리청구 단계별 첨부서류'(2026-11-12).
+   proxyStart 위임 시작일 · proxyEnd 만료일(비우면 시작+5년-1일) · proxyOk 공단 승인을 확인한 날(비우면 미확인).
+   k: none 아직 적지 않음 · expired 만료됨 · soon 만료가 60일 안 · unconfirmed 승인 미확인 · ok */
+const PROXY_SOON=60;
+const proxyEndOf=s=>{const d=pd(s);d.setFullYear(d.getFullYear()+5);d.setDate(d.getDate()-1);return fd(d);};
+function proxyState(p,today){
+  today=today||fd(new Date());
+  const s=p.proxyStart||'',e=p.proxyEnd||(s?proxyEndOf(s):'');
+  if(!s&&!e)return {k:'none',s:'',e:'',days:null,ok:!!p.proxyOk};
+  const days=e?Math.round((pd(e)-pd(today))/86400000):null;
+  return {k:(e&&e<today)?'expired':(days!=null&&days<=PROXY_SOON)?'soon':(!p.proxyOk?'unconfirmed':'ok'),s,e,days,ok:!!p.proxyOk};
+}
+/* 전자처방전: 의사가 처방전을 공단 정보통신망으로 보냈으면 청구서에 등록번호를 적고 종이 처방전 첨부를 생략한다(시행규칙 제23조⑤1가 · 청구서 ⑤란).
+   등록번호(rxRegNo)는 그것을 적을 때의 처방전(rxRegFor = 그 처방 시작일)에만 쓴다 — 재처방으로 처방전이 바뀌면 옛 번호를 새 처방전에 쓰지 않는다. */
+const rxRegOf=(p,rxStart)=>(p.rxRegNo&&p.rxRegFor&&rxStart&&p.rxRegFor===rxStart)?p.rxRegNo:'';
 /* 공단 청구 입력창(📋)의 [제출서류첨부] — 국세청자료 표 아래 오른쪽(공단 화면의 같은 자리). 실험실의 서류함 연동을 켰을 때만.
    누르면 서류보관함이 그 청구에 낼 서류를 작은 창(늘 위에 뜨는 창)으로 띄운다 → 거기서 요양기관정보마당의 첨부 칸으로 끌어다 놓는다.
    어떤 청구인가: 순응중 구간 = pre · 순응통과일이 든 순응후 구간(순응 후 첫 청구) = pass · 그 뒤의 순응후 구간 = post.
@@ -1960,7 +1980,7 @@ function docboxClaimKind(p,u){
   return (p.passDate&&!p.passDateEst&&u.s&&u.e&&p.passDate>=u.s&&p.passDate<=u.e)?'pass':'post';
 }
 /* [제출서류첨부]에 실어 보내는 차트의 판단 — 서류보관함이 '이번 청구에 낼 것'을 가리는 데 쓴다(검증본: 업체 대리청구 단계별 첨부서류 2026-11-12, 시행규칙 제23조⑤).
-   rx   이 처방전으로 앞서 청구해 공단부담금 입금까지 확인됐으면 paid(생략) · 청구 완료만 있으면 claimed(지급 여부 확인) ·
+   rx   이 처방전으로 앞서 청구해 공단부담금 입금까지 확인됐으면 paid(생략) · 전자처방전 등록번호를 적어 둔 처방전이면 e(생략) · 청구 완료만 있으면 claimed(지급 여부 확인) ·
         같은 처방전의 앞 구간은 있는데 청구 완료 표시가 없거나, 차트에 앞 달 자료가 없으면 unknown(낸다 — 이미 냈으면 뺀다) · 그 처방전의 첫 청구면 new(낸다)
    ct   계약한 달(계약 시작일이 이 구간에 든다)이면 1, 아니면 0  — 계약 내용이 바뀐 달은 차트가 알 수 없어 서류보관함에서 사람이 체크한다
    pay  그 달의 결제 방식: card 면 카드매출전표를 낸다
@@ -1981,7 +2001,7 @@ function docboxClaimHints(p,u,ym){
         else if(cl&&x.snap&&x.snap.pat&&x.snap.pat.device==='이중형')bipapBefore=true;
       }
     }
-    out.rx=paid?'paid':claimed?'claimed':same>0?'unknown':(!earlier&&p.rentStart&&p.rentStart<first&&rx.s&&rx.s<first)?'unknown':'new';
+    out.rx=paid?'paid':rxRegOf(p,rx.s)?'e':claimed?'claimed':same>0?'unknown':(!earlier&&p.rentStart&&p.rentStart<first&&rx.s&&rx.s<first)?'unknown':'new';
     out.ct=(p.rentStart&&u.s&&u.e&&p.rentStart>=u.s&&p.rentStart<=u.e)?'1':'0';
     out.pay=(ov.payMethod||p.payMethod)==='card'?'card':'cash';
     const device=(u.frozen&&u.snap&&u.snap.pat&&u.snap.pat.device)||p.device;
@@ -2072,7 +2092,7 @@ function openClaimView(pid,k){
     <div class="cvh1">양압기 상세내역</div>
     <div class="cvsec">처방정보</div>
     <div class="cv3">
-      ${item('처방전등록번호','')}${item('처방전발행일',dot(rxS))}${item('처방구분',rxKind,rxKind)}
+      ${item('처방전등록번호',rxRegOf(p,rxS))}${item('처방전발행일',dot(rxS))}${item('처방구분',rxKind,rxKind)}
       ${raw('처방기간',range(rxS,rxE))}${item('양압기 종류',devLabel,devLabel)}${item('직전 처방기간 평균 사용시간','')}
       ${item('상병',`${cl.sickCode||''} ${cl.sickName||''}`.trim(),cl.sickCode)}${raw('상세항목',detailHtml)}${item('마스크 최초지급월',firstMask?dot(firstMask):'')}
       ${item('의사면허번호/의사명',docLic?`${docLic} ${docName}`:docName,docLic||docName)}${item('요양기관',`${cl.hospCode||''} ${p.hospital||cl.hospName||''}`.trim(),cl.hospCode)}${item('진료구분','')}
@@ -2111,6 +2131,24 @@ function openClaimView(pid,k){
       <tr><td>1</td><td>전자세금계산서</td><td>${taxDate?`${chip(dot(taxDate),dot(taxDate))}${taI&&taI!==taxDate?`<span class="hint"> (발급 ${dot(taI)})</span>`:''}`:'<span class="cvv empty">—</span><span class="hint"> LMTS 세금계산서내역 대사 또는 홈택스 목록 가져오기</span>'}${dateBtn('tax')}</td><td>${ta?chip(ta,ta):'<span class="cvv empty">승인번호 없음</span>'}${appBtns('tax',ta)}</td><td class="num">${chip(won(u.gong),u.gong)}</td></tr>
       <tr><td>2</td><td>현금영수증${caSum?' <span class="badge warn" title="구간별로 2장 발행해야 합니다">⚠️ 월 합산 1장</span>':''}</td>${card?`<td colspan="2"><span class="cvv empty">카드 결제 — 현금영수증 해당 없음</span></td>`:`<td>${caD?chip(dot(caD),dot(caD)):'<span class="cvv empty">—</span><span class="hint"> 홈택스 발급결과 상세조회 파일의 거래일시</span>'}${dateBtn('cash')}</td><td>${ca?chip(ca,ca):`<span class="cvv empty">승인번호 없음</span><span class="hint"> 홈택스 매출내역(현금영수증) 가져오기 — 본인부담 ${won(u.bonin)}원 · 연락처/주민번호 뒤4자리로 자동 매칭</span>`}${appBtns('cash',ca)}</td>`}<td class="num">${chip(won(caSum?c.bonin:u.bonin),caSum?c.bonin:u.bonin)}</td></tr>
       </tbody></table></div>`;})()}
+    ${(()=>{
+      /* 청구 전 확인 — ① 위임(만료 · 승인) ② 증빙: 전자세금계산서 · 현금영수증은 승인번호 · 작성(거래)일 · 합계금액을 모두 적어야 첨부를 생략한다(시행규칙 제23조⑤2).
+         빠진 것이 있으면 번호를 넣거나 그 서류 파일을 붙여야 한다. 카드 결제는 카드매출전표를 붙인다(생략 대상이 아니다). */
+      const px=proxyState(PP),card=(ov.payMethod||p.payMethod)==='card',warn=[],ok=[];
+      if(px.k==='none')ok.push('<span class="hint">위임 등록일 미입력 — 환자 수정에서 적으면 만료를 알려 줍니다</span>');
+      else if(px.k==='expired')warn.push(`청구 위임이 <b>${dot(px.e)}에 만료</b>됐습니다 — 새 위임장을 받아 공단에 등록하세요`);
+      else{
+        if(px.k==='soon')warn.push(`청구 위임 만료 <b>D-${px.days}</b> (${dot(px.e)}) — 계속 청구하려면 새 위임장`);
+        if(!px.ok)warn.push('청구 위임의 <b>공단 승인을 아직 확인하지 않았습니다</b> — 요양기관정보마당에서 확인 뒤 환자 수정에 확인일을 적으세요');
+        if(px.k==='ok')ok.push(`<span style="color:var(--green)">위임 ${dot(px.s)} ~ ${dot(px.e)} · 승인 확인 ✓</span>`);
+      }
+      const taxDate2=taD||taI;
+      if(u.gong>0&&!(ta&&taxDate2))warn.push(`전자세금계산서의 <b>${[ta?'':'승인번호',taxDate2?'':'작성일자'].filter(Boolean).join(' · ')}</b>가 없습니다 — 넣거나 세금계산서 파일을 첨부하세요`);
+      if(u.bonin>0&&card)ok.push('<span class="hint">카드 결제 — 카드매출전표를 첨부합니다(생략 대상 아님)</span>');
+      else if(u.bonin>0&&!(ca&&caD))warn.push(`현금영수증의 <b>${[ca?'':'승인번호',caD?'':'거래일'].filter(Boolean).join(' · ')}</b>${caD?'가':'이'} 없습니다 — 넣거나 현금영수증 파일을 첨부하세요`);
+      if(!warn.length&&!ok.length)return '';
+      return `<div class="noprint" id="cvPre" style="margin:8px 0 0;padding:8px 10px;border-radius:8px;font-size:.82rem;line-height:1.7;background:${warn.length?'#fff3e0':'#f6f8fb'};color:${warn.length?'#b45309':'var(--muted)'}">
+        ${warn.map(x=>`<div>⚠️ ${x}</div>`).join('')}${ok.length?`<div>${ok.join(' · ')}</div>`:''}</div>`;})()}
     ${labOn('docbox')?`<div class="noprint" style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin:8px 0 2px;font-size:.84rem">
       <span id="cvDocState" data-key="${esc(p.id)}|${docboxClaimKind(p,u)}|${ym}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end"></span>
       <button class="btn" id="cvDocbox" style="border-color:var(--navy);color:var(--navy);font-weight:700" title="이 청구(${DOCBOX_KIND[docboxClaimKind(p,u)]})에 낼 서류가 작은 창으로 바로 뜹니다 — 그 창에서 요양기관정보마당 요양비청구등록의 첨부 칸으로 끌어다 놓으세요">📎 제출서류첨부 <small style="font-weight:400">${DOCBOX_KIND[docboxClaimKind(p,u)]}</small></button></div>`:''}
@@ -2698,6 +2736,10 @@ function openPatModal(id,src){
       <div><label>PSG 검사일</label><input type="date" id="f_psg" value="${p.psgDate||''}"></div>
       <div><label>PSG AHI <span style="font-weight:400">(서류 등록신청서 검사결과 ✓)</span></label><input id="f_ahi" value="${esc(p.ahi||'')}" placeholder="예: 32.5"></div>
       <div><label>진료예정일 <span style="font-weight:400">(재처방 방문 예정)</span></label><input type="date" id="f_nv" value="${p.nextVisit||''}"></div>
+      <div><label>요양비 청구 위임 시작일 <span style="font-weight:400">(위임장의 위임기간 — 공단에 위임을 등록한 날부터)</span></label><input type="date" id="f_pxS" value="${p.proxyStart||''}"></div>
+      <div><label>위임 만료일 <span style="font-weight:400">(비우면 시작일부터 5년 — 최장 5년, 지나면 새 위임장)</span></label><input type="date" id="f_pxE" value="${p.proxyEnd||''}"></div>
+      <div><label>위임 공단 승인 확인일 <span style="font-weight:400">(요양기관정보마당에서 승인을 확인한 날 — 비우면 미확인)</span></label><input type="date" id="f_pxOk" value="${p.proxyOk||''}"></div>
+      <div><label>전자처방전 등록번호 <span style="font-weight:400">(의사가 공단에 전산으로 보낸 처방전만 — 적으면 종이 처방전 첨부를 생략. 지금 처방전의 번호)</span></label><input id="f_rxReg" value="${esc(p.rxRegNo||'')}" placeholder="종이 처방전이면 비워 둠"></div>
       <div><label>임대 병원</label><input id="f_hospital" value="${esc(p.hospital||'')}"></div>
       <div><label>의사 프리셋 선택</label><select id="f_docSel">
         <option value="">직접 입력</option>
@@ -2780,6 +2822,11 @@ function openPatModal(id,src){
     rxcList.sort((a,b)=>a.date<b.date?-1:1);
     const rrn=digits($('#f_rrn').value);
     if(rrn&&rrn.length!==13&&rrn.length!==6){showMsg('입력 확인','주민등록번호는 13자리(또는 앞 6자리만)여야 합니다.');return;}
+    /* 요양비 청구 위임: 만료일을 비우면 시작+5년(최장). 5년을 넘기거나 시작보다 앞이면 받지 않는다 */
+    const pxS=$('#f_pxS').value||null,pxE=$('#f_pxE').value||(pxS?proxyEndOf(pxS):null),pxOk=$('#f_pxOk').value||null;
+    if(pxS&&pxE&&pxE<pxS){showMsg('입력 확인','위임 만료일이 위임 시작일보다 앞입니다.');return;}
+    if(pxS&&pxE&&pxE>proxyEndOf(pxS)){showMsg('입력 확인',`위임기간은 최장 5년입니다.\n시작일이 ${pxS} 이면 만료일은 ${proxyEndOf(pxS)} 까지입니다.`);return;}
+    if(pxOk&&!pxS){showMsg('입력 확인','위임 승인 확인일을 적으려면 위임 시작일도 적어 주세요.');return;}
     const prev=id?state.patients.find(x=>x.id===id):null;
     const obj={...(prev||{}),
       id:id||uid(),name,rrn,phone:digits($('#f_phone').value),addr:$('#f_addr').value.trim(),
@@ -2798,8 +2845,11 @@ function openPatModal(id,src){
       hospital:$('#f_hospital').value.trim(),
       docName:$('#f_docName').value.trim(),docLicense:digits($('#f_docLic').value),docSpecNo:$('#f_docSpec').value.trim(),
       branch:$('#f_branch').value.trim(),memo:$('#f_memo').value.trim(),
-      staff:$('#f_staff').value.trim()
+      staff:$('#f_staff').value.trim(),
+      proxyStart:pxS,proxyEnd:pxE,proxyOk:pxOk,rxRegNo:$('#f_rxReg').value.trim()
     };
+    /* 전자처방전 등록번호는 지금 처방전의 것으로 묶어 둔다(번호를 새로 적었거나 묶인 처방전이 없을 때). 번호를 지우면 묶음도 지운다 */
+    obj.rxRegFor=obj.rxRegNo?((prev&&prev.rxRegNo===obj.rxRegNo&&prev.rxRegFor)?prev.rxRegFor:(obj.rxStart||obj.rentStart||null)):null;
     obj.doctor=obj.docName+(obj.docLicense?`(${obj.docLicense})`:''); /* 구형식 호환 */
     /* 재처방 이력이 바뀌면: 승인번호·청구완료가 있는 달은 구간이 어긋나므로 차단, 마지막 '변경 후' 압력을 현재 처방압력으로, 압력 변경 감지 표시 해제 */
     {const prevL=rxChangesOf(prev||{}),key=x=>`${x.date}|${x.from}|${x.to}`;
@@ -3186,7 +3236,7 @@ function beginImport(fname){
   histHold=true;histSrcHeld='📥 '+fname;
   importUndo={at:Date.now(),files:[fname],snap:JSON.stringify({patients:state.patients,months:state.months})};
 }
-const FIELD_KO={rrn:'주민번호',phone:'연락처',addr:'주소',birthDate:'생년월일',rentStart:'계약시작일',rentEnd:'계약종료일',rxStart:'처방시작일',rxEnd:'처방종료일',rxEndPrev:'이전 처방종료일',passDate:'순응통과일',pressure:'처방압력',model:'모델',sn:'S/N',device:'기기',mgmtCode:'차트번호',staff:'담당자',branch:'지사',branchFax:'지사팩스',docName:'의사',docLicense:'면허',docSpecNo:'전문의번호',hospital:'병원',doctor:'의사',maskType:'마스크종류',maskDate:'마스크구매일',maskMonth:'마스크구독월',adaptStart:'순응시작일',adaptEnd:'순응종료일',adaptWinStart:'통과기간시작',adaptWinEnd:'통과기간종료',adaptDays4h:'4시간 사용일',adaptJudge:'순응판정일',psgDate:'PSG검사일',nextVisit:'진료예정일',lastVisit:'최근진료일',adaptStatus:'순응상태',adaptRxType:'최종처방전',payMethod:'결제',cashIdNum:'현금영수증번호',cashUse:'용도',memo:'메모',
+const FIELD_KO={proxyStart:'위임 시작일',proxyEnd:'위임 만료일',proxyOk:'위임 승인 확인일',rxRegNo:'전자처방전 등록번호',rxRegFor:'전자처방전의 처방시작일',rrn:'주민번호',phone:'연락처',addr:'주소',birthDate:'생년월일',rentStart:'계약시작일',rentEnd:'계약종료일',rxStart:'처방시작일',rxEnd:'처방종료일',rxEndPrev:'이전 처방종료일',passDate:'순응통과일',pressure:'처방압력',model:'모델',sn:'S/N',device:'기기',mgmtCode:'차트번호',staff:'담당자',branch:'지사',branchFax:'지사팩스',docName:'의사',docLicense:'면허',docSpecNo:'전문의번호',hospital:'병원',doctor:'의사',maskType:'마스크종류',maskDate:'마스크구매일',maskMonth:'마스크구독월',adaptStart:'순응시작일',adaptEnd:'순응종료일',adaptWinStart:'통과기간시작',adaptWinEnd:'통과기간종료',adaptDays4h:'4시간 사용일',adaptJudge:'순응판정일',psgDate:'PSG검사일',nextVisit:'진료예정일',lastVisit:'최근진료일',adaptStatus:'순응상태',adaptRxType:'최종처방전',payMethod:'결제',cashIdNum:'현금영수증번호',cashUse:'용도',memo:'메모',
   ahi:'PSG AHI',docHist:'서류 발행 이력',avgMinManual:'평균사용시간(수동)',rxChanges:'재처방(압력 변경) 이력',cmsNo:'효성CMS+ 회원번호',rxChangePending:'압력 변경 감지',cashApproveSrc:'현금승인 출처',taxApproveSrc:'세금승인 출처',seg3:'구간3',seg4:'구간4',seg5:'구간5',seg6:'구간6',d1:'구간1 일수',d2:'구간2 일수',mask:'마스크',maskSeg:'마스크 구간',maskItem:'마스크 품목',maskSpec:'마스크 규격',abroad:'해외일',trips:'해외 출입국',avgMin:'평균사용시간',selfFull:'전액본인부담',cashApprove:'현금 승인번호',taxApprove:'세금 승인번호',cashDate:'현금 작성일',taxDate:'세금 작성일',taxIssue:'세금 발급일',cashPaid:'현금 입금',taxPaid:'세금 입금',claimed:'청구완료',snap:'청구 스냅샷',seg2:'구간2',lmts:'LMTS 요약',adapt:'LMTS 순응후'};
 const fko=k=>FIELD_KO[k]||k;
 const fmtV=v=>v==null||v===''?'—':(typeof v==='object'?(Array.isArray(v)?`[${v.length}]`:'{…}'):String(v));
