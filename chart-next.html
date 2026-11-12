@@ -598,6 +598,7 @@
       <button class="btn sm" id="btnImportChart">📥 엑셀 가져오기</button>
       <button class="btn sm" id="btnAutoBranch" title="주소가 있고 지사가 비어있는 환자의 관할 지사를 자동으로 채웁니다">📍 주소로 지사 자동지정</button>
       <button class="btn sm" id="btnIdMatchXls">📤 ID_match.xlsx 내보내기</button>
+      <button class="btn sm hidden" id="btnDocboxRoster" title="숨길이 서류보관함의 [명단 가져오기]에 넣을 파일을 내려받습니다 — 번호·이름·생년월일 6자리·기간만 들어갑니다(주민번호 뒷자리·연락처·주소는 넣지 않음)">📁 서류함 명단 내보내기</button>
       <button class="btn sm" id="btnDocsNew" title="새 환자의 양압기 서류 일체(등록신청서·처방전·계약서·CMS 등)를 만들고, 입력한 정보를 숨길이에 환자로 저장">📄 신환 서류</button>
       <button class="btn primary sm" id="btnAddPat">+ 환자 추가</button>
     </div>
@@ -847,7 +848,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.09.4';
+const APP_VERSION='2026.11.11.1';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -2325,7 +2326,7 @@ function renderPatients(){
       <td>${i+1}</td>
       <td><input class="inline" style="width:64px" value="${esc(p.mgmtCode||'')}" data-pf="mgmtCode" data-id="${p.id}" placeholder="A00000" title="LMTS 차트번호 — 직접 수정 가능"></td>
       <td><b class="pnm"${labOn('chart')?` data-chart="${p.id}" title="📋 환자 차트 열기"`:''}>${esc(p.name)}</b></td>
-      <td class="noprint docscell"><button class="btn sm docsbtn" data-act="docs" data-id="${p.id}" title="양압기 서류 만들기 — 서류 앱을 창 안에 열고 이 환자 자료를 자동으로 채웁니다${(p.docHist&&p.docHist.length)?` · 발행 ${p.docHist.length}회 (최근 ${p.docHist[p.docHist.length-1].at})`:''}">📄${(p.docHist&&p.docHist.length)?`<sup>${p.docHist.length}</sup>`:''}</button></td>
+      <td class="noprint docscell"><button class="btn sm docsbtn" data-act="docs" data-id="${p.id}" title="양압기 서류 만들기 — 서류 앱을 창 안에 열고 이 환자 자료를 자동으로 채웁니다${(p.docHist&&p.docHist.length)?` · 발행 ${p.docHist.length}회 (최근 ${p.docHist[p.docHist.length-1].at})`:''}">📄${(p.docHist&&p.docHist.length)?`<sup>${p.docHist.length}</sup>`:''}</button>${labOn('docbox')?`<button class="btn sm docsbtn" data-act="docbox" data-id="${p.id}" title="서류보관함에서 이 환자 열기 — 스캔한 서류를 보고 넣습니다">📁</button>`:''}</td>
       ${cell('rrn',`<td><input class="inline ${p.rrn&&p.rrn.length!==13&&p.rrn.length!==6?'bad':''}" style="width:112px" value="${esc(fmtRRN(p.rrn))}" data-pf="rrn" data-id="${p.id}" placeholder="000000-0000000" title="${p.rrn&&p.rrn.length===6?'뒷자리 7자리를 이어서 입력 → Tab/↓로 다음 환자':'직접 수정 가능'}"></td>`)}
       ${cell('phone',`<td><input class="inline ${p.phone&&p.phone.length!==10&&p.phone.length!==11?'bad':''}" style="width:94px" value="${esc(fmtPhone(p.phone))}" data-pf="phone" data-id="${p.id}" placeholder="010-" title="직접 수정 가능"></td>`)}
       ${c1('device',`<td>${esc(p.device)}${p.model?` <span class="hint">${esc(p.model)}</span>`:''}</td>`)}
@@ -2382,6 +2383,7 @@ function renderPatients(){
       return;
     }
     if(b.dataset.act==='docs'){openDocsFor(b.dataset.id);return;}
+    if(b.dataset.act==='docbox'){openDocbox(state.patients.find(x=>x.id===b.dataset.id));return;}
     if(b.dataset.act==='edit')openPatModal(b.dataset.id);
     if(b.dataset.act==='del'){
       const p=state.patients.find(x=>x.id===b.dataset.id);
@@ -2936,6 +2938,55 @@ $('#btnMonthHelp').onclick=showImportHelp;
 $('#btnNtsHelp').onclick=showImportHelp;
 $('#btnImportChart').onclick=()=>$('#importFile').click();
 $('#btnDocsNew').onclick=()=>openDocs(null,{phase:'pre'});
+/* ───── 📁 서류함 (실험실 'docbox', 2026-11-11) — 이 PC의 '숨길이 서류보관함' 프로그램과 잇는다 ─────
+   · 서류보관함은 이 PC의 http://localhost:5180 에서 듣는다(보관 PC든 연결 PC든 같다). 이 차트 주소에서 온 요청만, 읽기만 받는다.
+   · 주소에는 **번호만** 싣는다 — 차트번호(c)와 내부 번호(i). 이름·주민번호·연락처는 싣지 않는다.
+   · 서류보관함은 번호 둘이 모두 맞을 때만 바로 열고, 아니면 그쪽 화면에서 사람에게 묻는다. */
+const DOCBOX='http://localhost:5180';
+let docboxBusy=false;
+async function openDocbox(p){
+  if(!p||docboxBusy)return;docboxBusy=true;
+  const q=`c=${encodeURIComponent(p.mgmtCode||'')}&i=${encodeURIComponent(p.id)}`;
+  try{
+    /* 조용한 길: 크롬이 처음 한 번 "이 사이트가 이 기기의 프로그램에 연결하려고 합니다"를 묻는다 → [허용]하면 그 뒤로는 바로 열린다 */
+    const r=await fetch(`${DOCBOX}/api/open?${q}`,{cache:'no-store'});
+    if(r.ok)return;
+    const b=await r.json().catch(()=>({}));
+    showMsg('📁 서류함',b.error||'서류보관함에서 환자를 열지 못했습니다.');
+  }catch(e){
+    /* 허락하지 않았거나 서류보관함이 꺼져 있다 → 새 탭(징검다리)으로. 서류보관함 창을 앞으로 낸 뒤 그 탭은 스스로 닫힌다 */
+    const w=window.open(`${DOCBOX}/open#${q}`,'sumgilDocbox');
+    if(!w)showMsg('📁 서류함','서류보관함을 열지 못했습니다.\n\n① 이 PC에서 [숨길이 서류보관함] 프로그램이 켜져 있는지 확인해 주세요(시계 옆 작은 폴더 아이콘).\n② 주소창 오른쪽에 팝업 차단 표시가 있으면 눌러서 허용해 주세요.');
+  }finally{docboxBusy=false;}
+}
+/* 서류보관함에 줄 명단: 번호 · 이름 · 생년월일 6자리 · 상태 · 계약/반납일 · 기기 구간 · 순응 기간 · 처방 기간만.
+   주민번호 뒷자리 · 연락처 · 주소 · 계좌는 넣지 않는다. 이름이 없는 환자(미입력_)는 뺀다. */
+function docboxRosterData(){
+  const today=fd(new Date()),d=v=>v||'';
+  const list=state.patients.filter(p=>!isNoName(p)&&p.name);
+  const patients=list.map(p=>{
+    const digits=String(p.rrn||'').replace(/\D/g,'');
+    const birth6=digits.length>=6?digits.slice(0,6):(/^\d{4}-\d{2}-\d{2}$/.test(p.birthDate||'')?p.birthDate.slice(2).replace(/-/g,''):'');
+    let segs=[];try{segs=snSegs(p)||[];}catch(e){}
+    return {i:p.id,c:p.mgmtCode||'',name:p.name,birth6,
+      state:(p.rentEnd&&p.rentEnd<today)?'returned':'use',contractStart:d(p.rentStart),returnDay:d(p.rentEnd),
+      devices:segs.map(g=>({sn:String(g.sn||''),from:d(g.start),to:d(g.end)})).filter(g=>g.sn),
+      adapt:{start:d(p.adaptStart),end:d(p.adaptEnd),state:p.passDate?'pass':''},
+      rx:{start:d(p.rxStart),end:d(p.rxEnd)}};
+  });
+  return {roster:{kind:'sumgil-roster',version:1,exportedAt:new Date().toISOString(),patients},skipped:state.patients.length-list.length};
+}
+function exportDocboxRoster(){
+  if(!state)return;
+  const {roster,skipped}=docboxRosterData();
+  if(!roster.patients.length){showMsg('📁 서류함 명단 내보내기','내보낼 환자가 없습니다.');return;}
+  const name=`숨길_명단_${fd(new Date()).replaceAll('-','')}.json`;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(roster)],{type:'application/json'}));a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  showMsg('📁 서류함 명단 내보내기',`환자 ${roster.patients.length}명의 명단을 내려받았습니다 — ${name}`+(skipped?`\n(이름이 없는 환자 ${skipped}명은 뺐습니다)`:'')
+    +'\n\n이제 [숨길이 서류보관함] 프로그램에서\n  환자 목록 아래 [명단 가져오기] → 방금 받은 파일 고르기 → 미리보기를 보고 [반영]\n\n· 들어 있는 것: 차트번호 · 이름 · 생년월일 6자리 · 사용/반납 · 계약 시작/반납일 · 기기 번호와 기간 · 순응 기간 · 처방 기간\n· 주민번호 뒷자리 · 연락처 · 주소는 들어 있지 않습니다.\n· 가져온 뒤에는 내려받은 파일을 지워 주세요.');
+}
+$('#btnDocboxRoster').onclick=exportDocboxRoster;
 $('#btnMonthApprove').onclick=()=>$('#importFile').click();   /* 월별 청구에서도 같은 입구 — 승인번호 파일도 자동 인식 */
 $('#importFile').onchange=()=>{[...$('#importFile').files].forEach(routeFile);$('#importFile').value='';};
 $('#patDrop').addEventListener('click',e=>{      /* 드롭존을 눌러도 파일 선택이 열리게 */
@@ -5752,6 +5803,7 @@ function applyLabs0(){
   $('#whoBox').classList.toggle('hidden',!(on||labOn('dev')));
   if(!on&&$('#tabs button.on')&&$('#tabs button.on').dataset.tab==='chart')showTab('month');
   const dOn=labOn('dev');$('#tabDevBtn').classList.toggle('hidden',!dOn);
+  const rb=$('#btnDocboxRoster');if(rb)rb.classList.toggle('hidden',!labOn('docbox'));
   if(!dOn&&$('#tabs button.on')&&$('#tabs button.on').dataset.tab==='dev')showTab('month');
   if(on||labOn('dev')){const w=whoNow(),list=userList();
     $('#whoSel').innerHTML=`<option value="">누가 쓰나요?</option>${[...new Set([...list,...(w?[w]:[])])].map(x=>`<option ${x===w?'selected':''}>${esc(x)}</option>`).join('')}<option value="__add">+ 이름 추가…</option>`;
@@ -6069,6 +6121,7 @@ function renderChart0(){
       <div class="cx-sec"><h4>이 환자 할 일</h4>${todoHtml}</div></div>
     <div class="cx-bottom"><span class="who">${esc(p.name)} ${esc(p.mgmtCode||'')}</span>
       <button class="btn sm" data-act="docs">📄 서류 앱</button>
+      ${labOn('docbox')?'<button class="btn sm" data-act="docbox" title="서류보관함에서 이 환자 열기 — 스캔한 서류를 보고 넣습니다">📁 서류함</button>':''}
       <button class="btn sm" data-act="claim"${active?'':` disabled title="${esc(curYM())} 청구 대상이 아닙니다 (위쪽 청구 월을 바꿔 보세요)"`}>📋 청구 보조창 ${Number(curYM().slice(5))}월</button>
       <button class="btn sm" data-act="editPat">✏️ 환자 정보</button>
       <span class="cx-fhint" style="margin-left:auto">다른 표에서 이름을 누르면 이 화면으로</span></div></section>`;
@@ -6146,6 +6199,7 @@ $('#tab-chart').addEventListener('click',e=>{
   if(act==='unsel'){chartKeepDraft();chartUI.formKey=null;chartUI.pid=null;chartUI.none=true;chartUI.edit=null;chartUI.olds=null;renderChart();return;}
   if(!p)return;
   if(act==='docs'){openDocsFor(p.id);return;}
+  if(act==='docbox'){openDocbox(p);return;}
   if(act==='goDev'){chartKeepDraft();goDev(p.sn);return;}
   if(act==='claim'){openClaimView(p.id,0);return;}
   if(act==='editPat'){openPatModal(p.id,'📋 환자 차트 › 정보 고치기');return;}
@@ -7005,7 +7059,10 @@ function renderLabBox(){
       <div class="ds">환자별 타임라인 · 상담/점검 기록 · 할 일 · 환자 정보 변경 이력. 켜면 위쪽 탭에 보입니다. 꺼도 써 둔 기록은 지워지지 않고, 변경 이력은 꺼져 있어도 계속 남깁니다.</div></div></div>
     <div class="labitem${labOn('dev')?'':' off'}"><button class="tog${labOn('dev')?' on':''}" id="labDevTog" title="${labOn('dev')?'끄기':'켜기'}"></button>
       <div><div class="ttl">🔧 기기 관리 <span class="badge lab">시험 중</span></div><div class="ds">기기(S/N)별 사용자 이력(환자 정보에서 자동) · 회수·소독 · 장비 점검 · A/S · 폐기 기록, 엑셀 대장(장비점검체크·회수기기 관리대장·AS관리대장·부적합장비대장·사용자변경이력). 꺼도 기록은 지워지지 않습니다.</div></div></div>
-    <div class="labitem off"><button class="tog" disabled></button><div><div class="ttl">📂 서류함 <span class="badge end">준비 중</span></div><div class="ds">스캔한 서류를 이 PC 폴더에 환자별로 정리 (크롬·엣지)</div></div></div>
+    <div class="labitem${labOn('docbox')?'':' off'}"><button class="tog${labOn('docbox')?' on':''}" id="labDocboxTog" title="${labOn('docbox')?'끄기':'켜기'}"></button>
+      <div><div class="ttl">📁 서류함 <span class="badge lab">시험 중</span></div>
+      <div class="ds">이 PC의 <b>숨길이 서류보관함</b> 프로그램과 잇습니다. 켜면 환자 표와 환자 차트에 📁 버튼이 생기고, 누르면 서류보관함에서 그 환자가 바로 열립니다(스캔한 처방전·계약서·사용 보고서를 보고 넣는 곳). 서류보관함 프로그램이 이 PC에 켜져 있어야 합니다. 꺼도 서류는 서류보관함에 그대로 있습니다.
+        ${labOn('docbox')?'<br>환자 명단은 [환자 관리] 위쪽의 <b>📁 서류함 명단 내보내기</b>로 파일을 받아, 서류보관함의 [명단 가져오기]에서 고르면 한꺼번에 맞춰집니다.':''}</div></div></div>
     <div class="snote">지금 저장된 상담·점검 기록 <b>${nN}건</b> · 변경 이력 <b>${nH}건</b> — 지금 자료와 같은 곳에 암호화되어 저장되고 💾 백업 파일에도 들어갑니다.<br>
       새 판이 나와도 실험실 기록은 그대로 이어집니다(지우지 않고 칸만 늘림).
       ${state.settings.labs.barOff?' <button class="btn sm" id="labBarOn">차트 위 안내 줄 다시 보기</button>':''}</div>
@@ -7015,6 +7072,7 @@ function renderLabBox(){
       ${staffList().filter(x=>!/^[A-Za-z]\d+$/.test(x)&&!(state.settings.users||[]).includes(x)).length?`<br><span class="hint">환자 정보의 담당자(${esc(staffList().filter(x=>!/^[A-Za-z]\d+$/.test(x)&&!(state.settings.users||[]).includes(x)).join(', '))})도 함께 나옵니다.</span>`:''}</div>`;
   $('#labChartTog').onclick=()=>{state.settings.labs.chart=!labOn('chart');persist();applyLabs();renderLabBox();};
   $('#labDevTog').onclick=()=>{state.settings.labs.dev=!labOn('dev');persist();applyLabs();renderLabBox();};
+  $('#labDocboxTog').onclick=()=>{state.settings.labs.docbox=!labOn('docbox');persist();applyLabs();renderLabBox();try{renderPatients();}catch(e){}};
   const lb=$('#labBarOn');if(lb)lb.onclick=()=>{state.settings.labs.barOff=false;persist();renderLabBox();};
   box.querySelectorAll('[data-udel]').forEach(b=>b.onclick=()=>{state.settings.users.splice(Number(b.dataset.udel),1);persist();renderLabBox();applyLabs();});
   $('#labUserAdd').onclick=()=>askModal('담당자 등록','기록 담당자로 고를 이름 (예: 이실장)','').then(v=>{v=v==null?'':String(v).trim();if(v&&state){addUser(v);persist();renderLabBox();applyLabs();}});
