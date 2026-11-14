@@ -848,7 +848,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.13.2';
+const APP_VERSION='2026.11.14.1';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -3145,7 +3145,7 @@ async function openDocbox(p,claim){
     }
   }finally{docboxBusy=false;}
 }
-/* 서류보관함에 줄 명단: 번호 · 이름 · 생년월일 6자리 · 상태 · 계약/반납일 · 기기 구간 · 순응 기간 · 처방 기간만.
+/* 서류보관함에 줄 명단: 번호 · 이름 · 생년월일 6자리 · 상태 · 계약/반납일 · 기기 구간 · 순응 기간(+ 순응 후 처방일) · 처방 기간 · 결제 방식(카드/현금)만.
    주민번호 뒷자리 · 연락처 · 주소 · 계좌는 넣지 않는다. 이름이 없는 환자(미입력_)는 뺀다. */
 function docboxRosterData(){
   const today=fd(new Date()),d=v=>v||'';
@@ -3157,8 +3157,11 @@ function docboxRosterData(){
     return {i:p.id,c:p.mgmtCode||'',name:p.name,birth6,
       state:(p.rentEnd&&p.rentEnd<today)?'returned':'use',contractStart:d(p.rentStart),returnDay:d(p.rentEnd),
       devices:segs.map(g=>({sn:String(g.sn||''),from:d(g.start),to:d(g.end)})).filter(g=>g.sn),
-      adapt:{start:d(p.adaptStart),end:d(p.adaptEnd),state:p.passDate?'pass':''},
-      rx:{start:d(p.rxStart),end:d(p.rxEnd)}};
+      /* pass: 순응 후 처방을 받은 날(순응통과일). 어림값(월청구자료에 통과일이 없어 그 달 1일로 둔 것)은 싣지 않는다 — 서류함이 순응 통과용 보고서의 청구 달을 이 날짜로 정한다. */
+      adapt:{start:d(p.adaptStart),end:d(p.adaptEnd),state:p.passDate?'pass':'',pass:(p.passDate&&!p.passDateEst)?p.passDate:''},
+      rx:{start:d(p.rxStart),end:d(p.rxEnd)},
+      /* 결제 방식: 환자의 기본값과, 그 달만 다르게 한 달들. 서류함은 카드로 결제한 달에만 카드매출전표를 찾는다. */
+      pay:{base:p.payMethod==='card'?'card':'cash',months:Object.fromEntries(Object.keys(state.months||{}).filter(m=>/^\d{4}-\d{2}$/.test(m)&&state.months[m]&&state.months[m][p.id]&&state.months[m][p.id].payMethod).map(m=>[m,state.months[m][p.id].payMethod==='card'?'card':'cash']))}};
   });
   return {roster:{kind:'sumgil-roster',version:1,exportedAt:new Date().toISOString(),patients},skipped:state.patients.length-list.length};
 }
