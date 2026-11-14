@@ -498,6 +498,54 @@
   .meter{height:12px;border-radius:6px;background:#eef1f6;overflow:hidden;margin:8px 0 4px;display:flex}
   .meter i{display:block;height:100%}
   .snote{font-size:.78rem;color:var(--muted);background:#f9fafd;border:1px solid var(--line);border-radius:9px;padding:8px 11px;margin-top:10px;line-height:1.7}
+  /* ── 💬 문자 발송 (실험실 'msg', 2026-11-15) ── */
+  .k-msg{color:#0e7490;background:#ecfbfd}
+  .mgmodal .btn:disabled,.mbmodal .btn:disabled,#msgBox .btn:disabled{opacity:.45;cursor:not-allowed}
+  .cx-msgl{margin-top:2px;font-size:.76rem;color:#0e7490;font-weight:700}
+  .cx-it.cx-auto:hover .cx-hdate,.cx-hdate.show{opacity:1}
+  .modal.mgmodal{width:640px}.modal.mpmodal{width:900px}.modal.mbmodal{width:1120px}
+  .mg-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+  .mg-row.top{align-items:flex-start}
+  .mg-row>label{flex:0 0 74px;font-size:.8rem;font-weight:700;color:var(--muted)}
+  .mg-chips{flex:1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .mg-chip,.mg-var{border:1.5px solid var(--line);background:#fff;border-radius:20px;padding:3px 11px;font-size:.79rem;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit}
+  .mg-chip:hover,.mg-var:hover{border-color:var(--blue);color:var(--blue)}
+  .mg-chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .mg-var{border-style:dashed;font-weight:600;padding:2px 8px;font-size:.75rem}
+  .mgmodal textarea,.mpmodal textarea,.mbmodal textarea{width:100%;line-height:1.6;resize:vertical}
+  .mg-meta{display:flex;align-items:center;gap:8px;font-size:.8rem;margin:5px 0 2px;color:var(--ink)}
+  .mg-meta .spacer{flex:1}
+  .mg-note{font-size:.8rem;line-height:1.65;background:#f3f8ff;border:1px solid #cfe0f7;border-radius:9px;padding:8px 11px;margin:0 0 10px}
+  .mg-note.warn{background:#fff6f6;border-color:#f3c2c2;color:#8a1c16}
+  .mg-note.amber{background:#fff8ef;border-color:#f6d9b0;color:#8a4b0b}
+  .mg-off{display:flex;gap:6px;align-items:center;font-size:.82rem;margin-top:10px}
+  .mg-help{font-size:.86rem;line-height:1.75}
+  .mg-help ol{margin:8px 0 8px 0;padding-left:20px}.mg-help li{margin-bottom:5px}
+  .mg-help .raw{margin-top:10px;font-size:.76rem;color:var(--muted);background:#f6f7f9;border-radius:8px;padding:7px 10px;word-break:break-all}
+  .mg-ip{font-size:1.05rem;color:var(--navy);background:#eef4fd;padding:1px 8px;border-radius:6px;user-select:all}
+  .mg-st{font-size:.82rem;line-height:1.7;margin:8px 0 2px}
+  .mp-grid{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start}
+  .mp-list{display:flex;flex-direction:column;gap:5px}
+  .mp-it{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:9px;padding:7px 9px;cursor:pointer;font-size:.84rem}
+  .mp-it.on{border-color:var(--navy);background:#f3f6ff}
+  .mp-it b{flex:1;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mp-it .mv{display:flex;gap:2px}.mp-it .mv button{border:none;background:none;cursor:pointer;color:var(--muted);font-size:.7rem;padding:2px 3px}
+  .mp-it .mv button:hover{color:var(--blue)}
+  .mp-edit label{display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin:8px 0 3px}
+  .mp-edit input{width:100%}
+  .mp-vars{display:flex;flex-wrap:wrap;gap:5px;align-items:center;font-size:.76rem;color:var(--muted);margin-top:6px}
+  .mb-opts{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:.82rem;margin-bottom:10px}
+  .mb-opts label{display:flex;align-items:center;gap:5px;font-weight:700;color:var(--muted)}
+  .mb-opts select{max-width:210px}
+  .mb-body{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:stretch}
+  .mb-tbl{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .mb-tbl tr.off td{color:#a3abbb}.mb-tbl tr.sel td{background:#f3f6ff}
+  .mb-tbl td.nm{font-weight:700;cursor:pointer}
+  .mb-prev{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .mb-prev .t{font-size:.8rem;font-weight:700;color:var(--muted)}
+  .mb-prev textarea{flex:1;min-height:200px;background:#fafbfe;font-size:.84rem}
+  .mb-sum{margin-top:10px;font-size:.86rem;line-height:1.7}
+  @media (max-width:900px){.mp-grid,.mb-body{grid-template-columns:1fr}}
   footer{max-width:1900px;margin:0 auto;padding:6px 18px 26px;color:var(--muted);font-size:.72rem;line-height:1.7}
   @media print{ header.app,.toolbar,.noprint{display:none!important} body{background:#fff} .card{box-shadow:none;border:none} }
 </style>
@@ -572,6 +620,7 @@
       <button class="btn sm hidden" id="btnMonthUndo" style="border-color:var(--amber);color:#b45309">↩ 가져오기 되돌리기</button>
       <button class="btn sm" id="btnMonthApprove" title="홈택스 현금영수증 발급결과 상세조회·매출전자세금계산서목록(승인번호) / LMTS 순응후관리(평균사용시간) 파일 — 내용을 보고 자동 인식">📥 승인번호·순응후관리 가져오기</button>
       <button class="btn sm" id="btnTwoLine" title="한 환자를 두 줄로 표시하면 가로 스크롤이 줄어듭니다">⇕ 두 줄</button>
+      <button class="btn sm hidden" id="btnMonthMsg" title="이 달 본인부담금(자동이체 · 카드)과 해외 다녀오면 연락 달라는 안내를 문자로 한꺼번에 — 보내기 전에 명단 · 문구 · 비용을 확인합니다 (실험실)">💬 본인부담금 안내 문자</button>
       <button class="btn sm" id="btnMonthXlsx">📤 월별 표 엑셀 내보내기</button>
     </div>
     <div class="hint" style="margin-bottom:8px">
@@ -723,6 +772,7 @@
 <section id="tab-settings" class="hidden">
   <div class="setgrid">
     <div class="card" id="labBox"></div>
+    <div class="card hidden" id="msgBox"></div>
     <div class="card" id="storeMeter"></div>
     <div class="card">
       <h2>공급자(사업자) 정보 <small>세금계산서에 인쇄됩니다</small></h2>
@@ -848,7 +898,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.14.1';
+const APP_VERSION='2026.11.15.1';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
@@ -1427,7 +1477,7 @@ async function lockApp(){
   if(typeof closeDocs==='function')closeDocs();
   $('#dlgHost').innerHTML='';$('#modalHost').innerHTML='';   /* 열린 창 정리 — 잠금 뒤 이전 세션 데이터 조작 방지 */
   /* 화면에 남은 평문(환자표·미리보기·대사 결과)도 비운다 — 잠금은 가리기가 아니라 지우기 */
-  ['#patTable','#monthTable','#cashPrev','#cardPrev','#taxPrev','#reconOut','#monthChips','#tab-chart','#tab-dev','#labBox','#storeMeter'].forEach(id=>{const el=$(id);if(el)el.innerHTML='';});
+  ['#patTable','#monthTable','#cashPrev','#cardPrev','#taxPrev','#reconOut','#monthChips','#tab-chart','#tab-dev','#labBox','#msgBox','#storeMeter'].forEach(id=>{const el=$(id);if(el)el.innerHTML='';});
   chartUI.edit=null;chartUI.formKey=null;chartDrafts.clear();   /* 쓰다 만 기록(평문)도 잠그면 지움 */
   try{devUI.edit=null;devUI.formKey=null;devDrafts.clear();}catch(e){}
   importUndo=null;clearTimeout(importSumTimer);   /* 가져오기 되돌리기 보관본(환자 자료 평문)도 — 잠금 뒤엔 되돌리기 없음 */
@@ -1499,6 +1549,7 @@ function enterApp(){
   }
   armAutolock();
   renderAll();
+  setTimeout(()=>{try{msgKeepAlive();}catch(e){}},4000);   /* 💬 문자 발송: 솔라피 키가 30일 미사용으로 꺼지지 않게 (실험실을 켜고 키를 넣은 업체만) */
   /* 저장 공간 80% 넘으면 한 번 알림 */
   setTimeout(()=>{if(!state)return;const u=lsUsage();if(u.pct>=0.8)showMsg('⚠️ 저장 공간 부족 주의',`브라우저 저장 공간을 ${Math.round(u.pct*100)}% 쓰고 있습니다 (약 ${man(u.total)} / ${man(LS_LIMIT)} 글자).\n\n💾 백업을 받아 두고 [⚙️ 설정 › 저장 공간]을 확인하세요. 계속 늘면 저장 방식을 옮겨야 합니다 — 문의해 주세요.`);},2500);
 }
@@ -2421,7 +2472,7 @@ function renderPatients(){
       <td>${i+1}</td>
       <td><input class="inline" style="width:64px" value="${esc(p.mgmtCode||'')}" data-pf="mgmtCode" data-id="${p.id}" placeholder="A00000" title="LMTS 차트번호 — 직접 수정 가능"></td>
       <td><b class="pnm"${labOn('chart')?` data-chart="${p.id}" title="📋 환자 차트 열기"`:''}>${esc(p.name)}</b></td>
-      <td class="noprint docscell"><button class="btn sm docsbtn" data-act="docs" data-id="${p.id}" title="양압기 서류 만들기 — 서류 앱을 창 안에 열고 이 환자 자료를 자동으로 채웁니다${(p.docHist&&p.docHist.length)?` · 발행 ${p.docHist.length}회 (최근 ${p.docHist[p.docHist.length-1].at})`:''}">📄${(p.docHist&&p.docHist.length)?`<sup>${p.docHist.length}</sup>`:''}</button>${labOn('docbox')?`<button class="btn sm docsbtn" data-act="docbox" data-id="${p.id}" title="서류보관함에서 이 환자 열기 — 스캔한 서류를 보고 넣습니다">📁</button>`:''}</td>
+      <td class="noprint docscell"><button class="btn sm docsbtn" data-act="docs" data-id="${p.id}" title="양압기 서류 만들기 — 서류 앱을 창 안에 열고 이 환자 자료를 자동으로 채웁니다${(p.docHist&&p.docHist.length)?` · 발행 ${p.docHist.length}회 (최근 ${p.docHist[p.docHist.length-1].at})`:''}">📄${(p.docHist&&p.docHist.length)?`<sup>${p.docHist.length}</sup>`:''}</button>${labOn('docbox')?`<button class="btn sm docsbtn" data-act="docbox" data-id="${p.id}" title="서류보관함에서 이 환자 열기 — 스캔한 서류를 보고 넣습니다">📁</button>`:''}${labOn('msg')?`<button class="btn sm docsbtn" data-act="msg" data-id="${p.id}" title="이 환자에게 문자 보내기 — 프리셋 문구에 이름 · 금액을 채워 줍니다${p.msgOff?' (문자 받지 않음으로 표시된 환자)':''}"${p.msgOff?' style="opacity:.45"':''}>💬</button>`:''}</td>
       ${cell('rrn',`<td><input class="inline ${p.rrn&&p.rrn.length!==13&&p.rrn.length!==6?'bad':''}" style="width:112px" value="${esc(fmtRRN(p.rrn))}" data-pf="rrn" data-id="${p.id}" placeholder="000000-0000000" title="${p.rrn&&p.rrn.length===6?'뒷자리 7자리를 이어서 입력 → Tab/↓로 다음 환자':'직접 수정 가능'}"></td>`)}
       ${cell('phone',`<td><input class="inline ${p.phone&&p.phone.length!==10&&p.phone.length!==11?'bad':''}" style="width:94px" value="${esc(fmtPhone(p.phone))}" data-pf="phone" data-id="${p.id}" placeholder="010-" title="직접 수정 가능"></td>`)}
       ${c1('device',`<td>${esc(p.device)}${p.model?` <span class="hint">${esc(p.model)}</span>`:''}</td>`)}
@@ -2479,6 +2530,7 @@ function renderPatients(){
     }
     if(b.dataset.act==='docs'){openDocsFor(b.dataset.id);return;}
     if(b.dataset.act==='docbox'){openDocbox(state.patients.find(x=>x.id===b.dataset.id));return;}
+    if(b.dataset.act==='msg'){openMsgModal(b.dataset.id);return;}
     if(b.dataset.act==='edit')openPatModal(b.dataset.id);
     if(b.dataset.act==='del'){
       const p=state.patients.find(x=>x.id===b.dataset.id);
@@ -5159,7 +5211,7 @@ async function renderStorageStatus(){
 function renderSettings(){
   for(const[id,path]of SETMAP){const el=$('#'+id);if(el)el.value=getPath(state.settings,path)??'';}
   $('#set_r_enabled').value=state.settings.rule2h.enabled?'1':'0';
-  renderStorageStatus();renderAutoBackup();try{renderLabBox();}catch(e){console.error('실험실 설정 오류',e);}try{renderStoreMeter();}catch(e){console.error('저장 공간 표시 오류',e);}
+  renderStorageStatus();renderAutoBackup();try{renderLabBox();}catch(e){console.error('실험실 설정 오류',e);}try{renderMsgBox();}catch(e){console.error('문자 발송 설정 오류',e);}try{renderStoreMeter();}catch(e){console.error('저장 공간 표시 오류',e);}
   $('#docPresets').innerHTML=(state.settings.doctors||[]).map((d,i)=>
     `<div class="setrow"><label>${esc(d.name)}</label>
      <span class="hint" style="flex:1">면허 ${esc(d.license||'—')} · 전문의번호 ${esc(d.specNo||'—')}</span>
@@ -5553,7 +5605,7 @@ let histBase=null,histHold=false,histSrcNext='',histSrcHeld='',histEffNext='',hi
 const HIST_SKIP=new Set(['id','doctor','branchFax','docHist','rxHist','rxChangePending','passDateEst','lastVisit','cashApproveSrc','taxApproveSrc']);
 const HIST_SECRET=new Set(['rrn','cashIdNum']);
 const HIST_MKEYS=['payMethod','trips','exclude'];          /* 월별 값 중 이력에 남길 것: 이 달만 결제·해외 체류·청구 제외 */
-const HIST_KO={memo:'특이사항(비고)',name:'성명',insureType:'보험자격',mfgYm:'기기 제조년월',exclude:'청구 제외',payMethod:'결제',trips:'해외 체류',cmsNo:'효성CMS+ 회원번호',ahi:'PSG AHI',model:'모델명'};
+const HIST_KO={memo:'특이사항(비고)',name:'성명',insureType:'보험자격',mfgYm:'기기 제조년월',exclude:'청구 제외',payMethod:'결제',trips:'해외 체류',cmsNo:'효성CMS+ 회원번호',ahi:'PSG AHI',model:'모델명',msgOff:'문자 받지 않음'};
 const histLbl=k=>HIST_KO[k]||fko(k);
 const rid=pre=>pre+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 function histTag(src){histSrcNext=src||'';}
@@ -5647,8 +5699,8 @@ const SUP_KO=Object.fromEntries(SUP_ITEMS);
 const supTxt=sp=>{const it=(sp&&sp.items)||{};return SUP_ITEMS.filter(([k])=>it[k]).map(([k,l])=>`${l}${Number(it[k])>1?' '+it[k]+'개':''}`).join(' · ');};
 const LASTVIA_KEY='sumgilChart.lastVia',CXSORT_KEY='sumgilChart.cxSort';
 const NOTE_CHECKS=[['press','압력·알람'],['use','사용시간 확인·안내'],['filter','필터·세척'],['mask','마스크 상태'],['issue','불편 사항']];
-const KIND_KO={con:'상담',chk:'점검',sup:'소모품',rx:'처방',trip:'해외',cmp:'불편',etc:'기타'};
-const noteF=n=>n.kind==='chk'?'chk':n.kind==='sup'?'sup':(n.kind==='rx'||n.kind==='trip')?'rx':'con';
+const KIND_KO={con:'상담',chk:'점검',sup:'소모품',rx:'처방',trip:'해외',cmp:'불편',etc:'기타',msg:'문자'};   /* msg = 💬 문자 발송이 남긴 기록(쓰기 폼에서는 못 고름) */
+const noteF=n=>n.kind==='chk'?'chk':n.kind==='sup'?'sup':(n.kind==='rx'||n.kind==='trip')?'rx':n.kind==='msg'?'msg':'con';
 const VIA_KO=Object.fromEntries(NOTE_VIA);
 const WDAY='일월화수목금토';
 const dowOf=s=>WDAY[pd(s).getDay()];
@@ -5929,6 +5981,9 @@ function chartAutoItems(p){
       const inSeg=segs.some(g=>snKey(g.sn)===sk&&(!g.start||l.date>=g.start)&&(!g.end||l.date<=g.end));
       if(l.pid!==p.id&&!(l.kind==='chk'&&inSeg))continue;
       it.push({date:l.date,f:'dev',lab:'기기',txt:`🔧 ${DEV_KIND_KO[l.kind]} · S/N ${l.sn} — ${devLogTxt(l,'')}`});}}catch(e){console.warn('기기 기록 표시 실패',e);}
+  try{for(const bt of (state.msgBatches||[])){if(!bt||!Array.isArray(bt.r))continue;   /* 💬 한꺼번에 보낸 문자(본인부담금 안내) — 문구는 묶음에 한 번만 저장돼 있고 [문구]로 다시 만들어 보여 줌 */
+    for(const x of bt.r)if(x&&x.p===p.id)it.push({date:fd(new Date(bt.at)),f:'msg',lab:'문자',t:bt.at,msgb:bt.id+'|'+p.id,
+      txt:`💬 ${bt.ym?M(bt.ym)+'월분 ':''}본인부담금 안내 ${won(x.a)}원 (${x.k==='card'?'카드':'자동이체'}) → ${fmtPhone(x.to)} · ${msgStLabel(x.s,bt.via)}${x.s==='fail'&&(x.w||x.c)?` — ${x.w||x.c}`:''}${bt.by?` (${bt.by})`:''}`});}}catch(e){console.warn('문자 기록 표시 실패',e);}
   for(const d of (p.docHist||[]))if(d&&d.at)it.push({date:d.at,f:'chg',lab:'서류',txt:`📄 ${d.phase==='post'?'순응 후 처방전·표준계약서':'서류 일체'} 발행${d.pages&&d.pages.length?` ${d.pages.length}쪽`:''}${d.contractStart?` · 계약 날짜 ${d.contractStart}`:''}`});
   const liveN=new Set((state.notes||[]).filter(n=>n.pid===p.id&&!n.del).map(n=>n.id));
   for(const h of (state.hist||[]))if(h.pid===p.id){
@@ -5994,6 +6049,7 @@ function applyLabs0(){
   if(!on&&$('#tabs button.on')&&$('#tabs button.on').dataset.tab==='chart')showTab('month');
   const dOn=labOn('dev');$('#tabDevBtn').classList.toggle('hidden',!dOn);
   const rb=$('#btnDocboxRoster');if(rb)rb.classList.toggle('hidden',!labOn('docbox'));
+  {const mOn=labOn('msg'),mb=$('#btnMonthMsg'),mx=$('#msgBox');if(mb)mb.classList.toggle('hidden',!mOn);if(mx)mx.classList.toggle('hidden',!mOn);}   /* 💬 문자 발송 */
   if(!dOn&&$('#tabs button.on')&&$('#tabs button.on').dataset.tab==='dev')showTab('month');
   if(on||labOn('dev')){const w=whoNow(),list=userList();
     $('#whoSel').innerHTML=`<option value="">누가 쓰나요?</option>${[...new Set([...list,...(w?[w]:[])])].map(x=>`<option ${x===w?'selected':''}>${esc(x)}</option>`).join('')}<option value="__add">+ 이름 추가…</option>`;
@@ -6195,15 +6251,15 @@ function renderChart0(){
         ${ed.length?`<button class="cx-edited" data-act="olds" data-nid="${n.id}" title="고친 때·사람과 고치기 전 글 보기">고침 ${ed.length}</button>`:''}
         ${n.del?`<span class="badge warn" title="${esc(n.delBy||'')} ${fd(new Date(n.del))} 지움 — 글은 남아 있습니다">지움 ${fd(new Date(n.del)).slice(5)}</span>`:''}
         ${n.reverted?`<span class="badge warn" title="${esc(n.reverted.by||'')} ${fd(new Date(n.reverted.at))} 되돌림 — ${n.kind==='trip'?'이 기록이 넣은 월별 청구 해외 기간을 뺐습니다':'이 처방이 바꾼 환자 정보는 원래대로 돌아갔습니다'}">↩ 되돌림 ${fd(new Date(n.reverted.at)).slice(5)}</span>`:''}
-        <span class="cx-acts">${n.del?`<button data-act="undel" data-nid="${n.id}">되살리기</button>`:`<button data-act="edit" data-nid="${n.id}">고치기</button>${n.kind==='rx'&&n.rx&&!n.reverted?`<button data-act="rxRevert" data-nid="${n.id}" title="이 처방이 바꾼 재처방 이력·처방압력·처방 기간을 원래대로">되돌리기</button>`:''}${tr&&!n.reverted&&!tr.arr?`<button data-act="tripArr" data-nid="${n.id}" title="돌아온 날(입국심사일)을 넣으면 월별 청구 해외 칸에 들어감">✈️ 입국일 넣기</button>`:''}${tr&&!n.reverted?`<button data-act="tripRevert" data-nid="${n.id}" title="이 기록이 넣은 월별 청구 해외 기간을 뺌">되돌리기</button>`:''}<button data-act="del" data-nid="${n.id}">지우기</button>`}</span></div>
-      ${rxl}${trl}${n.text?`<div class="tx">${esc(n.text)}</div>`:''}${chk}${sp}${nx}${olds}</div></div>`;};
+        <span class="cx-acts">${n.del?`<button data-act="undel" data-nid="${n.id}">되살리기</button>`:`${n.kind==='msg'?'':`<button data-act="edit" data-nid="${n.id}">고치기</button>`}${n.kind==='rx'&&n.rx&&!n.reverted?`<button data-act="rxRevert" data-nid="${n.id}" title="이 처방이 바꾼 재처방 이력·처방압력·처방 기간을 원래대로">되돌리기</button>`:''}${tr&&!n.reverted&&!tr.arr?`<button data-act="tripArr" data-nid="${n.id}" title="돌아온 날(입국심사일)을 넣으면 월별 청구 해외 칸에 들어감">✈️ 입국일 넣기</button>`:''}${tr&&!n.reverted?`<button data-act="tripRevert" data-nid="${n.id}" title="이 기록이 넣은 월별 청구 해외 기간을 뺌">되돌리기</button>`:''}<button data-act="del" data-nid="${n.id}">지우기</button>`}</span></div>
+      ${rxl}${trl}${n.kind==='msg'&&n.msg?`<div class="cx-msgl">${esc(msgNoteLine(n.msg))}</div>`:''}${n.text?`<div class="tx">${esc(n.text)}</div>`:''}${chk}${sp}${nx}${olds}</div></div>`;};
   for(const x of list){
     const y=x.date.slice(0,4);
     if(y!==curY){if(curD)tl+='</div>';curD='';tl+=`<div class="cx-yeardiv">${y}년</div>`;curY=y;}
     if(x.date!==curD){if(curD)tl+='</div>';curD=x.date;
       const auto=!list.some(z=>z.date===x.date&&z.note),fut=x.date>today;
       tl+=`<div class="cx-day"><div class="cx-dayh"><b>${x.date.slice(5)}</b><span class="dw">(${dowOf(x.date)})</span>${fut?'<span class="badge" style="background:#fff3e0;color:var(--amber)">예정</span>':auto?'<span class="badge">자동</span>':''}</div>`;}
-    tl+=x.note?noteHtml(x.note):`<div class="cx-it cx-auto"><div class="cx-k k-${x.f}">${esc(x.lab)}</div><div class="cx-body">${esc(x.txt)}${x.hist?`<button class="cx-hdate" data-act="histDate" data-hid="${x.hist.id}" title="실제로 바뀐 날짜로 옮기기 — 입력한 날·사람은 그대로 남음">📅 날짜</button>`:''}</div></div>`;
+    tl+=x.note?noteHtml(x.note):`<div class="cx-it cx-auto"><div class="cx-k k-${x.f}">${esc(x.lab)}</div><div class="cx-body">${esc(x.txt)}${x.msgb?`<button class="cx-hdate show" data-act="msgView" data-bid="${esc(x.msgb)}" title="그때 보낸 문구 보기">문구</button>`:''}${x.hist?`<button class="cx-hdate" data-act="histDate" data-hid="${x.hist.id}" title="실제로 바뀐 날짜로 옮기기 — 입력한 날·사람은 그대로 남음">📅 날짜</button>`:''}</div></div>`;
   }
   if(curD)tl+='</div>';
   /* 12개월 띠: 지난 10개월 + 이번 달 + 다음 달 */
@@ -6217,7 +6273,7 @@ function renderChart0(){
     segs.push(`<span class="cx-seg ${cls}${end?' end':''}" title="${ym}${cls?` · ${{pre:'순응중',post:'순응후',mix:'순응중→순응후'}[cls]}`:''}${end?` · 처방 종료 ${p.rxEnd.slice(5)}`:''}"></span>`);
     const am=c&&c.active?c.avgMin:null;
     bars.push(`<span class="cx-bars" title="${ym}${am!=null?` 평균 ${hmShort(am)}`:''}">${am!=null?`<i class="${am<120?'low':''}" style="height:${Math.max(6,Math.min(100,Math.round(am/480*100)))}%"></i>`:''}</span>`);
-    const kinds=new Set(ns.filter(n=>!n.del&&n.kind!=='trip'&&String(n.date).slice(0,7)===ym).map(n=>n.kind==='chk'?'chk':n.kind==='cmp'?'cmp':n.kind==='sup'?'sup':n.kind==='rx'?'rx':'con'));
+    const kinds=new Set(ns.filter(n=>!n.del&&n.kind!=='trip'&&n.kind!=='msg'&&String(n.date).slice(0,7)===ym).map(n=>n.kind==='chk'?'chk':n.kind==='cmp'?'cmp':n.kind==='sup'?'sup':n.kind==='rx'?'rx':'con'));
     const trip=(ov.trips||[]).some(t=>t&&t.dep&&t.arr)||ns.some(n=>{if(n.del||n.reverted||n.kind!=='trip'||!n.trip||!n.trip.dep)return false;   /* 해외 기록(입국일 모름 포함)도 해외 점 */
       const a=addDays(n.trip.dep,1),b=n.trip.arr?addDays(n.trip.arr,-1):(today>a?today:a);return a<=b&&a.slice(0,7)<=ym&&ym<=b.slice(0,7);});
     dots.push(`<span class="cx-dots">${[...kinds].map(k=>`<b class="cx-d${k}"></b>`).join('')}${trip?'<b class="cx-dtrip"></b>':''}</span>`);
@@ -6229,9 +6285,9 @@ function renderChart0(){
     <div class="cx-yrow" style="margin-top:3px"><span class="rl">기록</span>${dots.join('')}</div>
     <div class="cx-ylegend"><span><i style="background:#f7b9cf"></i>순응중</span><span><i style="background:#9fd9bd"></i>순응후</span>${p.rxEnd?`<span><i style="background:#eef1f6;outline:2px dashed #d36b00;outline-offset:-2px"></i>처방 종료 ${p.rxEnd.slice(2)}</span>`:''}<span><i style="background:#9db9e8"></i>월 평균 사용(8시간 = 꽉 참)</span><span><b class="cx-dcon"></b>상담</span><span><b class="cx-dchk"></b>점검</span><span><b class="cx-dsup"></b>소모품</span><span><b class="cx-drx"></b>처방</span><span><b class="cx-dtrip" style="border-radius:2px"></b>해외</span></div></div>`;
   const left=`<section class="cx-col">
-    <div class="cx-head"><h2>지난 기록</h2><span class="sub">${p.rentStart?`계약 ${p.rentStart.replaceAll('-','.')} ~ · `:''}상담 ${ns.filter(n=>!n.del&&n.kind!=='chk'&&n.kind!=='sup'&&n.kind!=='rx'&&n.kind!=='trip').length} · 점검 ${ns.filter(n=>!n.del&&n.kind==='chk').length} · 소모품 ${ns.filter(n=>!n.del&&n.kind==='sup').length}</span></div>
+    <div class="cx-head"><h2>지난 기록</h2><span class="sub">${p.rentStart?`계약 ${p.rentStart.replaceAll('-','.')} ~ · `:''}상담 ${ns.filter(n=>!n.del&&n.kind!=='chk'&&n.kind!=='sup'&&n.kind!=='rx'&&n.kind!=='trip'&&n.kind!=='msg').length} · 점검 ${ns.filter(n=>!n.del&&n.kind==='chk').length} · 소모품 ${ns.filter(n=>!n.del&&n.kind==='sup').length}</span></div>
     ${yband}
-    <div class="cx-filters">${fchip('all','전체',fc.all,'lf')}${fchip('con','상담',fc.con,'lf')}${fchip('chk','점검',fc.chk,'lf')}${fchip('sup','소모품',fc.sup,'lf')}${fchip('rx','처방·계약',fc.rx,'lf')}${fchip('bill','청구',fc.bill,'lf')}${fchip('chg','변경 이력',fc.chg,'lf')}${fc.dev?fchip('dev','기기',fc.dev,'lf'):''}
+    <div class="cx-filters">${fchip('all','전체',fc.all,'lf')}${fchip('con','상담',fc.con,'lf')}${fchip('chk','점검',fc.chk,'lf')}${fchip('sup','소모품',fc.sup,'lf')}${fchip('rx','처방·계약',fc.rx,'lf')}${fchip('bill','청구',fc.bill,'lf')}${fchip('chg','변경 이력',fc.chg,'lf')}${fc.dev?fchip('dev','기기',fc.dev,'lf'):''}${fc.msg?fchip('msg','문자',fc.msg,'lf'):''}
       ${nDel?`<button class="cx-fchip${chartUI.showDel?' on':''}" data-act="showDel" title="지운 기록도 보기 (글은 지워지지 않고 남아 있습니다)">🗑 지운 것<em>${nDel}</em></button>`:''}
       <input type="search" id="cxLq" placeholder="글자 찾기 (예: 마스크)" value="${esc(chartUI.lq)}"></div>
     <div class="cx-scroll" id="cxTl" data-sk="tl">${tl||'<div class="cx-empty">아직 기록이 없습니다.<br>가운데 [기록 쓰기]에서 상담·점검 내용을 남기세요.</div>'}<div style="height:10px"></div></div></section>`;
@@ -6312,6 +6368,7 @@ function renderChart0(){
     <div class="cx-bottom"><span class="who">${esc(p.name)} ${esc(p.mgmtCode||'')}</span>
       <button class="btn sm" data-act="docs">📄 서류 앱</button>
       ${labOn('docbox')?'<button class="btn sm" data-act="docbox" title="서류보관함에서 이 환자 열기 — 스캔한 서류를 보고 넣습니다">📁 서류함</button>':''}
+      ${labOn('msg')?`<button class="btn sm" data-act="msg" title="이 환자에게 문자 보내기 — 프리셋 문구에 이름 · 금액을 채워 줍니다. 보낸 문자는 왼쪽 기록에 남습니다">💬 문자${p.msgOff?' (받지 않음)':''}</button>`:''}
       <button class="btn sm" data-act="claim"${active?'':` disabled title="${esc(curYM())} 청구 대상이 아닙니다 (위쪽 청구 월을 바꿔 보세요)"`}>📋 청구 보조창 ${Number(curYM().slice(5))}월</button>
       <button class="btn sm" data-act="editPat">✏️ 환자 정보</button>
       <span class="cx-fhint" style="margin-left:auto">다른 표에서 이름을 누르면 이 화면으로</span></div></section>`;
@@ -6387,7 +6444,10 @@ $('#tab-chart').addEventListener('click',e=>{
       (h.effEdits=h.effEdits||[]).push({at:new Date().toISOString(),by:whoNow(),from:old,to:v});
       if(v===inD)delete h.eff;else h.eff=v;persist();renderChart();});return;}
   if(act==='unsel'){chartKeepDraft();chartUI.formKey=null;chartUI.pid=null;chartUI.none=true;chartUI.edit=null;chartUI.olds=null;renderChart();return;}
+  if(act==='msgView'){const [bid,pid]=String(b.dataset.bid||'').split('|'),bt=(state.msgBatches||[]).find(x=>x.id===bid),rx=bt&&bt.r.find(x=>x.p===pid);
+    if(rx)showMsg(`💬 보낸 문구 — ${fd(new Date(bt.at))}`,`${fmtPhone(rx.to)} · ${msgStLabel(rx.s,bt.via)}${rx.w?` (${rx.w})`:''}\n\n${msgBatchText(bt,rx)}`);return;}
   if(!p)return;
+  if(act==='msg'){chartKeepDraft();openMsgModal(p.id);return;}
   if(act==='docs'){openDocsFor(p.id);return;}
   if(act==='docbox'){openDocbox(p);return;}
   if(act==='goDev'){chartKeepDraft();goDev(p.sn);return;}
@@ -7254,6 +7314,10 @@ function renderLabBox(){
       <div class="ds">이 PC의 <b>숨길이 서류보관함</b> 프로그램과 잇습니다. 켜면 환자 표와 환자 차트에 📁 버튼이 생기고, 누르면 서류보관함에서 그 환자가 바로 열립니다(스캔한 처방전·계약서·사용 보고서를 보고 넣는 곳). 서류보관함 프로그램이 이 PC에 켜져 있어야 합니다. 꺼도 서류는 서류보관함에 그대로 있습니다.
         ${labOn('docbox')?'<br>📁 를 누르면 <b>환자 명단이 서류보관함으로 저절로 넘어가</b> 새 환자가 등록됩니다(화면 아래에 "등록하는 중"이 잠깐 보입니다). 예전 판의 서류보관함이면 [환자 관리] 위쪽의 <b>📁 서류함 명단 내보내기</b>로 파일을 받아 서류보관함의 [명단 가져오기]에서 고릅니다.':''}
         <br><a href="${DOCBOX_SETUP}" download>⬇ 서류보관함 프로그램 내려받기</a> <span class="hint">— 이 PC에 아직 없으면 받아서 실행하세요(파란 "PC 보호" 창이 뜨면 [추가 정보] → [실행]). 한 번 설치하면 새 판은 저절로 받습니다.</span></div></div></div>
+    <div class="labitem${labOn('msg')?'':' off'}"><button class="tog${labOn('msg')?' on':''}" id="labMsgTog" title="${labOn('msg')?'끄기':'켜기'}"></button>
+      <div><div class="ttl">💬 문자 발송 <span class="badge lab">시험 중</span></div>
+      <div class="ds">문자 발송 업체 <b>솔라피</b>를 거쳐 숨길이에서 바로 문자를 보냅니다. 켜면 환자 표 · 환자 차트에 💬 버튼, 📅 월별 청구에 [💬 본인부담금 안내 문자], 이 화면에 [문자 발송] 설정 칸이 생깁니다.
+        솔라피 가입 · 발신번호 등록 · API Key 가 있어야 보낼 수 있고, 없어도 <b>문구 복사 · 발송용 엑셀</b>은 쓸 수 있습니다. 꺼도 프리셋과 보낸 기록은 지워지지 않습니다.</div></div></div>
     <div class="snote">지금 저장된 상담·점검 기록 <b>${nN}건</b> · 변경 이력 <b>${nH}건</b> — 지금 자료와 같은 곳에 암호화되어 저장되고 💾 백업 파일에도 들어갑니다.<br>
       새 판이 나와도 실험실 기록은 그대로 이어집니다(지우지 않고 칸만 늘림).
       ${state.settings.labs.barOff?' <button class="btn sm" id="labBarOn">차트 위 안내 줄 다시 보기</button>':''}</div>
@@ -7264,6 +7328,7 @@ function renderLabBox(){
   $('#labChartTog').onclick=()=>{state.settings.labs.chart=!labOn('chart');persist();applyLabs();renderLabBox();};
   $('#labDevTog').onclick=()=>{state.settings.labs.dev=!labOn('dev');persist();applyLabs();renderLabBox();};
   $('#labDocboxTog').onclick=()=>{state.settings.labs.docbox=!labOn('docbox');persist();applyLabs();renderLabBox();try{renderPatients();}catch(e){}};
+  $('#labMsgTog').onclick=()=>{state.settings.labs.msg=!labOn('msg');persist();applyLabs();renderLabBox();try{renderMsgBox();}catch(e){console.error('문자 발송 설정 오류',e);}};
   const lb=$('#labBarOn');if(lb)lb.onclick=()=>{state.settings.labs.barOff=false;persist();renderLabBox();};
   box.querySelectorAll('[data-udel]').forEach(b=>b.onclick=()=>{state.settings.users.splice(Number(b.dataset.udel),1);persist();renderLabBox();applyLabs();});
   $('#labUserAdd').onclick=()=>askModal('담당자 등록','기록 담당자로 고를 이름 (예: 이실장)','').then(v=>{v=v==null?'':String(v).trim();if(v&&state){addUser(v);persist();renderLabBox();applyLabs();}});
@@ -7291,6 +7356,582 @@ function renderStoreMeter(){
     a.download=`숨길차트_예전사본_${fd(new Date()).replaceAll('-','')}.sumgilbak`;a.click();URL.revokeObjectURL(a.href);
     setTimeout(()=>{try{localStorage.removeItem(LSKEY+'.prev');}catch(e){}renderStoreMeter();showMsg('예전 사본 지움','예전 사본을 파일로 내려받고 브라우저에서 지웠습니다.');},800);
   };
+}
+
+/* ================== 💬 문자 발송 (실험실 'msg', 2026-11-15) ==================
+   업체 = 솔라피(api.solapi.com) — 서버 없이 브라우저에서 바로 부른다(솔라피가 다른 주소에서 온 요청을 받아 줌, 2026-11-15 실측).
+   · 발송 권한이 있는 API Key 는 허용 IP 가 필수(솔라피 2026-11-09 공지, 11-11 시행) → 등록한 인터넷(사무실)에서만 보내진다.
+     막히면 msgErrInfo 가 이유와 고치는 법을 화면에 그대로 보여 주고, API 없이 보내는 길(문구 복사 · 발송용 엑셀 → 솔라피 콘솔)을 같이 둔다.
+   · 키 · 발신번호 · 프리셋 = state.settings.msg (업체마다 넣음 · 소스에는 없음 · 지금 자료와 함께 암호화 저장, 백업 파일에도 암호화된 채 들어감)
+   · 한 사람에게 보낸 문자 = state.notes 의 kind 'msg' (환자 차트 왼쪽 기록에 보임)
+   · 한꺼번에 보낸 문자(월별 청구 본인부담금 안내) = state.msgBatches — 문구는 묶음에 한 번만 두고 사람마다는 번호 · 금액 · 결과만(저장 공간 아끼기), 환자 차트에는 자동 항목으로 보임
+   · 발송 코드는 solapi* 세 함수에만 모음(업체를 바꾸게 되면 여기만) */
+const SOLAPI='https://api.solapi.com',SOLAPI_CONSOLE='https://console.solapi.com/';
+const MYIP_URL='https://search.naver.com/search.naver?query='+encodeURIComponent('내 IP');
+const MSG_PRICE={SMS:18,LMS:45};   /* 솔라피 요금표(부가세 별도, 2026-11 확인) — 어림값. 실제 차감액은 솔라피 콘솔 */
+const MSG_VARS=[['이름','환자 이름'],['월','청구 월(숫자만 — 10)'],['본인부담금','그 달 본인부담금(17,800)'],['결제방식','자동이체 또는 카드 결제'],['결제일','출금 예정일(11월 10일)'],['처방종료일','처방 기간이 끝나는 날'],['업체명','설정의 업체 이름'],['업체전화','설정의 문의 전화']];
+const MSG_PER=['이름','처방종료일'];   /* 사람마다 다른 칸 가운데 묶음 기록에 따로 적어 둘 것(본인부담금 · 결제방식은 금액 · 결제 칸에서 다시 만든다) */
+const MSG_ABROAD='해외에 다녀오시면 그 기간은 본인부담률이 달라집니다. 알리지 않으시면 나중에 환수될 수 있으니 출국·입국 날짜를 꼭 알려 주세요.';
+function msgDefaultPresets(){
+  return [
+    {id:'bill-cash',name:'본인부담금 안내(자동이체)',text:`[#{업체명}] #{이름}님, #{월}월분 양압기 본인부담금은 #{본인부담금}원이며 #{결제일}에 자동이체로 출금됩니다.\n${MSG_ABROAD}\n문의 #{업체전화}`},
+    {id:'bill-card',name:'본인부담금 안내(카드)',text:`[#{업체명}] #{이름}님, #{월}월분 양압기 본인부담금은 #{본인부담금}원이며 카드로 결제됩니다.\n${MSG_ABROAD}\n문의 #{업체전화}`},
+    {id:'abroad',name:'해외 출국 전 연락',text:`[#{업체명}] #{이름}님, 해외에 나가실 때는 출국 전에 꼭 알려 주세요. 해외에 계신 기간은 본인부담률이 달라지고, 알리지 않으시면 나중에 환수될 수 있습니다.\n문의 #{업체전화}`},
+    {id:'mask',name:'마스크 교체 안내',text:`[#{업체명}] #{이름}님, 양압기 마스크를 바꾸실 때가 되었습니다. 편하신 시간에 연락 주세요.\n문의 #{업체전화}`},
+    {id:'rxend',name:'처방 만료 안내',text:`[#{업체명}] #{이름}님, 양압기 처방 기간이 #{처방종료일}에 끝납니다. 그 전에 병원에서 처방전을 새로 받아 주세요.\n문의 #{업체전화}`},
+    {id:'visit',name:'방문 일정',text:`[#{업체명}] #{이름}님, ○월 ○일 ○시에 방문드리겠습니다. 시간이 어려우시면 연락 주세요.\n문의 #{업체전화}`}
+  ];
+}
+/* 설정 칸 — 처음 쓸 때 기본값을 채움(실험실을 켜지 않은 업체의 자료에는 손대지 않게 ensureDefaults 가 아니라 쓸 때) */
+function msgCfg(){
+  const s=state.settings,m=(s.msg&&typeof s.msg==='object')?s.msg:(s.msg={});
+  for(const k of ['apiKey','apiSecret','from','testTo','bizName','bizTel'])if(typeof m[k]!=='string')m[k]='';
+  if(!Array.isArray(m.presets))m.presets=msgDefaultPresets();
+  if(m.keepAlive===undefined)m.keepAlive=true;
+  if(m.billCash===undefined)m.billCash='bill-cash';   /* 월별 청구 한꺼번에 보내기에 쓸 문구(자동이체용 · 카드용) */
+  if(m.billCard===undefined)m.billCard='bill-card';
+  if(!Array.isArray(m.ipLog))m.ipLog=[];
+  if(!Array.isArray(state.msgBatches))state.msgBatches=[];
+  return m;
+}
+const msgPreset=id=>(msgCfg().presets||[]).find(t=>t.id===id)||null;
+const msgReady=()=>{const m=msgCfg();return !!(m.apiKey&&m.apiSecret&&digits(m.from).length>=8);};
+/* 글자 수 — 문자는 바이트로 잰다(한글 · 전각 2, 영문 · 숫자 1). 90 이하는 SMS, 2,000 이하는 LMS */
+const msgBytes=t=>{let n=0;for(const ch of String(t||''))n+=ch.codePointAt(0)<0x80?1:2;return n;};
+const msgTypeOf=t=>{const b=msgBytes(t);return !b?'':b<=90?'SMS':b<=2000?'LMS':'';};
+const msgCut=(t,max)=>{let n=0,o='';for(const ch of String(t||'')){n+=ch.codePointAt(0)<0x80?1:2;if(n>max)break;o+=ch;}return o;};
+const msgMobile=v=>{const d=digits(v);return /^01[016789]\d{7,8}$/.test(d)?d:'';};
+const koDate=s=>{const [y,mo,d]=String(s||'').split('-').map(Number);return y&&mo&&d?`${y}년 ${mo}월 ${d}일`:'';};
+const msgNight=()=>{const h=new Date().getHours();return h>=21||h<8;};
+const msgStLabel=(s,via)=>s==='ok'?'솔라피 접수':s==='xls'?'엑셀로 보냄(솔라피 콘솔)':s==='man'?'직접 보냄(기록만)':s==='fail'?'실패':'';
+const msgNoteLine=g=>`💬 ${fmtPhone(g.to)||g.to||''}${g.type?' · '+g.type:''} · ${msgStLabel(g.st)}${g.preset?' · '+g.preset:''}`;
+/* #{칸} 채우기 — 값이 없는 칸은 그대로 두고 miss 로 알려 준다(그대로 나가지 않게 보내기 전에 막음) */
+function msgFill(tpl,vars){
+  const miss=[];
+  const text=String(tpl||'').replace(/#\{([^{}]+)\}/g,(m0,k)=>{k=k.trim();const v=vars?vars[k]:null;if(v==null||v===''){miss.push(k);return m0;}return String(v);});
+  return {text,miss:[...new Set(miss)]};
+}
+/* 그 달 본인부담금 — 효성CMS+ 이체 파일(cmsRowsFor)과 같은 셈: 임대 본인부담 + 해외 개인부담 (+ 마스크 본인부담) */
+function msgBillOf(p,ym,incMask){
+  const ov=getOv(ym,p.id);if(ov.exclude)return null;
+  let c=null;try{c=calcPatientMonth(p,ym,ov);}catch(e){return null;}
+  if(!c||!c.active)return null;
+  const rent=c.units.reduce((a,u)=>a+u.rentBonin+u.abAmt,0),mask=c.units.reduce((a,u)=>a+u.maskBonin,0);
+  return {rent,mask,amt:rent+(incMask?mask:0),card:(ov.payMethod||p.payMethod)==='card'};
+}
+function msgPayDay(ym){const cs=state.settings.cms||{},b=ymAdd(ym,Number(cs.offset??1));return `${Number(b.slice(5))}월 ${Number(cs.day)||10}일`;}
+function msgVarsFor(p,ym,o){
+  o=o||{};const s=state.settings,m=msgCfg();
+  const v={이름:isNoName(p)?'':(p.name||''),업체명:m.bizName||(s.supplier&&s.supplier.name)||'',업체전화:m.bizTel||'',처방종료일:p.rxEnd?koDate(p.rxEnd):'',결제방식:p.payMethod==='card'?'카드 결제':'자동이체'};
+  if(ym){
+    v.월=String(Number(ym.slice(5)));v.결제일=o.payDay||msgPayDay(ym);
+    const b=msgBillOf(p,ym,o.incMask!==undefined?o.incMask:(s.cms||{}).includeMask!==false);
+    if(b){v.결제방식=b.card?'카드 결제':'자동이체';if(b.amt>0)v.본인부담금=won(b.amt);}
+  }
+  return v;
+}
+function msgCopy(text){
+  return (navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).catch(()=>{const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();});
+}
+/* 안내창 — html 은 이 파일이 만든 글만(바깥에서 온 글자는 esc 해서 넣을 것). btns: [[글자, 돌려줄 값, 모양]] · data-copy 가 붙은 버튼은 누르면 복사 */
+function msgDlg(title,html,btns,width){
+  const bs=btns||[['확인',true,'primary']];
+  return dlgQueue((finish,mark)=>{
+    $('#dlgHost').innerHTML=`<div class="modalBack" id="mdBack" data-mark="${mark}" style="z-index:70"><div class="modal" style="width:${width||560}px">
+      <h3>${esc(title)}</h3><div class="mg-help">${html}</div>
+      <div class="actions">${bs.map(([l,,c],i)=>`<button class="btn ${c||''}" data-i="${i}">${esc(l)}</button>`).join('')}</div></div></div>`;
+    const back=$('#mdBack'),done=v=>{$('#dlgHost').innerHTML='';finish(v);};
+    back.querySelectorAll('.actions button').forEach(b=>b.onclick=()=>done(bs[Number(b.dataset.i)][1]));
+    back.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{msgCopy(b.dataset.copy);b.textContent='복사됨 ✓';});
+    back.onclick=e=>{if(e.target.id==='mdBack')done(undefined);};
+    setTimeout(()=>{const b=back.querySelector('.actions button:last-child');if(b)b.focus();},0);
+  });
+}
+
+/* ───── 솔라피 (업체 어댑터) ─────
+   인증: Authorization: HMAC-SHA256 apiKey=…, date=ISO 8601, salt=무작위, signature=HMAC-SHA256(API Secret, date+salt) 16진수 (공식 SDK authenticator 와 같음)
+   발송: POST /messages/v4/send-many/detail {messages:[{to,from,text,subject?,customFields}],allowDuplicates,showMessageList} → {groupInfo,failedMessageList,messageList?}
+   잔액: GET /cash/v1/balance → {balance,point} · 오류: {errorCode,errorMessage} */
+const msgHex=buf=>[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+async function solapiAuth(key,secret,date,salt){
+  date=date||new Date().toISOString();salt=salt||msgHex(crypto.getRandomValues(new Uint8Array(16)));
+  const enc=new TextEncoder(),k=await crypto.subtle.importKey('raw',enc.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  return `HMAC-SHA256 apiKey=${key}, date=${date}, salt=${salt}, signature=${msgHex(await crypto.subtle.sign('HMAC',k,enc.encode(date+salt)))}`;
+}
+function msgErr(kind,x){const e=new Error((x&&x.msg)||kind);e.msgKind=kind;Object.assign(e,x||{});return e;}
+async function solapiCall(method,path,body){
+  const m=msgCfg();
+  if(!m.apiKey||!m.apiSecret)throw msgErr('nokey');
+  let res;
+  try{res=await fetch(SOLAPI+path,{method,cache:'no-store',headers:{Authorization:await solapiAuth(m.apiKey,m.apiSecret),...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});}
+  catch(e){throw msgErr('net',{msg:String((e&&e.message)||e)});}
+  let j=null;try{j=await res.json();}catch(e){}
+  if(!res.ok)throw msgErr('api',{status:res.status,code:String((j&&j.errorCode)||'HTTP_'+res.status),msg:String((j&&j.errorMessage)||'')});
+  return j||{};
+}
+/* 한 번에 1,000건씩. 돌려주는 값: {res:[{ok,code,why,mid}|null …](null = 보내 보지 못함), gids:[], err(중간에 끊긴 오류)} */
+async function solapiSend(list){
+  const m=msgCfg(),from=digits(m.from),res=list.map(()=>null),gids=[];
+  for(let s=0;s<list.length;s+=1000){
+    const part=list.slice(s,s+1000);
+    let r;
+    try{r=await solapiCall('POST','/messages/v4/send-many/detail',{messages:part.map((x,i)=>({to:x.to,from,text:x.text,...(x.subject?{subject:x.subject}:{}),customFields:{i:String(s+i)}})),allowDuplicates:true,showMessageList:true});}
+    catch(e){if(!s)throw e;return {res,gids,err:e};}
+    if(r.groupInfo&&r.groupInfo.groupId)gids.push(r.groupInfo.groupId);
+    const bad=new Map(),good=new Map();
+    for(const f of (Array.isArray(r.failedMessageList)?r.failedMessageList:[])){const i=f&&f.customFields&&f.customFields.i;bad.set(i!=null?'i'+i:'t'+digits(f&&f.to),f);}
+    for(const g of (Array.isArray(r.messageList)?r.messageList:[])){const i=g&&g.customFields&&g.customFields.i;if(i!=null)good.set('i'+i,g);}
+    part.forEach((x,i)=>{
+      const f=bad.get('i'+(s+i))||bad.get('t'+x.to),g=good.get('i'+(s+i));
+      if(f)res[s+i]={ok:false,code:String(f.statusCode||''),why:String(f.statusMessage||''),mid:String(f.messageId||'')};
+      else if(g&&g.statusCode&&String(g.statusCode)!=='2000')res[s+i]={ok:false,code:String(g.statusCode),why:String(g.statusMessage||''),mid:String(g.messageId||'')};
+      else res[s+i]={ok:true,code:'2000',why:'',mid:String((g&&g.messageId)||'')};
+    });
+  }
+  return {res,gids,err:null};
+}
+/* 접수 단계 실패 코드 → 할 일 (솔라피 Message Status Codes) */
+function msgCodeHelp(code){
+  const c=String(code||'');
+  if(c==='1030'||c==='2230'||c==='2025')return '잔액이 모자랍니다 — 솔라피 콘솔에서 충전';
+  if(c==='1062'||c==='2062')return '등록되지 않은 발신번호 — 솔라피 콘솔 › 발신번호 관리에서 등록 · 설정의 발신번호 확인';
+  if(c==='1060'||c==='3059'||c==='3112'||c==='3113')return '발신번호가 막혀 있음 — 솔라피 콘솔 › 발신번호 관리 확인';
+  if(['1061','1065','2061','2065','3061'].includes(c))return '받는 분이 수신거부한 번호';
+  if(c==='1064'||c==='2064')return '스팸 신고로 막힌 번호(KISA)';
+  if(c==='1031')return '문구가 너무 깁니다';
+  if(c==='1010'||c==='1011'||c==='2011'||c==='3010')return '번호나 문구 형식이 맞지 않음';
+  return '';
+}
+/* 오류 → 무슨 일이고 어떻게 고치나 {kind,title,html,ip}. 허용 IP 오류의 정확한 코드는 실제 키로 아직 못 봤다 → 글자(IP · 아이피 · 403)로 알아본다 */
+function msgIpSteps(ip){
+  return `<ol>
+    <li><b>지금 이 인터넷의 IP 확인</b> — ${ip?`솔라피가 알려 준 지금 IP: <b class="mg-ip">${esc(ip)}</b>`:`<a href="${MYIP_URL}" target="_blank" rel="noopener">네이버에서 '내 IP' 검색</a> (숫자 네 덩이, 예: 123.45.67.89)`}</li>
+    <li><a href="${SOLAPI_CONSOLE}" target="_blank" rel="noopener">솔라피 콘솔</a>에 로그인 → <b>API Key 관리</b> → 쓰는 키 [수정] → <b>허용 IP</b>에 그 숫자를 넣고 저장 <span class="hint">(2차 인증을 묻습니다 — 인증을 맡은 분이 있어야 합니다)</span></li>
+    <li>숨길이로 돌아와 ⚙️ 설정 › 💬 문자 발송 › <b>[연결 확인]</b> → 다시 보내기</li></ol>
+    <div><b>급하면 API 없이</b> — 한 사람은 문자 창의 [📋 문구 복사], 여러 사람은 [📤 발송용 엑셀]로 솔라피 콘솔에서 보낼 수 있습니다(콘솔 발송은 허용 IP 가 필요 없습니다).</div>
+    <div class="hint" style="margin-top:6px">사무실 인터넷이 유동 IP 면 공유기를 껐다 켜거나 통신사 점검 뒤에 IP 가 바뀔 수 있습니다. 등록한 곳 밖(집 · 휴대폰 테더링)에서는 보낼 수 없습니다.</div>`;
+}
+function msgErrInfo(e){
+  const kind0=(e&&e.msgKind)||'',code=String((e&&e.code)||''),raw=String((e&&e.msg)||''),st=Number(e&&e.status)||0,all=code+' '+raw;
+  const ip=(raw.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/)||[])[0]||'';
+  const tail=(code||raw)?`<div class="raw">솔라피가 보낸 말: ${esc(code)}${raw?' — '+esc(raw):''}${st?` (HTTP ${st})`:''}</div>`:'';
+  if(kind0==='nokey')return {kind:'nokey',title:'문자 발송 설정이 비어 있습니다',html:'⚙️ 설정 › 💬 문자 발송에서 솔라피 <b>API Key · API Secret · 발신번호</b>를 넣어 주세요.<br>키가 없어도 [📋 문구 복사]와 [📤 발송용 엑셀]은 쓸 수 있습니다.'};
+  if(kind0==='net')return {kind:'net',title:'솔라피에 닿지 못했습니다',html:`인터넷 연결을 확인하고 잠시 뒤 다시 해 보세요. 회사 보안 프로그램이 <b>api.solapi.com</b> 을 막고 있을 수도 있습니다.<br><br>인터넷은 되는데 계속 이러면 <b>허용 IP</b> 문제일 수 있습니다:${msgIpSteps('')}<div class="raw">브라우저가 보낸 말: ${esc(raw)}</div>`};
+  if(/InactiveApiKey/i.test(all))return {kind:'inactive',title:'API Key 가 꺼져 있습니다 (30일 동안 쓰지 않음)',html:`솔라피는 30일 동안 쓰지 않은 API Key 를 자동으로 끕니다(2026-11-04~).<ol><li><a href="${SOLAPI_CONSOLE}" target="_blank" rel="noopener">솔라피 콘솔</a> › <b>API Key 관리</b>에서 그 키를 다시 켭니다.</li><li>숨길이 ⚙️ 설정 › 💬 문자 발송 › [연결 확인]</li></ol><span class="hint">설정의 "키가 꺼지지 않게 가끔 연결 확인"을 켜 두면 숨길이를 열 때 한 주에 한 번 저절로 확인합니다.</span>${tail}`};
+  if(/(^|[^a-z])ip(s|v4|v6)?([^a-z]|$)/i.test(all)||/[a-z]Ip(?:[A-Z]|$|\b)/.test(all)||/allowedip|아이피/i.test(all))
+    return {kind:'ip',ip,title:'이 인터넷(IP)에서는 문자 발송이 막혀 있습니다',html:`솔라피는 API Key 에 <b>등록해 둔 IP</b> 에서 온 요청만 받습니다(2026-11-11~). 지금 이 컴퓨터의 인터넷 IP 가 등록한 것과 다릅니다 — 사무실 인터넷의 IP 가 바뀌었거나, 등록한 곳이 아닌 곳에서 열었을 때 생깁니다.${msgIpSteps(ip)}${tail}`};
+  if(/InvalidApiKey|SignatureDoesNotMatch|InvalidSignature/i.test(all))return {kind:'auth',title:'API Key 또는 API Secret 이 맞지 않습니다',html:`⚙️ 설정 › 💬 문자 발송의 <b>API Key · API Secret</b> 을 다시 넣어 주세요(앞뒤 빈칸 없이). API Secret 은 발급할 때 한 번만 보이므로, 잃어버렸으면 솔라피 콘솔 › API Key 관리에서 키를 새로 만들어야 합니다(새 키에도 허용 IP 를 넣어야 합니다).${tail}`};
+  if(/TimeTooSkewed|RequestTime|Expired|시간/i.test(all))return {kind:'clock',title:'이 컴퓨터의 시계가 맞지 않습니다',html:`솔라피는 요청 시각이 실제와 15분 넘게 다르면 받지 않습니다. 윈도우 [설정 › 시간 및 언어 › 날짜 및 시간]에서 <b>자동으로 시간 설정</b>을 켜고 [지금 동기화]를 누른 뒤 다시 해 보세요.${tail}`};
+  if(st===402||/Balance|NotEnough|잔액/i.test(all))return {kind:'balance',title:'솔라피 잔액이 모자랍니다',html:`<a href="${SOLAPI_CONSOLE}" target="_blank" rel="noopener">솔라피 콘솔</a>에서 충전한 뒤 다시 보내세요.${tail}`};
+  if(st===401||st===403||/Forbidden|Unauthorized|권한/i.test(all))return {kind:'perm',ip,title:'솔라피가 이 요청을 막았습니다 (허용 IP · 키 권한 · 키 값)',html:`셋 가운데 하나입니다.<br><b>① 허용 IP</b> — 지금 인터넷의 IP 가 API Key 에 등록한 것과 다름:${msgIpSteps(ip)}<div style="margin-top:8px"><b>② 키 권한</b> — 솔라피 콘솔 › API Key 관리에서 이 키에 <b>메시지 발송</b> 권한이 있는지 확인</div><div style="margin-top:4px"><b>③ 키 값</b> — ⚙️ 설정 › 💬 문자 발송의 API Key · API Secret 을 다시 넣어 보기</div>${tail}`};
+  if(/DuplicatedSignature/i.test(all))return {kind:'retry',title:'한 번 더 눌러 주세요',html:`같은 요청이 두 번 간 것으로 보입니다. 다시 누르면 됩니다.${tail}`};
+  return {kind:'other',ip,title:'솔라피가 요청을 받지 않았습니다',html:`아래 내용을 📢 안내의 문의로 알려 주세요. 급하면 [📋 문구 복사] · [📤 발송용 엑셀]로 솔라피 콘솔에서 보낼 수 있습니다.${tail||`<div class="raw">${esc(String((e&&e.message)||e))}</div>`}`};
+}
+function msgErrNote(e){   /* 허용 IP 로 막힌 때를 적어 둠 — IP 가 얼마나 자주 바뀌는지 세려고 */
+  if(!state)return null;const inf=msgErrInfo(e);
+  if(inf.kind==='ip'){const m=msgCfg(),d=fd(new Date());if(!m.ipLog.some(x=>x.at===d)){m.ipLog.push({at:d,...(inf.ip?{ip:inf.ip}:{})});if(m.ipLog.length>30)m.ipLog.splice(0,m.ipLog.length-30);persist();}}
+  return inf;
+}
+function msgErrShow(e){const inf=msgErrNote(e)||msgErrInfo(e);return msgDlg('⚠️ '+inf.title,inf.html,[['닫기',true,'primary']],600);}
+/* 연결 확인 = 잔액 조회 — 키 · 시계 · 허용 IP 를 한 번에 본다. 결과는 설정에 적어 둠 */
+async function msgCheck(silent){
+  const m=msgCfg(),at=new Date().toISOString();
+  try{
+    const r=await solapiCall('GET','/cash/v1/balance');if(!state)return null;
+    const c=msgCfg();c.chk={at,ok:true,bal:Number(r.balance)||0,point:Number(r.point)||0};persist();return c.chk;
+  }catch(e){
+    if(!state)return null;
+    const c=msgCfg();c.chk={at,ok:false,mk:e.msgKind||'',code:String(e.code||''),msg:String(e.msg||'').slice(0,200),status:Number(e.status)||0};
+    msgErrNote(e);persist();
+    if(!silent)throw e;return c.chk;
+  }
+}
+/* 30일 안 쓴 키는 솔라피가 끈다 → 숨길이를 열 때 한 주에 한 번(실패했으면 하루 뒤) 조용히 연결 확인 */
+function msgKeepAlive(){
+  if(!state||!labOn('msg'))return;
+  const m=state.settings.msg;if(!m||!m.apiKey||!m.apiSecret||m.keepAlive===false)return;
+  const last=m.chk&&m.chk.at?Date.parse(m.chk.at):0,gap=(m.chk&&m.chk.ok?7:1)*864e5;
+  if(Date.now()-last<gap)return;
+  msgCheck(true).then(()=>{if(state&&!$('#tab-settings').classList.contains('hidden'))renderMsgBox();}).catch(()=>{});
+}
+const msgSubject=()=>{const m=msgCfg();return msgCut((m.bizName||(state.settings.supplier&&state.settings.supplier.name)||'안내').trim(),40);};
+const msgItem=(to,text)=>({to,text,...(msgTypeOf(text)==='LMS'?{subject:msgSubject()}:{})});
+
+/* ───── 기록 ───── */
+function msgAddNote(p,o){
+  const at=new Date().toISOString();
+  if(!Array.isArray(state.notes))state.notes=[];
+  state.notes.push({id:rid('n'),pid:p.id,date:fd(new Date()),by:whoNow(),via:'sms',kind:'msg',text:o.text,checks:null,sup:null,rx:null,next:null,at,upd:null,del:null,edits:[],
+    msg:{to:o.to,type:o.type||'',st:o.st,...(o.from?{from:o.from}:{}),...(o.mid?{mid:o.mid}:{}),...(o.gid?{gid:o.gid}:{}),...(o.preset?{preset:o.preset}:{})}});
+}
+function msgBatchAdd(B,rows,res,via,gids){
+  const m=msgCfg(),tpl={};
+  const done=rows.map((x,i)=>({x,r:res?res[i]:null})).filter(y=>via==='xls'||y.r);
+  if(!done.length)return null;
+  for(const k of new Set(done.map(y=>y.x.k)))tpl[k]=(msgPreset(k==='card'?B.cardId:B.cashId)||{}).text||'';
+  const per=MSG_PER.filter(v=>Object.values(tpl).some(t=>t.includes('#{'+v+'}')));
+  const cv={};for(const v of ['월','결제일','업체명','업체전화'])cv[v]=done[0].x.vars[v]||'';
+  const bt={id:rid('b'),at:new Date().toISOString(),by:whoNow(),ym:B.ym,tag:'bill',via,from:digits(m.from),tpl,cv,...(gids&&gids.length?{gid:gids}:{}),
+    r:done.map(({x,r})=>{const v={};for(const k of per)v[k]=x.vars[k]||'';
+      return {p:x.p.id,to:x.to,a:x.amt,k:x.k,...(per.length?{v}:{}),s:via==='xls'?'xls':(r.ok?'ok':'fail'),...(r&&r.code&&r.code!=='2000'?{c:r.code}:{}),...(r&&!r.ok&&r.why?{w:String(r.why).slice(0,80)}:{}),...(r&&r.mid?{m:r.mid}:{})};})};
+  state.msgBatches.push(bt);return bt;
+}
+function msgBatchText(bt,x){return msgFill((bt.tpl||{})[x.k]||'',{...(bt.cv||{}),...(x.v||{}),본인부담금:won(x.a),결제방식:x.k==='card'?'카드 결제':'자동이체'}).text;}
+/* 그 달 본인부담금 안내를 이미 받은 사람 → {at,s} */
+function msgBillSent(ym){
+  const mp=new Map();
+  for(const bt of (state.msgBatches||[]))if(bt&&bt.tag==='bill'&&bt.ym===ym)for(const x of (bt.r||[]))if(x.s==='ok'||x.s==='xls'){const o=mp.get(x.p);if(!o||o.at<bt.at)mp.set(x.p,{at:bt.at,s:x.s});}
+  return mp;
+}
+
+/* ───── 한 사람에게 보내기 (환자 관리 💬 · 환자 차트 💬 문자) ───── */
+const msgUI={bill:null};
+/* 같은 일을 겹쳐 누르지 못하게 — 확인창은 줄을 서서 뜨므로, 빠르게 두 번 누르면 확인창이 두 번 떠서 문자가 두 번 나갈 수 있다 */
+const msgBusy=new Set();
+async function msgOnce(key,fn){if(msgBusy.has(key))return;msgBusy.add(key);try{return await fn();}finally{msgBusy.delete(key);}}
+const msgMetaHtml=t=>{const b=msgBytes(t),ty=msgTypeOf(t);return !b?'<span class="hint">문구를 쓰면 종류(SMS · LMS)와 비용이 나옵니다</span>':ty?`<b>${ty}</b> · ${b}바이트 · 약 ${MSG_PRICE[ty]}원 <span class="hint">(부가세 별도${ty==='SMS'?' · 90바이트까지':' · 90바이트를 넘어 장문'})</span>`:`<b style="color:var(--red)">너무 깁니다</b> · ${b}바이트 (2,000바이트까지)`;};
+function openMsgModal(pid,draft){
+  const p=state.patients.find(x=>x.id===pid);if(!p)return;
+  const m=msgCfg(),ym=curYM(),vars=msgVarsFor(p,ym),ready=msgReady();
+  const d=draft||{to:fmtPhone(p.phone),text:'',tid:'',dirty:false};
+  const lastN=(state.notes||[]).filter(n=>n.pid===p.id&&!n.del&&n.kind==='msg').sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0];
+  $('#modalHost').innerHTML=`<div class="modalBack" id="mgBack"><div class="modal mgmodal">
+    <h3>💬 문자 보내기 — ${esc(p.name)} <small style="font-weight:400;color:var(--muted)">${esc(p.mgmtCode||'')}${lastN?` · 마지막 문자 ${esc(lastN.date.slice(5))}`:''}</small></h3>
+    ${ready?'':`<div class="mg-note amber">아직 솔라피 키 · 발신번호가 없어 여기서 바로 보낼 수는 없습니다 (⚙️ 설정 › 💬 문자 발송). 그동안은 <b>[📋 문구 복사]</b>로 휴대폰이나 솔라피 콘솔에서 보내고 <b>[📝 기록만 남기기]</b>를 누르세요.</div>`}
+    <div class="mg-row"><label>받는 번호</label><input id="mgTo" value="${esc(d.to)}" inputmode="tel" autocomplete="off" style="width:150px"><button type="button" class="btn sm" id="mgToCopy" title="번호 복사">복사</button><span class="hint">환자 연락처 — 이번만 다른 번호로 보내려면 고치세요</span></div>
+    <div class="mg-row top"><label>프리셋</label><div class="mg-chips" id="mgChips">${m.presets.map(t=>`<button type="button" class="mg-chip${t.id===d.tid?' on':''}" data-tid="${esc(t.id)}" title="${esc(t.text)}">${esc(t.name)}</button>`).join('')}<button type="button" class="btn sm" id="mgPresetBtn" title="문구를 더하고 고치고 지웁니다">⚙️ 프리셋 관리</button></div></div>
+    <textarea id="mgText" rows="8" placeholder="프리셋을 누르면 이름 · 금액이 채워진 문구가 들어옵니다. 직접 써도 됩니다.">${esc(d.text)}</textarea>
+    <div class="mg-meta"><span id="mgCount"></span><span class="spacer"></span><span class="hint">금액 · 월은 위쪽 청구 월(${Number(ym.slice(5))}월) 기준</span></div>
+    <div id="mgWarn"></div>
+    <label class="mg-off"><input type="checkbox" id="mgOff" ${p.msgOff?'checked':''}> 이 환자는 문자를 받지 않음 <span class="hint">— 표시해 두면 본인부담금 한꺼번에 보내기에서 빠집니다</span></label>
+    <div class="actions"><button class="btn" id="mgCopy" title="완성된 문구를 복사 — 휴대폰이나 솔라피 콘솔에 붙여 넣어 보낼 때">📋 문구 복사</button><button class="btn" id="mgLog" title="다른 길(휴대폰 · 솔라피 콘솔)로 보낸 문자를 환자 차트 기록으로만 남깁니다 — 발송하지 않음">📝 기록만 남기기</button>
+      <span style="flex:1"></span><button class="btn" id="mCancel">닫기</button><button class="btn primary" id="mgSend"${ready?'':' disabled title="⚙️ 설정 › 💬 문자 발송에 솔라피 키 · 발신번호를 넣으면 켜집니다"'}>보내기</button></div>
+  </div></div>`;
+  const T=$('#mgText'),close=()=>{$('#modalHost').innerHTML='';};
+  const cur=()=>({to:$('#mgTo').value,text:T.value,tid:d.tid,dirty:d.dirty});
+  const sync=()=>{
+    const text=T.value,left=[...new Set((text.match(/#\{[^{}]+\}/g)||[]))],w=[];
+    $('#mgCount').innerHTML=msgMetaHtml(text);
+    if(left.length)w.push(`<div class="mg-note warn">채우지 못한 칸이 남아 있습니다: <b>${esc(left.join(' '))}</b> — ${left.some(x=>/본인부담금/.test(x))?`이 환자는 ${Number(ym.slice(5))}월 청구가 없거나 본인부담금이 0원입니다. `:''}${left.some(x=>/업체전화/.test(x))?'문의 전화는 ⚙️ 설정 › 💬 문자 발송의 "문의 전화(문구용)"에 넣어 두면 채워집니다. ':''}직접 고쳐 쓰거나 지워 주세요. 이대로는 보낼 수 없습니다.</div>`);
+    if($('#mgOff').checked)w.push('<div class="mg-note warn">문자를 받지 않는 환자로 표시되어 있습니다.</div>');
+    if(msgNight())w.push('<div class="mg-note amber">지금은 밤 9시 ~ 아침 8시입니다. 받는 분께 실례가 될 수 있습니다.</div>');
+    $('#mgWarn').innerHTML=w.join('');
+  };
+  const check=()=>{
+    const to=msgMobile($('#mgTo').value),text=T.value.trim();
+    if(!to){showMsg('받는 번호 확인','휴대폰 번호(010 …)를 넣어 주세요. 일반 전화로는 문자를 보낼 수 없습니다.');return null;}
+    if(!text){showMsg('문구 확인','보낼 문구를 써 주세요.');return null;}
+    if(/#\{[^{}]+\}/.test(text)){showMsg('문구 확인','채우지 못한 칸(#{…})이 남아 있습니다. 고쳐 쓰거나 지운 뒤 보내세요.');return null;}
+    if(!msgTypeOf(text)){showMsg('문구 확인','문구가 너무 깁니다(2,000바이트까지).');return null;}
+    return {to,text,type:msgTypeOf(text),preset:(msgPreset(d.tid)||{}).name||''};
+  };
+  T.addEventListener('input',()=>{d.dirty=true;sync();});
+  $('#mgChips').addEventListener('click',async e=>{
+    const c=e.target.closest('.mg-chip');if(!c)return;
+    const t=msgPreset(c.dataset.tid);if(!t)return;
+    if(d.dirty&&T.value.trim()&&!await confirmModal('프리셋 바꾸기','지금 쓴 문구를 지우고 고른 프리셋으로 바꿀까요?','바꾸기'))return;
+    if(!$('#mgText'))return;
+    T.value=msgFill(t.text,vars).text;d.tid=t.id;d.dirty=false;
+    $('#mgChips').querySelectorAll('.mg-chip').forEach(x=>x.classList.toggle('on',x===c));sync();T.focus();
+  });
+  $('#mgPresetBtn').onclick=()=>{const keep=cur();openMsgPresets(()=>{if(state&&state.patients.some(x=>x.id===pid))openMsgModal(pid,keep);},d.tid);};
+  $('#mgToCopy').onclick=()=>{msgCopy(digits($('#mgTo').value));$('#mgToCopy').textContent='복사됨 ✓';};
+  $('#mgCopy').onclick=()=>{msgCopy(T.value);$('#mgCopy').textContent='복사됨 ✓';};
+  $('#mgOff').onchange=()=>{const q=state.patients.find(x=>x.id===pid);if(!q)return;if($('#mgOff').checked)q.msgOff=true;else delete q.msgOff;histTag('💬 문자 › 받지 않음');persist();sync();};
+  $('#mCancel').onclick=()=>{close();renderAll();};
+  $('#mgBack').onclick=e=>{if(e.target.id==='mgBack'&&!T.value.trim()){close();renderAll();}};   /* 쓰던 글이 있으면 바깥을 눌러도 닫지 않음 */
+  $('#mgLog').onclick=()=>msgOnce('one',async()=>{
+    const v=check();if(!v)return;
+    if(!await confirmModal('📝 기록만 남기기',`${p.name} · ${fmtPhone(v.to)}\n\n이 문구를 다른 길(휴대폰 · 솔라피 콘솔)로 이미 보냈다는 기록만 환자 차트에 남깁니다.\n숨길이는 문자를 보내지 않습니다.`,'기록 남기기'))return;
+    if(!state)return;const q=state.patients.find(x=>x.id===pid);if(!q)return;
+    msgAddNote(q,{to:v.to,text:v.text,type:v.type,st:'man',preset:v.preset});persist();close();renderAll();docboxNote(`📝 ${q.name} 문자 기록을 남겼습니다`,4000);
+  });
+  $('#mgSend').onclick=()=>msgOnce('one',async()=>{
+    const v=check();if(!v)return;
+    const q0=state.patients.find(x=>x.id===pid);
+    if(!await confirmModal('💬 문자 보내기',`${p.name} · 받는 번호 ${fmtPhone(v.to)}\n보내는 번호 ${fmtPhone(msgCfg().from)} · ${v.type} · 약 ${MSG_PRICE[v.type]}원(부가세 별도)${q0&&q0.msgOff?'\n\n⚠️ 문자를 받지 않는 환자로 표시되어 있습니다.':''}${msgNight()?'\n\n⚠️ 지금은 밤 9시 ~ 아침 8시입니다.':''}\n\n──────────\n${v.text}\n──────────\n\n보낸 문자는 되돌릴 수 없습니다. 보낼까요?`,'보내기',true))return;
+    if(!state||!$('#mgSend'))return;
+    const btn=$('#mgSend');btn.disabled=true;btn.textContent='보내는 중…';
+    let out;
+    try{out=await solapiSend([msgItem(v.to,v.text)]);}
+    catch(e){if($('#mgSend')){btn.disabled=false;btn.textContent='보내기';}if(state)msgErrShow(e);return;}
+    if(!state)return;
+    const r=out.res[0],q=state.patients.find(x=>x.id===pid);
+    if(!r||!r.ok){if($('#mgSend')){btn.disabled=false;btn.textContent='보내기';}
+      showMsg('문자가 접수되지 않았습니다',`${fmtPhone(v.to)}\n${(r&&r.why)||'솔라피가 받지 않았습니다'}${r&&r.code?` (코드 ${r.code})`:''}${r&&msgCodeHelp(r.code)?`\n→ ${msgCodeHelp(r.code)}`:''}\n\n문자는 나가지 않았고 기록도 남기지 않았습니다.`);return;}
+    if(q)msgAddNote(q,{to:v.to,from:digits(msgCfg().from),text:v.text,type:v.type,st:'ok',mid:r.mid,gid:out.gids[0]||'',preset:v.preset});
+    persist();close();renderAll();docboxNote(`💬 ${p.name} ${fmtPhone(v.to)} — 문자를 솔라피에 접수했습니다`,5000);
+  });
+  sync();setTimeout(()=>{const x=$('#mgText');if(x&&!draft)x.focus();},50);
+}
+
+/* ───── 프리셋 관리 ───── */
+function openMsgPresets(back,selId){
+  const m=msgCfg();let cur=m.presets.some(t=>t.id===selId)?selId:((m.presets[0]||{}).id||'');
+  const close=()=>{$('#modalHost').innerHTML='';if(back)back();else renderAll();};
+  const draw=()=>{
+    if(!state)return;
+    const t=m.presets.find(x=>x.id===cur)||null;
+    $('#modalHost').innerHTML=`<div class="modalBack" id="mpBack"><div class="modal mpmodal">
+      <h3>💬 문자 프리셋 <small style="font-weight:400;color:var(--muted)">자주 쓰는 문구 — 고치면 바로 저장됩니다</small></h3>
+      <div class="mp-grid">
+        <div class="mp-list">${m.presets.map((x,i)=>`<div class="mp-it${x.id===cur?' on':''}" data-tid="${esc(x.id)}"><b>${esc(x.name||'(이름 없음)')}</b>${x.id===m.billCash?'<span class="badge cash" title="월별 청구 한꺼번에 보내기 — 자동이체 환자용">자동이체</span>':''}${x.id===m.billCard?'<span class="badge card" title="월별 청구 한꺼번에 보내기 — 카드 환자용">카드</span>':''}<span class="mv"><button type="button" data-mv="-1" data-i="${i}" title="위로">▲</button><button type="button" data-mv="1" data-i="${i}" title="아래로">▼</button></span></div>`).join('')||'<div class="hint">프리셋이 없습니다.</div>'}
+          <button type="button" class="btn sm" id="mpAdd" style="margin-top:4px">+ 새 프리셋</button></div>
+        <div class="mp-edit">${t?`
+          <label style="margin-top:0">이름</label><input id="mpName" value="${esc(t.name)}" maxlength="30" autocomplete="off">
+          <label>문구</label><textarea id="mpText" rows="9">${esc(t.text)}</textarea>
+          <div class="mg-meta"><span id="mpCount"></span></div>
+          <div class="mp-vars">눌러서 넣기: ${MSG_VARS.map(([k,ds])=>`<button type="button" class="mg-var" data-var="${k}" title="${esc(ds)}">#{${k}}</button>`).join('')}</div>
+          <div class="hint" style="margin-top:8px;line-height:1.7">#{…} 칸은 보낼 때 그 환자 값으로 바뀝니다. 금액 · 월은 그때 고른 청구 월 기준입니다.<br>월별 청구에서 한꺼번에 보낼 때 쓸 문구(자동이체용 · 카드용)는 그 창에서 고릅니다.</div>
+          <div style="margin-top:10px"><button type="button" class="btn danger sm" id="mpDel">이 프리셋 지우기</button></div>`:'<div class="hint">왼쪽에서 프리셋을 고르거나 [+ 새 프리셋]을 누르세요.</div>'}</div>
+      </div>
+      <div class="actions"><button class="btn sm" id="mpReset" style="margin-right:auto" title="지운 기본 프리셋을 다시 넣습니다 — 고쳐 쓴 것은 그대로 둡니다">기본 프리셋 다시 넣기</button><button class="btn primary" id="mCancel">닫기</button></div></div></div>`;
+    const cnt=()=>{const x=$('#mpText');if(x)$('#mpCount').innerHTML=`<span class="hint">칸을 채우기 전 ${msgBytes(x.value)}바이트 — 90바이트를 넘으면 장문(LMS)으로 나갑니다</span>`;};
+    cnt();
+    if(t){
+      $('#mpName').oninput=()=>{t.name=$('#mpName').value;persist();const b=$('#mpBack').querySelector('.mp-it.on b');if(b)b.textContent=t.name||'(이름 없음)';};
+      $('#mpText').oninput=()=>{t.text=$('#mpText').value;persist();cnt();};
+      $('#mpBack').querySelectorAll('.mg-var').forEach(b=>b.onclick=()=>{const x=$('#mpText'),ins=`#{${b.dataset.var}}`,a=x.selectionStart??x.value.length,z=x.selectionEnd??a;
+        x.value=x.value.slice(0,a)+ins+x.value.slice(z);x.focus();x.setSelectionRange(a+ins.length,a+ins.length);t.text=x.value;persist();cnt();});
+      $('#mpDel').onclick=async()=>{
+        if(!await confirmModal('프리셋 지우기',`"${t.name}" 프리셋을 지울까요?\n(이미 보낸 문자 기록은 그대로입니다)`,'지우기',true))return;
+        if(!state)return;const i=m.presets.findIndex(x=>x.id===t.id);if(i<0)return;
+        m.presets.splice(i,1);if(m.billCash===t.id)m.billCash='';if(m.billCard===t.id)m.billCard='';
+        cur=(m.presets[Math.min(i,m.presets.length-1)]||{}).id||'';persist();draw();};
+    }
+    $('#mpBack').querySelector('.mp-list').onclick=e=>{
+      const mv=e.target.closest('[data-mv]');
+      if(mv){const i=Number(mv.dataset.i),j=i+Number(mv.dataset.mv);if(j<0||j>=m.presets.length)return;[m.presets[i],m.presets[j]]=[m.presets[j],m.presets[i]];persist();draw();return;}
+      const it=e.target.closest('.mp-it');if(it&&it.dataset.tid!==cur){cur=it.dataset.tid;draw();}
+    };
+    $('#mpAdd').onclick=()=>{const t2={id:rid('t'),name:'새 프리셋',text:'[#{업체명}] #{이름}님, \n문의 #{업체전화}'};m.presets.push(t2);cur=t2.id;persist();draw();setTimeout(()=>{const x=$('#mpName');if(x){x.focus();x.select();}},0);};
+    $('#mpReset').onclick=()=>{const have=new Set(m.presets.map(x=>x.id)),add=msgDefaultPresets().filter(x=>!have.has(x.id));
+      if(!add.length){showMsg('기본 프리셋','기본 프리셋 6개가 모두 있습니다.\n(문구를 처음 것으로 되돌리려면 그 프리셋을 지운 뒤 다시 누르세요)');return;}
+      m.presets.push(...add);persist();draw();};
+    $('#mCancel').onclick=close;
+  };
+  draw();
+}
+
+/* ───── 월별 청구 › 💬 본인부담금 안내 문자 (한꺼번에) ───── */
+function msgBillRows(B){
+  const sent=msgBillSent(B.ym),out=[],dup=new Map();
+  const tpl={cash:(msgPreset(B.cashId)||{}).text||'',card:(msgPreset(B.cardId)||{}).text||''};
+  for(const r of monthRows(B.ym)){
+    const p=r.p,b=msgBillOf(p,B.ym,B.incMask);if(!b)continue;
+    const k=b.card?'card':'cash',to=msgMobile(p.phone),vars=msgVarsFor(p,B.ym,{incMask:B.incMask,payDay:B.payDay});
+    const f=msgFill(tpl[k],vars),ty=msgTypeOf(f.text);
+    let why='';
+    if(b.amt<=0)why='본인부담금 0원';
+    else if(p.msgOff)why='문자 받지 않음';
+    else if(!to)why=digits(p.phone)?'휴대폰 번호가 아님':'연락처 없음';
+    else if(!tpl[k])why=`${k==='card'?'카드':'자동이체'}용 문구를 고르세요`;
+    else if(f.miss.length)why='못 채운 칸 '+f.miss.map(x=>`#{${x}}`).join(' ');
+    else if(!ty)why='문구가 너무 깁니다';
+    out.push({p,k,to,amt:b.amt,mask:B.incMask?b.mask:0,text:f.text,ty,why,sent:sent.get(p.id)||null,vars});
+    if(to)dup.set(to,(dup.get(to)||0)+1);
+  }
+  for(const x of out)x.dup=!!(x.to&&dup.get(x.to)>1);
+  return out;
+}
+function msgBillPick(B){const rows=msgBillRows(B);return {rows,pick:rows.filter(x=>!x.why&&B.sel&&B.sel.has(x.p.id))};}
+function msgBillCost(list){const n={SMS:0,LMS:0};for(const x of list)if(n[x.ty]!=null)n[x.ty]++;return {n,cost:n.SMS*MSG_PRICE.SMS+n.LMS*MSG_PRICE.LMS};}
+function openMsgBill(){
+  const ym=curYM();if(!ym||!state)return;
+  const m=msgCfg(),cs=state.settings.cms||{};
+  const pick=(id,fb)=>m.presets.some(t=>t.id===id)?id:(m.presets.some(t=>t.id===fb)?fb:'');
+  msgUI.bill={ym,incMask:cs.includeMask!==false,payDay:msgPayDay(ym),cashId:pick(m.billCash,'bill-cash'),cardId:pick(m.billCard,'bill-card'),sel:null,focus:null};
+  msgBillDraw();
+}
+function msgBillDraw(){
+  const B=msgUI.bill;if(!B||!state)return;
+  const m=msgCfg(),rows=msgBillRows(B),okRows=rows.filter(x=>!x.why),ready=msgReady(),M=Number(B.ym.slice(5));
+  B.sel=new Set(okRows.filter(x=>B.sel?B.sel.has(x.p.id):!x.sent).map(x=>x.p.id));
+  if(!B.focus||!rows.some(x=>x.p.id===B.focus))B.focus=((okRows[0]||rows[0]||{}).p||{}).id||null;
+  const opt=sel=>`<option value="">— 고르기 —</option>${m.presets.map(t=>`<option value="${esc(t.id)}"${t.id===sel?' selected':''}>${esc(t.name)}</option>`).join('')}`;
+  const sentTxt=s=>`${fd(new Date(s.at)).slice(5).replace('-','/')} ${s.s==='xls'?'엑셀로 보냄':'보냄'}`;
+  const tr=x=>`<tr data-pid="${x.p.id}" class="${x.why?'off':''}${x.p.id===B.focus?' sel':''}">
+    <td><input type="checkbox" data-pid="${x.p.id}"${B.sel.has(x.p.id)?' checked':''}${x.why?' disabled':''}></td>
+    <td>${esc(x.p.mgmtCode||'—')}</td><td class="nm" title="눌러서 문구 보기">${esc(x.p.name)}</td>
+    <td>${x.to?esc(fmtPhone(x.to)):'<span class="hint">—</span>'}${x.dup?' <span class="badge end" title="같은 번호를 쓰는 환자가 또 있습니다 — 그 번호로 문자가 사람 수만큼 갑니다">같은 번호</span>':''}</td>
+    <td class="num">${won(x.amt)}${x.mask?' <span class="hint" title="마스크 본인부담 '+won(x.mask)+'원 포함">+마스크</span>':''}</td>
+    <td><span class="badge ${x.k==='card'?'card':'cash'}">${x.k==='card'?'카드':'자동이체'}</span></td>
+    <td>${x.why?'':esc(x.ty)}</td>
+    <td>${x.why?`<span class="badge warn">${esc(x.why)}</span>`:''}${x.sent?`<span class="badge b20" title="이 달 안내를 이미 보냈습니다 — 또 보내려면 체크하세요">${esc(sentTxt(x.sent))}</span>`:''}</td></tr>`;
+  $('#modalHost').innerHTML=`<div class="modalBack" id="mbBack"><div class="modal mbmodal">
+    <h3>💬 본인부담금 안내 문자 — ${B.ym.slice(0,4)}년 ${M}월분 <small style="font-weight:400;color:var(--muted)">자동이체 · 카드 문구 따로 · 금액은 효성CMS+ 이체 파일과 같은 셈</small></h3>
+    <div class="mb-opts">
+      <label>자동이체 환자 문구 <select id="mbCash">${opt(B.cashId)}</select></label>
+      <label>카드 환자 문구 <select id="mbCard">${opt(B.cardId)}</select></label>
+      <label title="문구의 #{결제일} 자리에 들어갑니다 — 효성CMS+ 설정(약정일)에서 가져온 값">결제일 <input id="mbPay" value="${esc(B.payDay)}" style="width:108px" autocomplete="off"></label>
+      <label title="끄면 임대료 본인부담만 — 효성CMS+ 파일의 '첫마스크' 줄을 따로 안내할 때"><input type="checkbox" id="mbMask"${B.incMask?' checked':''}> 마스크 본인부담 포함</label>
+      <button type="button" class="btn sm" id="mbPresets">⚙️ 프리셋 관리</button>
+    </div>
+    ${ready?'':`<div class="mg-note amber">아직 솔라피 키 · 발신번호가 없습니다 (⚙️ 설정 › 💬 문자 발송). 명단과 문구는 지금도 볼 수 있고, <b>[📤 발송용 엑셀]</b>로 솔라피 콘솔에서 보낼 수 있습니다.</div>`}
+    ${rows.some(x=>/업체전화/.test(x.why))?'<div class="mg-note warn">문구의 <b>#{업체전화}</b> 자리를 채우지 못했습니다 — ⚙️ 설정 › 💬 문자 발송의 "문의 전화(문구용)"를 넣거나, 프리셋에서 그 칸을 지워 주세요.</div>':''}
+    ${msgNight()?'<div class="mg-note amber">지금은 밤 9시 ~ 아침 8시입니다. 받는 분들께 실례가 될 수 있으니 낮에 보내세요.</div>':''}
+    <div class="mb-body">
+      <div class="tblwrap mb-tbl"><table class="grid"><thead><tr><th><input type="checkbox" id="mbAll" title="보낼 수 있는 사람 모두 고르기 / 풀기"></th><th>차트</th><th>이름</th><th>받는 번호</th><th class="num">본인부담금</th><th>결제</th><th>종류</th><th>상태</th></tr></thead>
+        <tbody>${rows.map(tr).join('')||`<tr><td colspan="8" class="hint" style="padding:22px;text-align:center">${M}월 청구 대상 환자가 없습니다. 위쪽 청구 월을 확인하세요.</td></tr>`}</tbody></table></div>
+      <div class="mb-prev"><div class="t">문구 미리보기 — <span id="mbPvName"></span></div><textarea id="mbPv" readonly></textarea><div class="hint">표에서 이름을 누르면 그 사람에게 갈 문구가 보입니다. 문구는 [⚙️ 프리셋 관리]에서 고칩니다.</div></div>
+    </div>
+    <div class="mb-sum" id="mbSum"></div>
+    <div class="actions"><button class="btn" id="mbXls" title="고른 사람의 번호 · 완성된 문구가 든 엑셀 — 솔라피 콘솔의 엑셀 업로드로 보냅니다(허용 IP · API Key 없이도 됨)">📤 발송용 엑셀 <span style="font-weight:400">(API 없이)</span></button>
+      <span style="flex:1"></span><button class="btn" id="mCancel">닫기</button>
+      <button class="btn" id="mbTest"${ready?'':' disabled'} title="맨 위에 고른 사람의 문구를 설정의 '내 번호'로 먼저 보내 봅니다">나에게 먼저 보내기</button>
+      <button class="btn primary" id="mbSend"${ready?'':' disabled'}></button></div>
+  </div></div>`;
+  const sum=()=>{
+    const pk=rows.filter(x=>!x.why&&B.sel.has(x.p.id)),c=msgBillCost(pk),ex=rows.filter(x=>x.why),again=pk.filter(x=>x.sent).length,bal=m.chk&&m.chk.ok?m.chk.bal+m.chk.point:null;
+    $('#mbSum').innerHTML=`보낼 사람 <b>${pk.length}명</b>${pk.length?` · SMS ${c.n.SMS}건 · LMS ${c.n.LMS}건 · 예상 <b>약 ${won(c.cost)}원</b> <span class="hint">(부가세 별도)</span>`:''}${ex.length?` · 못 보내는 사람 ${ex.length}명 <span class="hint">(표의 빨간 이유)</span>`:''}${again?` · <span style="color:var(--red)">이미 보낸 사람 ${again}명이 들어 있음</span>`:''}${bal!=null&&c.cost*1.1>bal?` · <span style="color:var(--red)">솔라피 잔액 ${won(bal)}원 — 모자랄 수 있음</span>`:''}`;
+    const sb=$('#mbSend');sb.textContent=`보내기 (${pk.length}명)`;sb.disabled=!ready||!pk.length;$('#mbTest').disabled=!ready||!pk.length;
+    const all=$('#mbAll');all.checked=okRows.length>0&&okRows.every(x=>B.sel.has(x.p.id));
+  };
+  const pv=()=>{const x=rows.find(y=>y.p.id===B.focus);$('#mbPvName').textContent=x?`${x.p.name} (${x.k==='card'?'카드':'자동이체'}${x.why?'':' · '+x.ty+' '+msgBytes(x.text)+'바이트'})`:'';$('#mbPv').value=x?x.text:'';
+    $('#mbBack').querySelectorAll('tbody tr').forEach(t=>t.classList.toggle('sel',t.dataset.pid===B.focus));};
+  sum();pv();
+  const back=$('#mbBack'),close=()=>{msgUI.bill=null;$('#modalHost').innerHTML='';renderAll();};
+  back.querySelector('tbody').addEventListener('click',e=>{const t=e.target.closest('tr[data-pid]');if(!t)return;
+    if(e.target.matches('input[type=checkbox]')){if(e.target.checked)B.sel.add(t.dataset.pid);else B.sel.delete(t.dataset.pid);sum();}
+    B.focus=t.dataset.pid;pv();});
+  $('#mbAll').onchange=()=>{B.sel=new Set($('#mbAll').checked?okRows.map(x=>x.p.id):[]);back.querySelectorAll('tbody input[type=checkbox]:not(:disabled)').forEach(c=>{c.checked=B.sel.has(c.dataset.pid);});sum();};
+  $('#mbCash').onchange=()=>{B.cashId=$('#mbCash').value;m.billCash=B.cashId;persist();msgBillDraw();};
+  $('#mbCard').onchange=()=>{B.cardId=$('#mbCard').value;m.billCard=B.cardId;persist();msgBillDraw();};
+  $('#mbPay').onchange=()=>{B.payDay=$('#mbPay').value.trim();msgBillDraw();};
+  $('#mbMask').onchange=()=>{B.incMask=$('#mbMask').checked;msgBillDraw();};
+  $('#mbPresets').onclick=()=>openMsgPresets(()=>{if(state&&msgUI.bill)msgBillDraw();},B.cashId);
+  $('#mCancel').onclick=close;
+  $('#mbXls').onclick=msgBillXls;
+  $('#mbTest').onclick=msgBillTest;
+  $('#mbSend').onclick=msgBillSend;
+}
+function msgBillTest(){return msgOnce('bill',msgBillTest0);}
+async function msgBillTest0(){
+  const B=msgUI.bill;if(!B||!state)return;
+  const m=msgCfg(),x=msgBillPick(B).pick[0],to=msgMobile(m.testTo);
+  if(!x)return;
+  if(!to){showMsg('내 번호가 없습니다','⚙️ 설정 › 💬 문자 발송의 "내 번호(시험 발송)"에 휴대폰 번호를 넣어 주세요.');return;}
+  if(!await confirmModal('나에게 먼저 보내기',`${x.p.name}님에게 갈 문구를 내 번호 ${fmtPhone(to)} 로 1건 보냅니다.\n${x.ty} · 약 ${MSG_PRICE[x.ty]}원(부가세 별도)\n\n──────────\n${x.text}\n──────────`,'내 번호로 보내기'))return;
+  if(!state)return;
+  try{const out=await solapiSend([msgItem(to,x.text)]),r=out.res[0];if(!state)return;
+    if(r&&r.ok)showMsg('내 번호로 보냈습니다',`${fmtPhone(to)} 로 솔라피에 접수했습니다. 휴대폰에서 문구 · 보낸 번호를 확인한 뒤 [보내기]를 누르세요.\n(환자 차트 기록에는 남기지 않습니다)`);
+    else showMsg('접수되지 않았습니다',`${(r&&r.why)||'솔라피가 받지 않았습니다'}${r&&r.code?` (코드 ${r.code})`:''}${r&&msgCodeHelp(r.code)?`\n→ ${msgCodeHelp(r.code)}`:''}`);
+  }catch(e){if(state)msgErrShow(e);}
+}
+function msgBillSend(){return msgOnce('bill',msgBillSend0);}
+async function msgBillSend0(){
+  const B=msgUI.bill;if(!B||!state)return;
+  if(!msgReady()){msgErrShow(msgErr('nokey'));return;}
+  const m=msgCfg(),pk=msgBillPick(B).pick,M=Number(B.ym.slice(5));
+  if(!pk.length){showMsg('안내','보낼 사람이 없습니다. 표에서 보낼 사람을 고르세요.');return;}
+  const c=msgBillCost(pk),again=pk.filter(x=>x.sent);
+  if(!await confirmModal('💬 문자 보내기',`${B.ym.slice(0,4)}년 ${M}월분 본인부담금 안내를 ${pk.length}명에게 보냅니다.\n\nSMS ${c.n.SMS}건 · LMS ${c.n.LMS}건 · 예상 약 ${won(c.cost)}원(부가세 별도)\n보내는 번호 ${fmtPhone(m.from)}${again.length?`\n\n⚠️ 이 달 안내를 이미 받은 사람 ${again.length}명이 들어 있습니다: ${again.slice(0,8).map(x=>x.p.name).join(', ')}${again.length>8?' …':''}`:''}${msgNight()?'\n\n⚠️ 지금은 밤 9시 ~ 아침 8시입니다.':''}\n\n보낸 문자는 되돌릴 수 없습니다. 보낼까요?`,`${pk.length}명에게 보내기`,true))return;
+  if(!state||msgUI.bill!==B||!$('#mbSend'))return;
+  $('#mbSend').disabled=true;$('#mbSend').textContent='보내는 중…';$('#mbTest').disabled=true;$('#mbXls').disabled=true;
+  let out;
+  try{out=await solapiSend(pk.map(x=>msgItem(x.to,x.text)));}
+  catch(e){if(state&&msgUI.bill===B){msgBillDraw();msgErrShow(e);}return;}
+  if(!state)return;
+  msgBatchAdd(B,pk,out.res,'api',out.gids);persist();
+  const okN=out.res.filter(r=>r&&r.ok).length,bad=pk.map((x,i)=>({x,r:out.res[i]})).filter(y=>y.r&&!y.r.ok),skip=out.res.filter(r=>!r).length;
+  B.sel=new Set([...bad.map(y=>y.x.p.id),...pk.filter((x,i)=>!out.res[i]).map(x=>x.p.id)]);   /* 못 보낸 사람만 고른 채로 */
+  if(msgUI.bill===B&&$('#mbBack'))msgBillDraw();
+  msgCheck(true).catch(()=>{});
+  await showMsg('💬 문자 접수 결과',`솔라피 접수 ${okN}명${bad.length?` · 실패 ${bad.length}명`:''}${skip?` · 보내지 못함 ${skip}명`:''}\n\n${okN?'접수된 문자는 환자 차트 왼쪽 기록(문자)에 남았습니다.\n실제로 휴대폰에 닿았는지는 솔라피 콘솔 › 메시지 발송 내역에서 볼 수 있습니다.\n':''}${bad.length?`\n— 실패 —\n${bad.map(y=>`· ${y.x.p.name} ${fmtPhone(y.x.to)} — ${y.r.why||'접수 실패'}${y.r.code?` (코드 ${y.r.code})`:''}${msgCodeHelp(y.r.code)?` → ${msgCodeHelp(y.r.code)}`:''}`).join('\n')}\n`:''}${skip?'\n보내지 못한 사람은 표에 고른 채로 남겨 두었습니다. 원인을 고친 뒤 다시 [보내기]를 누르세요.':''}`);
+  if(out.err&&state)msgErrShow(out.err);
+}
+/* 발송용 엑셀 — 솔라피 콘솔의 엑셀 업로드용(첫 줄 = 칸 이름, 내용에 #{칸 이름}을 쓰면 줄마다 바뀜). 자동이체 · 카드는 문구가 달라 파일을 따로 */
+function msgBillXls(){return msgOnce('bill',msgBillXls0);}
+async function msgBillXls0(){
+  const B=msgUI.bill;if(!B||!state)return;
+  const pk=msgBillPick(B).pick;
+  if(!pk.length){showMsg('안내','보낼 사람이 없습니다. 표에서 보낼 사람을 고르세요.');return;}
+  const files=[],HDR=['수신번호','이름','월','본인부담금','결제방식','결제일','업체명','업체전화','처방종료일','문구'];
+  for(const k of ['cash','card']){
+    const part=pk.filter(x=>x.k===k);if(!part.length)continue;
+    const tpl=(msgPreset(k==='card'?B.cardId:B.cashId)||{}).text||'';
+    const aoa=[HDR,...part.map(x=>[x.to,...HDR.slice(1,9).map(h=>x.vars[h]||''),x.text])];
+    const ws=XLSX.utils.aoa_to_sheet(aoa);textFormatCells(ws,0,aoa.length-1);ws['!cols']=[13,9,5,11,10,11,14,14,16,90].map(w=>({wch:w}));
+    const ws2=XLSX.utils.aoa_to_sheet([['솔라피 콘솔에서 보내는 법 (화면 이름은 조금 다를 수 있습니다)'],
+      ['1. 솔라피 콘솔(console.solapi.com) › 메시지 보내기 › 문자 › 엑셀 업로드에서 이 파일을 올립니다. 첫째 시트(발송 명단)의 첫 줄이 칸 이름입니다.'],
+      ['2. 받는 번호 칸은 "수신번호"를 고릅니다.'],
+      ['3. 내용에 #{문구} 를 넣으면 사람마다 완성된 문구("문구" 칸)가 들어갑니다.'],
+      ['   #{문구} 가 안 되면 아래 문구를 그대로 붙여 넣으세요 — #{이름} · #{본인부담금} 같은 칸이 이 파일의 칸 이름과 저절로 이어집니다.'],
+      ['4. 미리보기에서 한두 명을 확인한 뒤 보냅니다(발신번호 ARS 인증을 묻습니다).'],
+      ['5. 다 보냈으면 숨길이에서 [보냄으로 기록]을 누르고, 이 파일은 지우세요 — 이름 · 번호 · 금액이 들어 있습니다.'],[''],['붙여 넣을 문구'],[tpl]]);
+    ws2['!cols']=[{wch:130}];
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'발송 명단');XLSX.utils.book_append_sheet(wb,ws2,'보내는 법');
+    const name=`문자발송_${B.ym}_${k==='card'?'카드':'자동이체'}_${part.length}명.xlsx`;
+    XLSX.writeFile(wb,name);files.push({name,n:part.length,k,tpl});
+    await new Promise(r=>setTimeout(r,400));
+  }
+  if(!state||msgUI.bill!==B)return;
+  const yes=await msgDlg('📤 발송용 엑셀을 내려받았습니다',`${files.map(f=>`<div>· <b>${esc(f.name)}</b> — ${f.k==='card'?'카드':'자동이체'} 환자 ${f.n}명 <button type="button" class="btn sm" data-copy="${esc(f.tpl)}" title="솔라피 콘솔 내용 칸에 붙여 넣을 문구(#{…} 칸 그대로)">문구 복사</button></div>`).join('')}
+    <ol><li><a href="${SOLAPI_CONSOLE}" target="_blank" rel="noopener">솔라피 콘솔</a> › 메시지 보내기 › 문자 › <b>엑셀 업로드</b>에서 파일을 올립니다. <span class="hint">허용 IP · API Key 가 없어도 되고(국내 인터넷), 발신번호 ARS 인증을 묻습니다.</span></li>
+    <li>받는 번호 칸은 <b>수신번호</b>, 내용에는 <b>#{문구}</b> 한 줄 — 사람마다 완성된 문구가 들어갑니다. <span class="hint">안 되면 위 [문구 복사]를 붙여 넣으세요(#{이름} 같은 칸이 엑셀 칸과 이어집니다). 화면 이름은 조금 다를 수 있습니다.</span></li>
+    <li>미리보기로 한두 명 확인 → 발송. 자동이체 · 카드 파일은 따로 보냅니다.</li>
+    <li>다 보냈으면 아래 <b>[보냄으로 기록]</b> — 환자 차트에 남고, 다음에 같은 달을 또 보내지 않게 표시됩니다. 내려받은 파일은 지우세요(이름 · 번호 · 금액).</li></ol>`,
+    [['아직 안 보냄 — 닫기',false,''],[`보냄으로 기록 (${pk.length}명)`,true,'primary']],640);
+  if(!yes||!state||msgUI.bill!==B)return;
+  msgBatchAdd(B,pk,null,'xls');persist();B.sel=new Set();msgBillDraw();
+  docboxNote(`📝 ${pk.length}명 — 엑셀로 보낸 것으로 기록했습니다`,5000);
+}
+$('#btnMonthMsg').onclick=openMsgBill;
+
+/* ───── ⚙️ 설정 › 💬 문자 발송 ───── */
+function renderMsgBox(){
+  const box=$('#msgBox');if(!box||!state)return;
+  if(!labOn('msg')){box.innerHTML='';box.classList.add('hidden');return;}
+  box.classList.remove('hidden');
+  const m=msgCfg(),c=m.chk,sp=state.settings.supplier||{};
+  const when=c&&c.at?`${fd(new Date(c.at)).slice(5).replace('-','/')} ${new Date(c.at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false})}`:'';
+  let st='<span class="hint">아직 연결을 확인하지 않았습니다 — 키를 넣고 [연결 확인]을 눌러 보세요.</span>';
+  if(c&&c.ok)st=`✅ <b>연결됨</b> · 솔라피 잔액 <b>${won(c.bal)}원</b>${c.point?` (+포인트 ${won(c.point)})`:''} <span class="hint">· ${when} 확인</span>${c.bal+c.point<1000?'<br><span class="badge warn">잔액이 얼마 없습니다 — 솔라피 콘솔에서 충전하세요</span>':''}`;
+  else if(c)st=`⚠️ <b style="color:var(--red)">연결 안 됨</b> — ${esc(msgErrInfo({msgKind:c.mk,code:c.code,msg:c.msg,status:c.status}).title)} <span class="hint">· ${when}</span> <button class="btn sm" id="mgWhy">왜 그런가요 · 고치는 법</button>`;
+  const ipn=m.ipLog.length?`<br><span class="hint">허용 IP 로 막힌 날: ${m.ipLog.length}번 (최근 ${esc(m.ipLog[m.ipLog.length-1].at)}) — IP 가 얼마나 자주 바뀌는지 가늠하는 기록</span>`:'';
+  box.innerHTML=`<h2>💬 문자 발송 <small>솔라피(solapi.com) · 업체마다 따로 넣는 설정 · <span class="badge lab">시험 중</span></small></h2>
+    <div class="setrow"><label>API Key</label><input id="mgKey" value="${esc(m.apiKey)}" placeholder="솔라피 콘솔 › API Key 관리" autocomplete="off" spellcheck="false"></div>
+    <div class="setrow"><label>API Secret</label><input id="mgSecret" type="password" value="" placeholder="${m.apiSecret?'저장됨 ●●●●●● — 바꿀 때만 새로 넣기':'발급할 때 한 번만 보입니다 — 바로 붙여 넣기'}" autocomplete="new-password" spellcheck="false">${m.apiSecret?'<button class="btn sm" id="mgSecretDel" title="저장된 API Secret 지우기">지우기</button>':''}</div>
+    <div class="setrow"><label>발신번호</label><input id="mgFrom" value="${esc(fmtPhone(m.from)||m.from)}" placeholder="솔라피에 등록한 번호" inputmode="tel" autocomplete="off"></div>
+    <div class="setrow"><label>내 번호(시험 발송)</label><input id="mgTestTo" value="${esc(fmtPhone(m.testTo)||m.testTo)}" placeholder="010-" inputmode="tel" autocomplete="off"></div>
+    <div class="setrow"><label title="문구의 #{업체명} 자리에 들어갑니다 — 비우면 공급자 정보의 상호">업체 이름(문구용)</label><input id="mgBiz" value="${esc(m.bizName)}" placeholder="${esc(sp.name||'')}" autocomplete="off"></div>
+    <div class="setrow"><label title="문구의 #{업체전화} 자리에 들어갑니다">문의 전화(문구용)</label><input id="mgTel" value="${esc(m.bizTel)}" placeholder="055-000-0000" autocomplete="off"></div>
+    <div class="toolbar" style="margin-top:4px"><button class="btn primary sm" id="mgCheck" title="솔라피 잔액을 물어봅니다 — 키 · 이 컴퓨터 시계 · 허용 IP 를 한 번에 확인">🔌 연결 확인</button>
+      <button class="btn sm" id="mgTestSend" title="'내 번호'로 짧은 시험 문자 1건(SMS, 약 ${MSG_PRICE.SMS}원)">📨 나에게 시험 발송</button>
+      <button class="btn sm" id="mgPresetOpen">⚙️ 프리셋 관리 <span style="font-weight:400">(${m.presets.length})</span></button></div>
+    <div class="mg-st" id="mgStatus">${st}${ipn}</div>
+    <label style="display:flex;gap:7px;align-items:flex-start;font-size:.82rem;margin-top:6px;line-height:1.6"><input type="checkbox" id="mgKeep"${m.keepAlive!==false?' checked':''} style="margin-top:4px"><span>키가 꺼지지 않게 가끔 연결 확인 <span class="hint">— 숨길이를 열 때 한 주에 한 번 잔액만 물어봅니다(솔라피는 30일 안 쓴 키를 끕니다)</span></span></label>
+    <div class="snote"><b>허용 IP</b> — 솔라피는 발송용 API Key 에 <b>등록해 둔 인터넷(IP)</b> 에서만 문자를 받습니다(2026-11-11~). 사무실 인터넷의 IP 를 등록하면 사무실 컴퓨터에서만 보내집니다.
+      IP 가 바뀌어 막히면 화면에 이유와 고치는 법이 나옵니다: <a href="${MYIP_URL}" target="_blank" rel="noopener">네이버 '내 IP'</a> 로 지금 IP 확인 → <a href="${SOLAPI_CONSOLE}" target="_blank" rel="noopener">솔라피 콘솔</a> › API Key 관리 › 허용 IP 에 넣기(2차 인증) → [연결 확인].
+      그동안에도 [📋 문구 복사] · [📤 발송용 엑셀]로 솔라피 콘솔에서 보낼 수 있습니다.</div>
+    <div class="snote">🔒 API Key · API Secret 은 환자 자료와 같은 곳에 <b>암호화되어</b> 이 브라우저에만 저장됩니다(프로그램 파일에는 들어가지 않음). 💾 백업 파일에도 암호화된 채 같이 들어가므로, 백업 파일과 비밀번호를 함께 넘기면 키도 넘어갑니다.
+      문자를 보낼 때 <b>받는 번호와 문구(이름 · 금액)</b>가 솔라피로 갑니다 — 개인정보 처리위탁 업체로 동의서 · 처리방침에 적어 두세요. 솔라피는 발송 내역을 1년 보관합니다.</div>`;
+  const bind=(id,key,fmt)=>{const el=$('#'+id);if(el)el.onchange=()=>{let v=el.value.trim();if(fmt)v=fmt(v);if(m[key]===v)return;m[key]=v;if(key==='apiKey')m.chk=null;persist();renderMsgBox();};};
+  bind('mgKey','apiKey');bind('mgFrom','from',digits);bind('mgTestTo','testTo',digits);bind('mgBiz','bizName');bind('mgTel','bizTel');
+  $('#mgSecret').onchange=()=>{const v=$('#mgSecret').value.trim();if(!v)return;m.apiSecret=v;m.chk=null;persist();renderMsgBox();};
+  if($('#mgSecretDel'))$('#mgSecretDel').onclick=async()=>{if(!await confirmModal('API Secret 지우기','저장된 API Secret 을 지울까요?\n다시 보내려면 새로 넣어야 합니다(솔라피 콘솔에서는 다시 볼 수 없습니다).','지우기',true))return;if(!state)return;m.apiSecret='';m.chk=null;persist();renderMsgBox();};
+  $('#mgKeep').onchange=()=>{m.keepAlive=$('#mgKeep').checked;persist();};
+  if($('#mgWhy'))$('#mgWhy').onclick=()=>msgErrShow(msgErr(c.mk||'api',{code:c.code,msg:c.msg,status:c.status}));
+  $('#mgPresetOpen').onclick=()=>openMsgPresets(null);
+  $('#mgCheck').onclick=()=>msgOnce('set',async()=>{
+    const b=$('#mgCheck');b.disabled=true;b.textContent='확인하는 중…';
+    try{const r=await msgCheck(false);if(!state)return;renderMsgBox();if(r)docboxNote(`✅ 솔라피 연결됨 — 잔액 ${won(r.bal)}원`,4000);}
+    catch(e){if(!state)return;renderMsgBox();msgErrShow(e);}
+  });
+  $('#mgTestSend').onclick=()=>msgOnce('set',async()=>{
+    const to=msgMobile(m.testTo);
+    if(!msgReady()){msgErrShow(msgErr('nokey'));return;}
+    if(!to){showMsg('내 번호 확인','"내 번호(시험 발송)"에 휴대폰 번호를 넣어 주세요.');return;}
+    const text=`[${m.bizName||sp.name||'숨길이'}] 숨길이 문자 시험 발송입니다. (${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false})})`;
+    if(!await confirmModal('📨 나에게 시험 발송',`내 번호 ${fmtPhone(to)} 로 시험 문자 1건을 보냅니다.\n보내는 번호 ${fmtPhone(m.from)} · ${msgTypeOf(text)} · 약 ${MSG_PRICE[msgTypeOf(text)]}원(부가세 별도)\n\n${text}`,'보내기'))return;
+    if(!state)return;
+    const b=$('#mgTestSend');if(b){b.disabled=true;b.textContent='보내는 중…';}
+    try{const out=await solapiSend([msgItem(to,text)]),r=out.res[0];if(!state)return;
+      if(r&&r.ok){msgCheck(true).then(()=>{if(state)renderMsgBox();}).catch(()=>{});showMsg('시험 문자를 보냈습니다',`${fmtPhone(to)} 로 솔라피에 접수했습니다. 휴대폰에 문자가 왔는지, 보낸 번호가 ${fmtPhone(m.from)} 로 보이는지 확인하세요.\n\n문자가 왔으면 이 컴퓨터(이 인터넷)에서 발송이 됩니다.`);}
+      else showMsg('접수되지 않았습니다',`${(r&&r.why)||'솔라피가 받지 않았습니다'}${r&&r.code?` (코드 ${r.code})`:''}${r&&msgCodeHelp(r.code)?`\n→ ${msgCodeHelp(r.code)}`:''}`);
+    }catch(e){if(state)msgErrShow(e);}
+    if(state)renderMsgBox();
+  });
 }
 
 /* ================== 전체 렌더 ================== */
@@ -7589,7 +8230,44 @@ window.__selftest=function(){
     }catch(e){console.warn('FAIL14-x',e);}
     finally{state=saved;}
   }
-  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/12 · 기기관리 ${ok13}/8 · 승인잠금 ${ok14}/1`;
+  /* 💬 문자 발송(2026-11-15): 칸 채우기 · 바이트/종류 · 휴대폰 번호 · 오류 알아보기 · 금액 = CMS 파일 · 대상 가리기 · 묶음 기록에서 문구 되살리기/이미 보낸 사람 */
+  let ok15=0;
+  {
+    const saved=state;
+    try{
+      const f=msgFill('[#{업체명}] #{이름}님 #{월}월 #{본인부담금}원 #{없는칸}',{업체명:'숨길',이름:'홍길동',월:'10',본인부담금:'17,800'});
+      if(f.text==='[숨길] 홍길동님 10월 17,800원 #{없는칸}'&&f.miss.join()==='없는칸')ok15++;else console.warn('FAIL15-1',f);
+      if(msgBytes('가a\n')===4&&msgTypeOf('가'.repeat(45))==='SMS'&&msgTypeOf('가'.repeat(45)+'a')==='LMS'&&msgTypeOf('가'.repeat(1001))===''&&msgTypeOf('')===''&&msgCut('가나다라',5)==='가나')ok15++;else console.warn('FAIL15-2');
+      if(msgMobile('010-1234-5678')==='01012345678'&&msgMobile('011-234-5678')==='0112345678'&&msgMobile('055-123-4567')===''&&msgMobile('')==='')ok15++;else console.warn('FAIL15-3');
+      const K=e=>msgErrInfo(e).kind,ipE=msgErr('api',{status:403,code:'Forbidden',msg:'허용되지 않은 IP입니다. (203.0.113.7)'});
+      if(K(ipE)==='ip'&&msgErrInfo(ipE).ip==='203.0.113.7'&&K(msgErr('api',{status:400,code:'NotAllowedIpAddress',msg:''}))==='ip'
+        &&K(msgErr('api',{status:400,code:'InactiveApiKey',msg:'비활성화된 API Key'}))==='inactive'&&K(msgErr('api',{status:400,code:'InvalidApiKey',msg:'apiKey정보가 올바르지 않습니다'}))==='auth'
+        &&K(msgErr('api',{status:401,code:'Unauthorized',msg:'권한이 없습니다.'}))==='perm'&&K(msgErr('api',{status:400,code:'RequestTimeTooSkewed',msg:''}))==='clock'
+        &&K(msgErr('net',{msg:'Failed to fetch'}))==='net'&&K(msgErr('nokey'))==='nokey'&&K(msgErr('api',{status:400,code:'ValidationError',msg:'recipient description'}))==='other')ok15++;else console.warn('FAIL15-4');
+      const mp=o=>Object.assign({device:'자동형',rentEnd:null,rrn:'',insureType:'IB',payMethod:'cash',rentStart:'2026-01-05',rxStart:'2026-03-01',passDate:'2026-03-01'},o);
+      state={settings:{prices,supplier:{name:'주식회사 숨길'},cms:{day:'10',offset:1,includeMask:true},labs:{msg:true},users:[],rule2h:{enabled:false}},months:{},notes:[],hist:[],
+        patients:[mp({id:'M1',name:'홍길동',mgmtCode:'A1',phone:'01012345678',rxEnd:'2027-02-28'}),
+          mp({id:'M2',name:'김카드',mgmtCode:'A2',phone:'01099998888',rentStart:'2026-09-10',rxStart:'2026-09-10',passDate:null,payMethod:'card'}),
+          mp({id:'M3',name:'이전화',mgmtCode:'A3',phone:'0551234567'}),mp({id:'M4',name:'박거부',mgmtCode:'A4',phone:'01011112222',msgOff:true})]};
+      const mc=msgCfg();mc.bizTel='055-000-0000';
+      const ym='2026-10',cms=cmsRowsFor(ym,{excludeCard:false,includeMask:true}),B={ym,incMask:true,payDay:msgPayDay(ym),cashId:'bill-cash',cardId:'bill-card',sel:null};
+      const rows=msgBillRows(B),R=id=>rows.find(x=>x.p.id===id),C=id=>cms.find(x=>x.p.id===id);
+      if(rows.length===4&&rows.every(x=>C(x.p.id)&&x.amt>0&&x.amt===C(x.p.id).rent+C(x.p.id).mask)&&msgPayDay(ym)==='11월 10일'&&R('M1').k==='cash'&&R('M2').k==='card')ok15++;else console.warn('FAIL15-5',rows,cms);
+      if(!R('M1').why&&R('M1').ty==='LMS'&&R('M1').text.includes('[주식회사 숨길] 홍길동님, 10월분')&&R('M1').text.includes(won(R('M1').amt)+'원이며 11월 10일에 자동이체')&&R('M1').text.includes('해외')&&R('M1').text.includes('055-000-0000')&&!/#\{/.test(R('M1').text)
+        &&!R('M2').why&&R('M2').text.includes('카드로 결제')&&R('M3').why==='휴대폰 번호가 아님'&&R('M4').why==='문자 받지 않음')ok15++;else console.warn('FAIL15-6',rows);
+      const pk=[R('M1'),R('M2')];
+      const bt=msgBatchAdd(B,pk,[{ok:true,code:'2000',why:'',mid:'MID1'},{ok:false,code:'1062',why:'미등록 발신번호',mid:''}],'api',['G1']);
+      const sent=msgBillSent(ym),auto=chartAutoItems(state.patients[0]).filter(x=>x.f==='msg');
+      if(bt&&bt.r.length===2&&msgBatchText(bt,bt.r[0])===R('M1').text&&msgBatchText(bt,bt.r[1])===R('M2').text&&bt.r[0].s==='ok'&&bt.r[0].m==='MID1'&&bt.r[1].s==='fail'&&bt.r[1].c==='1062'
+        &&sent.has('M1')&&!sent.has('M2')&&msgBillRows(B).find(x=>x.p.id==='M1').sent&&auto.length===1&&/본인부담금 안내/.test(auto[0].txt)&&auto[0].msgb===bt.id+'|M1'
+        &&msgCodeHelp('1062').includes('발신번호')&&!msgReady())ok15++;else console.warn('FAIL15-7',bt,sent,auto);
+    }catch(e){console.warn('FAIL15-x',e);}
+    finally{state=saved;}
+  }
+  /* 솔라피 서명(HMAC-SHA256(API Secret, date+salt) 16진수) — 값은 파이썬 hmac 으로 미리 구한 것. 비동기라 결과는 콘솔 경고로만 */
+  window.__msgtest=()=>solapiAuth('TESTKEY','TESTSECRET-0123456789','2026-11-15T00:00:00.000Z','abcdef0123456789abcdef0123456789').then(h=>{const ok=h==='HMAC-SHA256 apiKey=TESTKEY, date=2026-11-15T00:00:00.000Z, salt=abcdef0123456789abcdef0123456789, signature=5da3228c3605dcb2a98643ce6678e10afb4c70af84784455351b1a8b5335400d';if(!ok)console.warn('FAIL15-sig',h);return ok;});
+  try{window.__msgtest().catch(e=>console.warn('FAIL15-sig-x',e));}catch(e){}
+  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/12 · 기기관리 ${ok13}/8 · 승인잠금 ${ok14}/1 · 문자 ${ok15}/7`;
   console.log(msg);
   return {ok,ok2,ok3,ok4,msg};
 };
