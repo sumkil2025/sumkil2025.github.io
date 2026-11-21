@@ -898,7 +898,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.20.1';
+const APP_VERSION='2026.11.21.1';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 정식 주소(chart.html — 다른 업체도 쓴다)에는 아직 열지 않는 실험실 기능: 시험판 주소와 내 PC(localhost)에서만 보이고 켜진다.
    💬 문자 발송은 실제 키로 보내 본 뒤에 연다 — 여는 날 아래 목록에서 msg 를 지우면 된다. 자료(프리셋 · 보낸 기록 · 스위치 값)는 그대로 둔다. */
@@ -7611,7 +7611,7 @@ function msgIpSteps(ip){
 function msgErrInfo(e){
   const kind0=(e&&e.msgKind)||'',code=String((e&&e.code)||''),raw=String((e&&e.msg)||''),st=Number(e&&e.status)||0,all=code+' '+raw;
   const ip=(raw.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/)||[])[0]||'';
-  const tail=(code||raw)?`<div class="raw">솔라피가 보낸 말: ${esc(code)}${raw?' — '+esc(raw):''}${st?` (HTTP ${st})`:''}</div>`:'';
+  const tail=((code||raw)?`<div class="raw">솔라피가 보낸 말: ${esc(code)}${raw?' — '+esc(raw):''}${st?` (HTTP ${st})`:''}</div>`:'')+(e&&e.probe?`<div class="raw">발송 주소에 다시 물어본 답: ${esc(e.probe)}</div>`:'');
   if(kind0==='nokey')return {kind:'nokey',title:'문자 발송 설정이 비어 있습니다',html:'⚙️ 설정 › 💬 문자 발송에서 솔라피 <b>API Key · API Secret · 발신번호</b>를 넣어 주세요.<br>키가 없어도 [📋 문구 복사]와 [📤 발송용 엑셀]은 쓸 수 있습니다.'};
   if(kind0==='net')return {kind:'net',title:'솔라피에 닿지 못했습니다',html:`인터넷 연결을 확인하고 잠시 뒤 다시 해 보세요. 회사 보안 프로그램이 <b>api.solapi.com</b> 을 막고 있을 수도 있습니다.<br><br>인터넷은 되는데 계속 이러면 <b>허용 IP</b> 문제일 수 있습니다:${msgIpSteps('')}<div class="raw">브라우저가 보낸 말: ${esc(raw)}</div>`};
   if(/InactiveApiKey/i.test(all))return {kind:'inactive',title:'API Key 가 꺼져 있습니다 (30일 동안 쓰지 않음)',html:`솔라피는 30일 동안 쓰지 않은 API Key 를 자동으로 끕니다(2026-11-04~).<ol><li><a href="${SOLAPI_CONSOLE}" target="_blank" rel="noopener">솔라피 콘솔</a> › <b>API Key 관리</b>에서 그 키를 다시 켭니다.</li><li>숨길이 ⚙️ 설정 › 💬 문자 발송 › [연결 확인]</li></ol><span class="hint">설정의 "키가 꺼지지 않게 가끔 연결 확인"을 켜 두면 숨길이를 열 때 한 주에 한 번 저절로 확인합니다.</span>${tail}`};
@@ -7620,7 +7620,7 @@ function msgErrInfo(e){
   if(/InvalidApiKey|SignatureDoesNotMatch|InvalidSignature/i.test(all))return {kind:'auth',title:'API Key 또는 API Secret 이 맞지 않습니다',html:`⚙️ 설정 › 💬 문자 발송의 <b>API Key · API Secret</b> 을 다시 넣어 주세요(앞뒤 빈칸 없이). API Secret 은 발급할 때 한 번만 보이므로, 잃어버렸으면 솔라피 콘솔 › API Key 관리에서 키를 새로 만들어야 합니다(새 키에도 허용 IP 를 넣어야 합니다).${tail}`};
   if(/TimeTooSkewed|RequestTime|Expired|시간/i.test(all))return {kind:'clock',title:'이 컴퓨터의 시계가 맞지 않습니다',html:`솔라피는 요청 시각이 실제와 15분 넘게 다르면 받지 않습니다. 윈도우 [설정 › 시간 및 언어 › 날짜 및 시간]에서 <b>자동으로 시간 설정</b>을 켜고 [지금 동기화]를 누른 뒤 다시 해 보세요.${tail}`};
   if(st===402||/Balance|NotEnough|잔액/i.test(all))return {kind:'balance',title:'솔라피 잔액이 모자랍니다',html:`<a href="${SOLAPI_CONSOLE}" target="_blank" rel="noopener">솔라피 콘솔</a>에서 충전한 뒤 다시 보내세요.${tail}`};
-  if(st===401||st===403||/Forbidden|Unauthorized|권한/i.test(all))return {kind:'perm',ip,title:'솔라피가 이 요청을 막았습니다 (허용 IP · 키 권한 · 키 값)',html:`셋 가운데 하나입니다.<br><b>① 허용 IP</b> — 지금 인터넷의 IP 가 API Key 에 등록한 것과 다름:${msgIpSteps(ip)}<div style="margin-top:8px"><b>② 키 권한</b> — 솔라피 콘솔 › API Key 관리에서 이 키에 <b>메시지 발송</b> 권한이 있는지 확인</div><div style="margin-top:4px"><b>③ 키 값</b> — ⚙️ 설정 › 💬 문자 발송의 API Key · API Secret 을 다시 넣어 보기</div>${tail}`};
+  if(st===401||st===403||/Forbidden|Unauthorized|권한/i.test(all))return {kind:'perm',ip,title:'솔라피가 이 요청을 막았습니다 (허용 IP · 키 권한 · 키 값)',html:`${e&&e.probe?'잔액을 물어봐도, 문자 발송 주소에 물어봐도 솔라피가 받지 않았습니다. ':''}셋 가운데 하나입니다.<br><b>① 허용 IP</b> — 지금 인터넷의 IP 가 API Key 에 등록한 것과 다름:${msgIpSteps(ip)}<div style="margin-top:8px"><b>② 키 권한</b> — 솔라피 콘솔 › API Key 관리에서 이 키에 <b>메시지 발송</b> 권한이 있는지 확인</div><div style="margin-top:4px"><b>③ 키 값</b> — ⚙️ 설정 › 💬 문자 발송의 API Key · API Secret 을 다시 넣어 보기</div>${tail}`};
   if(/DuplicatedSignature/i.test(all))return {kind:'retry',title:'한 번 더 눌러 주세요',html:`같은 요청이 두 번 간 것으로 보입니다. 다시 누르면 됩니다.${tail}`};
   return {kind:'other',ip,title:'솔라피가 요청을 받지 않았습니다',html:`아래 내용을 📢 안내의 문의로 알려 주세요. 급하면 [📋 문구 복사] · [📤 발송용 엑셀]로 솔라피 콘솔에서 보낼 수 있습니다.${tail||`<div class="raw">${esc(String((e&&e.message)||e))}</div>`}`};
 }
@@ -7630,17 +7630,44 @@ function msgErrNote(e){   /* 허용 IP 로 막힌 때를 적어 둠 — IP 가 �
   return inf;
 }
 function msgErrShow(e){const inf=msgErrNote(e)||msgErrInfo(e);return msgDlg('⚠️ '+inf.title,inf.html,[['닫기',true,'primary']],600);}
-/* 연결 확인 = 잔액 조회 — 키 · 시계 · 허용 IP 를 한 번에 본다. 결과는 설정에 적어 둠 */
-async function msgCheck(silent){
-  const m=msgCfg(),at=new Date().toISOString();
+/* 연결 확인 = 잔액 조회 — 키 · 시계 · 허용 IP 를 한 번에 본다. 결과는 설정에 적어 둠.
+   문자 발송 권한만 고른 키는 잔액 조회가 '권한 없음'으로 막힌다(2026-11-21 사무실의 실제 키: 문자는 나가는데 연결 확인만 막힘).
+   → 그때는 발송 주소에 "받는 사람이 없는 빈 목록"을 보내 본다(문자는 나가지 않는다). 솔라피는 키 · 시계를 먼저 보고 그다음에 본문을 따진다
+     (2026-11-21 가짜 키로 받아 봄: 인증 없음 = Unauthorized 401 · 없는 키 = InvalidApiKey 400 — 둘 다 빈 목록을 따지기 전에 나온다).
+     그러니 "messages 가 비었다"는 답(또는 인증 글이 아닌 본문을 따지는 ValidationError)이 오면 발송 길은 열려 있다 → 연결됨, 잔액만 모름(chk.nobal).
+     인증 글 모양이 틀렸을 때도 ValidationError 가 오지만 그때는 date · salt · signature 를 짚는다(가짜 키로 받아 봄) → 그것은 통과가 아니다.
+   sent = 방금 실제로 문자가 접수됐을 때(그것으로 충분 — 다시 물어보지 않는다).
+   아직 모르는 것: 허용 IP 를 본문보다 먼저 따지는지(실제 키로 등록하지 않은 인터넷에서 눌러 봐야 안다). */
+const msgProbePass=e=>{
+  if(!e||e.msgKind!=='api'||Number(e.status)!==400||msgErrInfo(e).kind!=='other')return false;
+  const code=String(e.code||''),msg=String(e.msg||'');
+  return /messages|메시지/i.test(code+' '+msg)||(/ValidationError/i.test(code)&&!/\b(date|salt|signature|api_?key)\b/i.test(msg));
+};
+async function solapiProbeSend(){
+  try{await solapiCall('POST','/messages/v4/send-many/detail',{messages:[]});return true;}
+  catch(e){if(msgProbePass(e))return true;throw e;}
+}
+const msgErrRaw=e=>({mk:e.msgKind||'',code:String(e.code||''),msg:String(e.msg||'').slice(0,200),status:Number(e.status)||0,...(e.probe?{probe:String(e.probe).slice(0,240)}:{})});
+async function msgCheck(silent,sent){
+  const at=new Date().toISOString(),put=chk=>{const c=msgCfg();c.chk=chk;persist();return chk;};
   try{
     const r=await solapiCall('GET','/cash/v1/balance');if(!state)return null;
-    const c=msgCfg();c.chk={at,ok:true,bal:Number(r.balance)||0,point:Number(r.point)||0};persist();return c.chk;
+    return put({at,ok:true,bal:Number(r.balance)||0,point:Number(r.point)||0});
   }catch(e){
     if(!state)return null;
-    const c=msgCfg();c.chk={at,ok:false,mk:e.msgKind||'',code:String(e.code||''),msg:String(e.msg||'').slice(0,200),status:Number(e.status)||0};
-    msgErrNote(e);persist();
-    if(!silent)throw e;return c.chk;
+    let err=e;
+    if(msgErrInfo(e).kind==='perm'){
+      try{if(sent||await solapiProbeSend()){if(!state)return null;return put({at,ok:true,nobal:true,...msgErrRaw(e)});}}
+      catch(e2){
+        if(!state)return null;
+        const k=msgErrInfo(e2).kind;
+        if(k==='perm'||k==='other')err=msgErr(e.msgKind||'api',{status:e.status,code:e.code,msg:e.msg,probe:`${e2.code||''}${e2.msg?' — '+e2.msg:''}${e2.status?` (HTTP ${e2.status})`:''}`});   /* 발송 주소도 통과 못 함 → 두 답을 다 보여 줌 */
+        else err=e2;   /* 허용 IP · 키 값 · 시계 · 닿지 못함처럼 까닭이 또렷하면 그쪽을 보여 줌 */
+      }
+    }
+    put({at,ok:false,...msgErrRaw(err)});
+    msgErrNote(err);
+    if(!silent)throw err;return msgCfg().chk;
   }
 }
 /* 30일 안 쓴 키는 솔라피가 끈다 → 숨길이를 열 때 한 주에 한 번(실패했으면 하루 뒤) 조용히 연결 확인 */
@@ -7879,7 +7906,7 @@ function msgBillDraw(){
       <button class="btn primary" id="mbSend"${ready?'':' disabled'}></button></div>
   </div></div>`;
   const sum=()=>{
-    const pk=rows.filter(x=>!x.why&&B.sel.has(x.p.id)),c=msgBillCost(pk),ex=rows.filter(x=>x.why),again=pk.filter(x=>x.sent).length,bal=m.chk&&m.chk.ok?m.chk.bal+m.chk.point:null;
+    const pk=rows.filter(x=>!x.why&&B.sel.has(x.p.id)),c=msgBillCost(pk),ex=rows.filter(x=>x.why),again=pk.filter(x=>x.sent).length,bal=m.chk&&m.chk.ok&&!m.chk.nobal?m.chk.bal+m.chk.point:null;
     $('#mbSum').innerHTML=`보낼 사람 <b>${pk.length}명</b>${pk.length?` · SMS ${c.n.SMS}건 · LMS ${c.n.LMS}건 · 예상 <b>약 ${won(c.cost)}원</b> <span class="hint">(부가세 별도)</span>`:''}${ex.length?` · 못 보내는 사람 ${ex.length}명 <span class="hint">(표의 빨간 이유)</span>`:''}${again?` · <span style="color:var(--red)">이미 보낸 사람 ${again}명이 들어 있음</span>`:''}${bal!=null&&c.cost*1.1>bal?` · <span style="color:var(--red)">솔라피 잔액 ${won(bal)}원 — 모자랄 수 있음</span>`:''}`;
     const sb=$('#mbSend');sb.textContent=`보내기 (${pk.length}명)`;sb.disabled=!ready||!pk.length;$('#mbTest').disabled=!ready||!pk.length;
     const all=$('#mbAll');all.checked=okRows.length>0&&okRows.every(x=>B.sel.has(x.p.id));
@@ -7933,7 +7960,7 @@ async function msgBillSend0(){
   const okN=out.res.filter(r=>r&&r.ok).length,bad=pk.map((x,i)=>({x,r:out.res[i]})).filter(y=>y.r&&!y.r.ok),skip=out.res.filter(r=>!r).length;
   B.sel=new Set([...bad.map(y=>y.x.p.id),...pk.filter((x,i)=>!out.res[i]).map(x=>x.p.id)]);   /* 못 보낸 사람만 고른 채로 */
   if(msgUI.bill===B&&$('#mbBack'))msgBillDraw();
-  msgCheck(true).catch(()=>{});
+  msgCheck(true,okN>0).catch(()=>{});
   await showMsg('💬 문자 접수 결과',`솔라피 접수 ${okN}명${bad.length?` · 실패 ${bad.length}명`:''}${skip?` · 보내지 못함 ${skip}명`:''}\n\n${okN?'접수된 문자는 환자 차트 왼쪽 기록(문자)에 남았습니다.\n실제로 휴대폰에 닿았는지는 솔라피 콘솔 › 메시지 발송 내역에서 볼 수 있습니다.\n':''}${bad.length?`\n— 실패 —\n${bad.map(y=>`· ${y.x.p.name} ${fmtPhone(y.x.to)} — ${y.r.why||'접수 실패'}${y.r.code?` (코드 ${y.r.code})`:''}${msgCodeHelp(y.r.code)?` → ${msgCodeHelp(y.r.code)}`:''}`).join('\n')}\n`:''}${skip?'\n보내지 못한 사람은 표에 고른 채로 남겨 두었습니다. 원인을 고친 뒤 다시 [보내기]를 누르세요.':''}`);
   if(out.err&&state)msgErrShow(out.err);
 }
@@ -7983,8 +8010,9 @@ function renderMsgBox(){
   const m=msgCfg(),c=m.chk,sp=state.settings.supplier||{};
   const when=c&&c.at?`${fd(new Date(c.at)).slice(5).replace('-','/')} ${new Date(c.at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false})}`:'';
   let st='<span class="hint">아직 연결을 확인하지 않았습니다 — 키를 넣고 [연결 확인]을 눌러 보세요.</span>';
-  if(c&&c.ok)st=`✅ <b>연결됨</b> · 솔라피 잔액 <b>${won(c.bal)}원</b>${c.point?` (+포인트 ${won(c.point)})`:''} <span class="hint">· ${when} 확인</span>${c.bal+c.point<1000?'<br><span class="badge warn">잔액이 얼마 없습니다 — 솔라피 콘솔에서 충전하세요</span>':''}`;
-  else if(c)st=`⚠️ <b style="color:var(--red)">연결 안 됨</b> — ${esc(msgErrInfo({msgKind:c.mk,code:c.code,msg:c.msg,status:c.status}).title)} <span class="hint">· ${when}</span> <button class="btn sm" id="mgWhy">왜 그런가요 · 고치는 법</button>`;
+  if(c&&c.ok&&c.nobal)st=`✅ <b>연결됨</b> · 문자를 보낼 수 있습니다 <span class="hint">· ${when} 확인</span><br><span class="hint">잔액은 이 키로 읽지 못했습니다 — API Key 를 만들 때 <b>문자 발송 권한만</b> 고르면 이렇게 됩니다. 보내는 데는 지장이 없고, 잔액은 <a href="${SOLAPI_CONSOLE}" target="_blank" rel="noopener">솔라피 콘솔</a>에서 봅니다. 숨길이에서도 잔액을 보려면 콘솔 › API Key 관리에서 이 키의 권한에 잔액 조회를 더한 뒤 [연결 확인]을 다시 누르세요.${c.code||c.msg?` <span title="잔액을 물었을 때 솔라피가 보낸 말">(${esc(c.code)}${c.msg?' — '+esc(c.msg):''}${c.status?` · HTTP ${c.status}`:''})</span>`:''}</span>`;
+  else if(c&&c.ok)st=`✅ <b>연결됨</b> · 솔라피 잔액 <b>${won(c.bal)}원</b>${c.point?` (+포인트 ${won(c.point)})`:''} <span class="hint">· ${when} 확인</span>${c.bal+c.point<1000?'<br><span class="badge warn">잔액이 얼마 없습니다 — 솔라피 콘솔에서 충전하세요</span>':''}`;
+  else if(c)st=`⚠️ <b style="color:var(--red)">연결 안 됨</b> — ${esc(msgErrInfo({msgKind:c.mk,code:c.code,msg:c.msg,status:c.status,probe:c.probe}).title)} <span class="hint">· ${when}</span> <button class="btn sm" id="mgWhy">왜 그런가요 · 고치는 법</button>`;
   const ipn=m.ipLog.length?`<br><span class="hint">허용 IP 로 막힌 날: ${m.ipLog.length}번 (최근 ${esc(m.ipLog[m.ipLog.length-1].at)}) — IP 가 얼마나 자주 바뀌는지 가늠하는 기록</span>`:'';
   box.innerHTML=`<h2>💬 문자 발송 <small>솔라피(solapi.com) · 업체마다 따로 넣는 설정 · <span class="badge lab">시험 중</span></small></h2>
     <div class="setrow"><label>API Key</label><input id="mgKey" value="${esc(m.apiKey)}" placeholder="솔라피 콘솔 › API Key 관리" autocomplete="off" spellcheck="false"></div>
@@ -7993,14 +8021,15 @@ function renderMsgBox(){
     <div class="setrow"><label>내 번호(시험 발송)</label><input id="mgTestTo" value="${esc(fmtPhone(m.testTo)||m.testTo)}" placeholder="010-" inputmode="tel" autocomplete="off"></div>
     <div class="setrow"><label title="문구의 #{업체명} 자리에 들어갑니다 — 비우면 공급자 정보의 상호">업체 이름(문구용)</label><input id="mgBiz" value="${esc(m.bizName)}" placeholder="${esc(sp.name||'')}" autocomplete="off"></div>
     <div class="setrow"><label title="문구의 #{업체전화} 자리에 들어갑니다">문의 전화(문구용)</label><input id="mgTel" value="${esc(m.bizTel)}" placeholder="055-000-0000" autocomplete="off"></div>
-    <div class="toolbar" style="margin-top:4px"><button class="btn primary sm" id="mgCheck" title="솔라피 잔액을 물어봅니다 — 키 · 이 컴퓨터 시계 · 허용 IP 를 한 번에 확인">🔌 연결 확인</button>
+    <div class="toolbar" style="margin-top:4px"><button class="btn primary sm" id="mgCheck" title="솔라피 잔액을 물어봅니다 — 키 · 이 컴퓨터 시계 · 허용 IP 를 한 번에 확인. 문자는 나가지 않습니다">🔌 연결 확인</button>
       <button class="btn sm" id="mgTestSend" title="'내 번호'로 짧은 시험 문자 1건(SMS, 약 ${MSG_PRICE.SMS}원)">📨 나에게 시험 발송</button>
       <button class="btn sm" id="mgPresetOpen">⚙️ 프리셋 관리 <span style="font-weight:400">(${m.presets.length})</span></button></div>
     <div class="mg-st" id="mgStatus">${st}${ipn}</div>
-    <label style="display:flex;gap:7px;align-items:flex-start;font-size:.82rem;margin-top:6px;line-height:1.6"><input type="checkbox" id="mgKeep"${m.keepAlive!==false?' checked':''} style="margin-top:4px"><span>키가 꺼지지 않게 가끔 연결 확인 <span class="hint">— 숨길이를 열 때 한 주에 한 번 잔액만 물어봅니다(솔라피는 30일 안 쓴 키를 끕니다)</span></span></label>
+    <label style="display:flex;gap:7px;align-items:flex-start;font-size:.82rem;margin-top:6px;line-height:1.6"><input type="checkbox" id="mgKeep"${m.keepAlive!==false?' checked':''} style="margin-top:4px"><span>키가 꺼지지 않게 가끔 연결 확인 <span class="hint">— 숨길이를 열 때 한 주에 한 번 연결만 확인합니다 · 문자는 나가지 않습니다(솔라피는 30일 안 쓴 키를 끕니다)</span></span></label>
     <div class="snote"><b>허용 IP</b> — 솔라피는 발송용 API Key 에 <b>등록해 둔 인터넷(IP)</b> 에서만 문자를 받습니다(2026-11-11~). 사무실 인터넷의 IP 를 등록하면 사무실 컴퓨터에서만 보내집니다.
       IP 가 바뀌어 막히면 화면에 이유와 고치는 법이 나옵니다: <a href="${MYIP_URL}" target="_blank" rel="noopener">네이버 '내 IP'</a> 로 지금 IP 확인 → <a href="${SOLAPI_CONSOLE}" target="_blank" rel="noopener">솔라피 콘솔</a> › API Key 관리 › 허용 IP 에 넣기(2차 인증) → [연결 확인].
       그동안에도 [📋 문구 복사] · [📤 발송용 엑셀]로 솔라피 콘솔에서 보낼 수 있습니다.</div>
+    <div class="snote"><b>키 권한</b> — API Key 를 만들 때 <b>문자 발송</b> 권한은 꼭 있어야 합니다. <b>잔액 조회</b> 권한도 같이 주면 [연결 확인]에 솔라피 잔액이 보이고, 한꺼번에 보낼 때 잔액이 모자라면 미리 알려 줍니다. 문자 발송 권한만 있어도 보내는 데는 지장이 없습니다(그때 잔액은 솔라피 콘솔에서 봅니다).</div>
     <div class="snote">🔒 API Key · API Secret 은 환자 자료와 같은 곳에 <b>암호화되어</b> 이 브라우저에만 저장됩니다(프로그램 파일에는 들어가지 않음). 💾 백업 파일에도 암호화된 채 같이 들어가므로, 백업 파일과 비밀번호를 함께 넘기면 키도 넘어갑니다.
       문자를 보낼 때 <b>받는 번호와 문구(이름 · 금액)</b>가 솔라피로 갑니다 — 개인정보 처리위탁 업체로 동의서 · 처리방침에 적어 두세요. 솔라피는 발송 내역을 1년 보관합니다.</div>`;
   const bind=(id,key,fmt)=>{const el=$('#'+id);if(el)el.onchange=()=>{let v=el.value.trim();if(fmt)v=fmt(v);if(m[key]===v)return;m[key]=v;if(key==='apiKey')m.chk=null;persist();renderMsgBox();};};
@@ -8008,11 +8037,11 @@ function renderMsgBox(){
   $('#mgSecret').onchange=()=>{const v=$('#mgSecret').value.trim();if(!v)return;m.apiSecret=v;m.chk=null;persist();renderMsgBox();};
   if($('#mgSecretDel'))$('#mgSecretDel').onclick=async()=>{if(!await confirmModal('API Secret 지우기','저장된 API Secret 을 지울까요?\n다시 보내려면 새로 넣어야 합니다(솔라피 콘솔에서는 다시 볼 수 없습니다).','지우기',true))return;if(!state)return;m.apiSecret='';m.chk=null;persist();renderMsgBox();};
   $('#mgKeep').onchange=()=>{m.keepAlive=$('#mgKeep').checked;persist();};
-  if($('#mgWhy'))$('#mgWhy').onclick=()=>msgErrShow(msgErr(c.mk||'api',{code:c.code,msg:c.msg,status:c.status}));
+  if($('#mgWhy'))$('#mgWhy').onclick=()=>msgErrShow(msgErr(c.mk||'api',{code:c.code,msg:c.msg,status:c.status,...(c.probe?{probe:c.probe}:{})}));
   $('#mgPresetOpen').onclick=()=>openMsgPresets(null);
   $('#mgCheck').onclick=()=>msgOnce('set',async()=>{
     const b=$('#mgCheck');b.disabled=true;b.textContent='확인하는 중…';
-    try{const r=await msgCheck(false);if(!state)return;renderMsgBox();if(r)docboxNote(`✅ 솔라피 연결됨 — 잔액 ${won(r.bal)}원`,4000);}
+    try{const r=await msgCheck(false);if(!state)return;renderMsgBox();if(r)docboxNote(r.nobal?'✅ 솔라피 연결됨 — 문자를 보낼 수 있습니다 (잔액은 이 키로 읽지 못함)':`✅ 솔라피 연결됨 — 잔액 ${won(r.bal)}원`,r.nobal?6000:4000);}
     catch(e){if(!state)return;renderMsgBox();msgErrShow(e);}
   });
   $('#mgTestSend').onclick=()=>msgOnce('set',async()=>{
@@ -8024,7 +8053,7 @@ function renderMsgBox(){
     if(!state)return;
     const b=$('#mgTestSend');if(b){b.disabled=true;b.textContent='보내는 중…';}
     try{const out=await solapiSend([msgItem(to,text)]),r=out.res[0];if(!state)return;
-      if(r&&r.ok){msgCheck(true).then(()=>{if(state)renderMsgBox();}).catch(()=>{});showMsg('시험 문자를 보냈습니다',`${fmtPhone(to)} 로 솔라피에 접수했습니다. 휴대폰에 문자가 왔는지, 보낸 번호가 ${fmtPhone(m.from)} 로 보이는지 확인하세요.\n\n문자가 왔으면 이 컴퓨터(이 인터넷)에서 발송이 됩니다.`);}
+      if(r&&r.ok){msgCheck(true,true).then(()=>{if(state)renderMsgBox();}).catch(()=>{});showMsg('시험 문자를 보냈습니다',`${fmtPhone(to)} 로 솔라피에 접수했습니다. 휴대폰에 문자가 왔는지, 보낸 번호가 ${fmtPhone(m.from)} 로 보이는지 확인하세요.\n\n문자가 왔으면 이 컴퓨터(이 인터넷)에서 발송이 됩니다.`);}
       else showMsg('접수되지 않았습니다',`${(r&&r.why)||'솔라피가 받지 않았습니다'}${r&&r.code?` (코드 ${r.code})`:''}${r&&msgCodeHelp(r.code)?`\n→ ${msgCodeHelp(r.code)}`:''}`);
     }catch(e){if(state)msgErrShow(e);}
     if(state)renderMsgBox();
@@ -8358,13 +8387,20 @@ window.__selftest=function(){
       if(bt&&bt.r.length===2&&msgBatchText(bt,bt.r[0])===R('M1').text&&msgBatchText(bt,bt.r[1])===R('M2').text&&bt.r[0].s==='ok'&&bt.r[0].m==='MID1'&&bt.r[1].s==='fail'&&bt.r[1].c==='1062'
         &&sent.has('M1')&&!sent.has('M2')&&msgBillRows(B).find(x=>x.p.id==='M1').sent&&auto.length===1&&/본인부담금 안내/.test(auto[0].txt)&&auto[0].msgb===bt.id+'|M1'
         &&msgCodeHelp('1062').includes('발신번호')&&!msgReady())ok15++;else console.warn('FAIL15-7',bt,sent,auto);
+      /* 발송 주소에 빈 목록을 보냈을 때: "messages 가 비었다"는 답만 통과 — 키 · 권한 · 시계 · 인증 글 모양 오류는 통과가 아님(오류 글은 2026-11-21 가짜 키로 받은 것) */
+      const PP=(st,code,msg)=>msgProbePass(msgErr('api',{status:st,code,msg}));
+      if(PP(400,'ValidationError','child "messages" fails because ["messages" must contain at least 1 items]')&&PP(400,'BadRequest','메시지가 없습니다')&&PP(400,'ValidationError','"value" must contain at least 1 items')
+        &&!PP(400,'ValidationError','child "salt" fails because ["salt" is required]')&&!PP(400,'BadRequest','잘못된 요청입니다.')
+        &&!PP(400,'InvalidApiKey','apiKey정보가 올바르지 않습니다')&&!PP(401,'Unauthorized','권한이 없습니다.')&&!PP(403,'Forbidden','메시지 발송 권한이 없습니다')
+        &&!PP(400,'ValidationError','child "date" fails because ["date" must be a valid ISO 8601 date]')&&!PP(400,'RequestTimeTooSkewed','요청 시각과 서버 시간의 차이가 15분 이상입니다.')
+        &&!PP(400,'Forbidden','허용되지 않은 IP입니다. messages')&&!msgProbePass(msgErr('net',{msg:'Failed to fetch'}))&&!msgProbePass(null))ok15++;else console.warn('FAIL15-8');
     }catch(e){console.warn('FAIL15-x',e);}
     finally{state=saved;}
   }
   /* 솔라피 서명(HMAC-SHA256(API Secret, date+salt) 16진수) — 값은 파이썬 hmac 으로 미리 구한 것. 비동기라 결과는 콘솔 경고로만 */
   window.__msgtest=()=>solapiAuth('TESTKEY','TESTSECRET-0123456789','2026-11-15T00:00:00.000Z','abcdef0123456789abcdef0123456789').then(h=>{const ok=h==='HMAC-SHA256 apiKey=TESTKEY, date=2026-11-15T00:00:00.000Z, salt=abcdef0123456789abcdef0123456789, signature=5da3228c3605dcb2a98643ce6678e10afb4c70af84784455351b1a8b5335400d';if(!ok)console.warn('FAIL15-sig',h);return ok;});
   try{window.__msgtest().catch(e=>console.warn('FAIL15-sig-x',e));}catch(e){}
-  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/12 · 기기관리 ${ok13}/8 · 승인잠금 ${ok14}/1 · 문자 ${ok15}/7`;
+  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/12 · 기기관리 ${ok13}/8 · 승인잠금 ${ok14}/1 · 문자 ${ok15}/8`;
   console.log(msg);
   return {ok,ok2,ok3,ok4,msg};
 };
