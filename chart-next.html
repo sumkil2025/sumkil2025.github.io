@@ -919,12 +919,13 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.22.2';
+const APP_VERSION='2026.11.22.3';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
-/* 정식 주소(chart.html — 다른 업체도 쓴다)에는 아직 열지 않는 실험실 기능: 시험판 주소와 내 PC(localhost)에서만 보이고 켜진다.
-   💬 문자 발송은 실제 키로 보내 본 뒤에 연다 — 여는 날 아래 목록에서 msg 를 지우면 된다. 자료(프리셋 · 보낸 기록 · 스위치 값)는 그대로 둔다. */
+/* 정식 주소(chart.html — 다른 업체도 쓴다)에는 아직 열지 않는 실험실 기능의 목록: 여기 적힌 것(예: {msg:1})은 시험판 주소와 내 PC(localhost)에서만 보이고 켜진다.
+   💬 문자 발송(msg)은 2026-11-22 에 정식에도 열었다(사용자 "열어 줘" — 사무실의 실제 키로 문자가 나가는 것을 본 뒤, v2026.11.22.3). 지금은 목록이 비어 있다.
+   다음에 정식에서 숨길 기능이 생기면 여기에 이름을 적는다 — 자료(스위치 값 · 기록)는 건드리지 않고 화면에서만 가린다. */
 const LAB_PREVIEW=IS_NEXT||/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-const LAB_PREVIEW_ONLY={msg:1};
+const LAB_PREVIEW_ONLY={};
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -8141,7 +8142,7 @@ function ataBoxHtml(){
   else st=`✅ <b>알림톡 준비됨</b> · 쓸 수 있는 템플릿 ${use.length}개 <span class="hint">— 📅 월별 청구 › [💬 본인부담금 안내 문자]와 환자 💬 문자 창에서 템플릿을 고르면 카톡으로 갑니다.</span>`;
   const row=t=>{const mp=ataMapOf(t),miss=t.vars.filter(v=>!mp[v]||(!mp[v].k&&!mp[v].x)).length,ok=ataUsable(t)&&ataChOk(t);
     return `<div class="ma-it${ok?'':' off'}" data-aid="${esc(t.id)}" title="템플릿 ID ${esc(t.id)}"><b>${esc(t.name||'(이름 없음)')}</b><span class="badge ${t.status==='APPROVED'?'b20':t.status==='REJECTED'?'warn':t.status?'card':'end'}">${ataStLabel(t.status)}</span>${ataChOk(t)?'':'<span class="badge end" title="위 채널 ID 와 다른 채널에 등록된 템플릿">다른 채널</span>'}${t.id===a.billCash?'<span class="badge cash" title="본인부담금 안내 — 자동이체 환자용으로 골라 둔 템플릿">자동이체</span>':''}${t.id===a.billCard?'<span class="badge card" title="본인부담금 안내 — 카드 환자용으로 골라 둔 템플릿">카드</span>':''}${miss?`<span class="badge warn" title="숨길이의 어떤 값을 넣을지 정하지 않은 빈칸 — [보기 · 빈칸 짝짓기]에서 정해 주세요">짝 없는 빈칸 ${miss}</span>`:''}<button type="button" class="btn sm ma-view">보기 · 빈칸 짝짓기</button></div>`;};
-  return `<div class="ma-sec"><h3>💛 알림톡(카카오톡) <small>카카오 검수를 받은 템플릿만 보낼 수 있습니다 · 건당 약 ${MSG_PRICE.ATA}원(부가세 별도)</small></h3>
+  return `<div class="ma-sec"><h3>💛 알림톡(카카오톡) <span class="badge lab">새 기능</span> <small>카카오 검수를 받은 템플릿만 보낼 수 있습니다 · 건당 약 ${MSG_PRICE.ATA}원(부가세 별도)</small></h3>
     <label class="ma-on"><input type="checkbox" id="maOn"${a.on?' checked':''}><span><b>알림톡으로 보내기</b> <span class="hint">— 켜면 템플릿을 고른 안내는 카톡으로 먼저 갑니다. 꺼 두면 지금처럼 문자로만 보냅니다.</span></span></label>
     <div class="setrow"><label title="솔라피 콘솔 › 카카오톡 채널에 나오는 연동 아이디(pfId)">채널 ID</label><input id="maPf" value="${esc(a.pfId)}" placeholder="솔라피 콘솔 › 카카오톡 채널의 연동 아이디" autocomplete="off" spellcheck="false">${chNow&&chNow.sid?`<span class="hint">${esc(chNow.sid)}</span>`:''}</div>
     ${others.length?`<div class="hint" style="margin:-2px 0 8px 138px">불러온 다른 채널: ${others.map(c=>`<button type="button" class="btn sm" data-pf="${esc(c.id)}">${esc(c.sid||c.id)} 쓰기</button>`).join(' ')}</div>`:''}
@@ -8151,7 +8152,8 @@ function ataBoxHtml(){
     <div class="mg-st">${st}</div>
     <div class="snote"><b>알림톡 준비 순서</b> — ① 카카오톡 채널 만들기 · 비즈니스 인증(business.kakao.com) ② <a href="${SOLAPI_CONSOLE}" target="_blank" rel="noopener">솔라피 콘솔</a>에서 그 채널을 연동 ③ 콘솔에서 알림톡 템플릿을 등록하고 카카오 검수 받기(등록한 템플릿은 고칠 수 없어, 바꾸려면 새로 등록합니다) ④ 여기서 [불러오기] → [알림톡으로 보내기] 켜기.<br>
       템플릿의 빈칸 이름을 숨길이 칸 이름(<b>#{이름} · #{월} · #{본인부담금} · #{결제일} · #{업체명} · #{업체전화}</b>)과 같게 지으면 저절로 이어지고, 다르게 지었으면 [보기 · 빈칸 짝짓기]에서 이어 줍니다.
-      알림톡은 정보를 알리는 글만 됩니다(광고 불가). 문자와 마찬가지로 받는 번호와 빈칸 값(이름 · 금액)이 솔라피 · 카카오로 갑니다.</div></div>`;
+      알림톡은 정보를 알리는 글만 됩니다(광고 불가). 문자와 마찬가지로 받는 번호와 빈칸 값(이름 · 금액)이 솔라피 · 카카오로 갑니다.<br>
+      <b>새로 넣은 기능입니다</b> — 환자에게 보내기 전에 📅 월별 청구 › [💬 본인부담금 안내 문자]의 <b>[나에게 먼저 보내기]</b>로 내 휴대폰에 카톡이 맞게 오는지 꼭 확인하세요.</div></div>`;
 }
 /* 솔라피에서 채널 · 템플릿 읽어 오기 — 불러온 것으로 바꾸되 손으로 넣은 템플릿(man)은 남긴다. 빈칸 짝(map)은 템플릿 ID 로 묶여 있어 그대로 */
 async function ataFetch(){
