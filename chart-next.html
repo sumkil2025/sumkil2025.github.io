@@ -925,7 +925,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.23.1';
+const APP_VERSION='2026.11.23.2';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 정식 주소(chart.html — 다른 업체도 쓴다)에는 아직 열지 않는 실험실 기능의 목록: 여기 적힌 것(예: {msg:1})은 시험판 주소와 내 PC(localhost)에서만 보이고 켜진다.
    💬 문자 발송(msg)은 2026-11-22 에 정식에도 열었다(사용자 "열어 줘" — 사무실의 실제 키로 문자가 나가는 것을 본 뒤, v2026.11.22.3). 지금은 목록이 비어 있다.
@@ -1044,7 +1044,13 @@ function pressureAt(p,d){
 /* 재처방 이력으로 오늘 적용되는 압력 (이력이 없으면 null) — 처방압력 칸과 다르면 경고용 */
 function rxPressureNow(p){const t=fd(new Date());let r=null;for(const x of rxChangesOf(p))if(x.date<=t&&x.to)r={to:x.to,date:x.date};return r;}
 const rxPressMismatch=p=>{const r=rxPressureNow(p);return r&&String(p.pressure||'').replace(/\s/g,'')!==String(r.to).replace(/\s/g,'')?r:null;};
-/* 재처방일이 속한 달에 승인번호·청구완료가 있으면 구간 구조를 바꿀 수 없다 */
+/* ── 기기 교체로 나뉘는 청구 (2026-11-23 사용자 "청구분리되요") — 기기를 바꾼 날부터 새 청구 단위: 기기마다 공단 청구 · 세금계산서 · 현금영수증이 따로 나간다.
+   교체 이력(p.devChanges)에 적힌 교체만 센다 — 옛 변경 이력의 S/N 줄은 번호를 고친 것이 섞여 있을 수 있어 세지 않는다.
+   split:0 = 그 달은 나누지 않음(이미 승인번호 · 청구완료가 있는 달에 뒤늦게 적은 교체 — 낸 그대로 둔다). 기록의 [기기별로 나누기]로 바꿀 수 있다 */
+const devCutsOf=p=>devChangesOf(p).filter(c=>c.split!==0&&snKey(c.from.sn)&&snKey(c.from.sn)!==snKey(c.to.sn)).map(c=>c.date);
+/* 구간 꼬리표: 재처방(압력 변경) 뒤 구간 · 기기 교체 뒤 구간 */
+const uTag=u=>u?((u.rxNew?'·재처방':'')+(u.devNew?'·교체':'')):'';
+/* 재처방일(기기 교체일)이 속한 달에 승인번호·청구완료가 있으면 구간 구조를 바꿀 수 없다 */
 function rxChangeLocked(p,dates){
   if(!p||!state||!state.months)return null;
   for(const d of dates){if(!d)continue;const ym=d.slice(0,7),ov=(state.months[ym]||{})[p.id];if(!ov)continue;
@@ -1146,8 +1152,12 @@ function calcPatientMonth(p,ym,ov){
   const rxAll=rxChangesOf(p);
   const rxIn=rxAll.map(x=>x.date).filter(d=>d>s&&d<=e);
   const rxCuts=rxIn.filter(d=>!merged.some(m=>m.a<d&&d<=m.b));
-  const legacyAb=(!hasTrips(ov)&&rxCuts.length)?Math.max(0,Math.min(Math.floor(Number(ov.abroad||0)),days)):0;   /* 날짜 없는 해외 일수 + 재처방 분리 → 마지막 임대 구간에서 차감 */
-  const byDate=merged.length>0||rxCuts.length>0;
+  /* 기기 교체일이 이 달 안에 있으면 날짜 경계 (재처방과 같은 방식 — 해외 체류 한가운데면 해외 구간이 경계를 대신한다) */
+  const dvAll=devCutsOf(p);
+  const dvIn=dvAll.filter(d=>d>s&&d<=e);
+  const dvCuts=dvIn.filter(d=>!merged.some(m=>m.a<d&&d<=m.b));
+  const legacyAb=(!hasTrips(ov)&&(rxCuts.length||dvCuts.length))?Math.max(0,Math.min(Math.floor(Number(ov.abroad||0)),days)):0;   /* 날짜 없는 해외 일수 + 재처방·기기 교체 분리 → 마지막 임대 구간에서 차감 */
+  const byDate=merged.length>0||rxCuts.length>0||dvCuts.length>0;
   const cutP=(pass&&pass>s&&pass<=e)?pass:null;
   let ranges=null,abroad=0,t1=0,t2=0,e1=d1,e2=d2;
   if(byDate){
@@ -1155,9 +1165,10 @@ function calcPatientMonth(p,ym,ov){
     const bounds=new Set([s]);if(cutP&&!merged.some(m=>m.a<cutP&&cutP<=m.b))bounds.add(cutP);
     for(const m of merged){bounds.add(m.a);const nb=addDays(m.b,1);if(nb<=e)bounds.add(nb);}
     for(const d of rxCuts)bounds.add(d);
+    for(const d of dvCuts)bounds.add(d);
     const starts=[...bounds].sort();
     ranges=starts.map((st,i)=>{const en=i<starts.length-1?addDays(starts[i+1],-1):e;const exc=merged.some(m=>m.a<=st&&en<=m.b);const ph=(pass&&st>=pass)?'post':'pre';const dd=diffDays(st,en)+1;
-      return {s:st,e:en,days:dd,exc,ph,rent:exc?0:dd,ab:exc?dd:0,rxNo:rxAll.filter(x=>x.date<=st).length};});
+      return {s:st,e:en,days:dd,exc,ph,rent:exc?0:dd,ab:exc?dd:0,rxNo:rxAll.filter(x=>x.date<=st).length,dvNo:dvAll.filter(d=>d<=st).length};});
     if(legacyAb>0){const last=[...ranges].reverse().find(r=>!r.exc);if(last){last.ab=Math.min(legacyAb,last.days);last.rent=last.days-last.ab;}}
     abroad=ranges.reduce((a,r)=>a+r.ab,0);
     const preRent=ranges.filter(r=>r.ph==='pre').reduce((a,r)=>a+r.rent,0),postRent=ranges.filter(r=>r.ph==='post').reduce((a,r)=>a+r.rent,0);
@@ -1193,15 +1204,18 @@ function calcPatientMonth(p,ym,ov){
   else selfFull=(ov.selfFull===true)||ruleHit;                                   /* LMTS 통과여부 N 또는 자동 규정 */
   /* ── 청구 단위(구간) — 구간마다 세금계산서·현금영수증·청구서가 따로 나간다. 해외(exc) 구간은 현금영수증만(개인사용, 공단 청구 없음) ── */
   let defs;
-  if(byDate){defs=ranges.map((r,i)=>({k:i+1,r:r.exc?1:(r.ph==='post'?ins.post:ins.pre),ph:r.ph,kind:r.exc?'exc':'rent',s:r.s,e:r.e,d:r.days,rent:r.rent,ab:r.ab,rxNo:r.rxNo}));}
+  if(byDate){defs=ranges.map((r,i)=>({k:i+1,r:r.exc?1:(r.ph==='post'?ins.post:ins.pre),ph:r.ph,kind:r.exc?'exc':'rent',s:r.s,e:r.e,d:r.days,rent:r.rent,ab:r.ab,rxNo:r.rxNo,dvNo:r.dvNo}));}
   else{
-    const rx0=rxAll.filter(x=>x.date<=s).length;
-    defs=[{k:1,r:r1,ph:ph1,kind:'rent',s,e:(cutP&&d2>0)?addDays(cutP,-1):e,d:d1,rent:e1,ab:t1,rxNo:rx0}];
-    if(d2>0)defs.push({k:2,r:r2,ph:ph2,kind:'rent',s:cutP||s,e,d:d2,rent:e2,ab:t2,rxNo:rx0});
+    const rx0=rxAll.filter(x=>x.date<=s).length,dv0=dvAll.filter(d=>d<=s).length;
+    defs=[{k:1,r:r1,ph:ph1,kind:'rent',s,e:(cutP&&d2>0)?addDays(cutP,-1):e,d:d1,rent:e1,ab:t1,rxNo:rx0,dvNo:dv0}];
+    if(d2>0)defs.push({k:2,r:r2,ph:ph2,kind:'rent',s:cutP||s,e,d:d2,rent:e2,ab:t2,rxNo:rx0,dvNo:dv0});
   }
   const multi=defs.length>1;
   const rxSplit=rxIn.length>0;                            /* 이 달에 재처방이 있음 (해외 체류 중이면 경계는 해외 구간이 대신) */
   const rxMin=Math.min(...defs.map(g=>g.rxNo||0));
+  const devSplit=dvIn.length>0;                           /* 이 달에 기기 교체로 나뉘는 날이 있음 */
+  const dvMin=Math.min(...defs.map(g=>g.dvNo||0));
+  const dvF=g=>dvAll.length?{dvNo:g.dvNo||0,devSplit,devNew:devSplit&&(g.dvNo||0)>dvMin}:null;   /* 기기 교체 이력이 없는 환자의 구간에는 칸을 만들지 않는다(앞 판과 계산 결과가 글자까지 같게) */
   const cut=(multi&&cutP)?cutP:null;                       /* 순응통과(재처방) 경계 */
   const rentDefs=defs.filter(g=>g.kind==='rent');
   const firstRent=rentDefs.length?rentDefs[0].k:1;
@@ -1214,7 +1228,7 @@ function calcPatientMonth(p,ym,ov){
     const ab=g.ab>0?baseAmt(B,g.ab,N):0;
     const hasMask=mask&&g.kind==='rent'&&g.k===maskSeg;
     const mB=hasMask?maskBoninFor(p):0,mG=hasMask?(prices.maskBase-mB):0;
-    const u={k:g.k,rate:g.r,phase:g.ph,kind:g.kind,multi,s:g.s,e:g.e,rxNo:g.rxNo||0,rxSplit,rxNew:rxSplit&&(g.rxNo||0)>rxMin,
+    const u={k:g.k,rate:g.r,phase:g.ph,kind:g.kind,multi,s:g.s,e:g.e,rxNo:g.rxNo||0,rxSplit,rxNew:rxSplit&&(g.rxNo||0)>rxMin,...dvF(g),
       days:g.d,rentDays:g.rent,abroadDays:g.ab,base,rentBonin:rb,rentGong:base-rb,abAmt:ab,
       mask:hasMask,maskBonin:mB,maskGong:mG,
       bonin:rb+ab+mB,gong:(base-rb)+mG,total:base+ab+(hasMask?prices.maskBase:0)};
@@ -1238,7 +1252,7 @@ function calcPatientMonth(p,ym,ov){
   c.rentBase=sum('base');c.rentBonin=sum('rentBonin');c.rentGong=sum('rentGong');c.abAmt=sum('abAmt');
   c.bonin=sum('bonin');c.gong=sum('gong');c.total=sum('total');
   if(selfFull)c.selfFull=true;
-  return {active:true,dayWarn,byDate,rxSplit,s,e,days,N,B,split:(d2>0),d1,d2,r1,r2,phase1:ph1,phase2:ph2,insType:ins.code,autoD1,autoD2,abroad,mask,maskSeg,units,cut,
+  return {active:true,dayWarn,byDate,rxSplit,...(devSplit?{devSplit}:null),s,e,days,N,B,split:(d2>0),d1,d2,r1,r2,phase1:ph1,phase2:ph2,insType:ins.code,autoD1,autoD2,abroad,mask,maskSeg,units,cut,
     fullMonth,postAdapt,avgMin,avgSrc,avgLmts,age,exempt,ruleHit,...c};
 }
 
@@ -1322,6 +1336,9 @@ function ensureDefaults(){
   if(!Array.isArray(state.devices))state.devices=[];
   if(!Array.isArray(state.devLogs))state.devLogs=[];
   for(const n of state.notes)if(n&&n.dev&&n.dev.from&&n.kind!=='dev')n.kind='dev';   /* 옛 판에서 🛠 고장·교체 기록의 글을 고치면 종류가 '상담'으로 바뀜 → 되돌려 놓음 (2026-11-23) */
+  /* 기기 교체로 청구를 나누는지(split) — v2026.11.23.1 이 남긴 교체 이력에는 이 칸이 없다. 처음 한 번 정해 둔다:
+     그 달에 이미 승인번호 · 청구완료가 있으면 0(낸 그대로), 없으면 1(나눔). 한번 정한 값은 다시 건드리지 않는다(나눈 뒤에 승인번호가 붙어도 그대로 나눔) */
+  for(const p of state.patients)if(p&&Array.isArray(p.devChanges))for(const c of p.devChanges)if(c&&c.date&&c.split!==0&&c.split!==1)c.split=rxChangeLocked(p,[c.date])?0:1;
   for(const p of state.patients){
     if(p.pressure===undefined)p.pressure=defaultPressure();
     if(p.staff===undefined)p.staff='';
@@ -1659,6 +1676,7 @@ function todoOf(r){
   for(const u of c.units){
     if(u.kind==='exc'){const ca0=uGet(ov,u.k,'cashApprove');if(!card&&u.bonin>0){if(!ca0)issue=true;else if(!uGet(ov,u.k,'cashPaid'))pay=true;}continue;}
     if(u.frozen&&u.diff)need.push(`구간${u.k} 청구 당시와 계산 다름`);
+    if(!uGet(ov,u.k,'claimed')&&devCtIn(p,u).some(x=>devCtOf(x).st==='todo'))need.push('기기 교체 — 표준계약서 다시 쓰기(청구에 첨부)');
     if(u.phase==='post'){if(rxPeriodFor(p,u).stale)need.push('처방종료일 갱신 필요');if(c.avgMin==null)miss.push('순응후 평균사용시간');if(p.passDateEst)miss.push('순응통과일·처방시작일(추정 — 실제 재처방일 입력)');}
     const cd=uGet(ov,u.k,'claimed'),ca=uGet(ov,u.k,'cashApprove'),ta=uGet(ov,u.k,'taxApprove');
     const needC=!card&&u.bonin>0,needT=u.gong>0;
@@ -1727,8 +1745,8 @@ function renderMonth(){
     const avgHtml=`      ${c.units.some(u=>u.phase==='post')?`<span class="avgwrap" title="순응 후 월평균 사용시간 — 직접 입력(h:mm 또는 분). 비우면 LMTS 값${c.avgLmts!=null?` ${hm(c.avgLmts)}`:'(없음)'}. 2시간 미만이면 그 달 요양비 미지급(전액 본인부담)">⏱<input class="inline avgin${c.avgSrc==='manual'?' on':''}" value="${c.avgSrc==='manual'?hmColon(c.avgMin):''}" placeholder="${c.avgLmts!=null?hmColon(c.avgLmts):'h:mm'}" data-f="avgMinManual" data-id="${p.id}"${docLock?' disabled':''}>${c.avgSrc==='manual'?`<span class="badge warn" title="수동 입력값 사용 중${c.avgLmts!=null?` · LMTS ${hm(c.avgLmts)}`:''}">수동</span>`:''}</span>`:''}
     `;
     const segsHtml = c.byDate ? `<div class="segchips">
-      ${c.units.map(u=>`<span class="badge ${u.kind==='exc'?'exc':(u.phase==='pre'?'b50':'b20')}" title="${u.s}~${u.e}${u.kind==='exc'?' 해외 체류(개인사용 100%)':(u.rxSplit?` · 압력 ${pressureAt(p,u.s)}${u.rxNew?' (재처방)':''}`:'')}">${u.kind==='exc'?'해외':(u.phase==='pre'?'순응중':'순응후')}${u.rxNew?'·재처방':''} ${u.kind==='exc'?'100%':Math.round(u.rate*100)+'%'} ${u.days}일</span>`).join(' ')}
-      <span class="hint" title="해외 출·입국 날짜가 있어 구간 일수는 날짜로 계산됩니다 (수기 일수 입력 없음)">날짜 계산</span>
+      ${c.units.map(u=>`<span class="badge ${u.kind==='exc'?'exc':(u.phase==='pre'?'b50':'b20')}" title="${u.s}~${u.e}${u.kind==='exc'?' 해외 체류(개인사용 100%)':(u.rxSplit?` · 압력 ${pressureAt(p,u.s)}${u.rxNew?' (재처방)':''}`:'')+(u.devSplit?` · S/N ${esc(devOn(p,u.e).sn||'—')}${u.devNew?' (기기 교체 뒤)':''}`:'')}">${u.kind==='exc'?'해외':(u.phase==='pre'?'순응중':'순응후')}${uTag(u)} ${u.kind==='exc'?'100%':Math.round(u.rate*100)+'%'} ${u.days}일</span>`).join(' ')}
+      <span class="hint" title="해외 출·입국 날짜 · 재처방(압력 변경) · 기기 교체가 있어 구간 일수는 날짜로 계산됩니다 (수기 일수 입력 없음)">날짜 계산</span>
       ${docLock?`<span class="badge b20" title="${locked?'공단 청구 완료 — 이 달의 값은 청구 당시로 고정. 수정하려면 청구완료를 해제하세요':'현금영수증·세금계산서 승인번호가 있어 금액이 바뀌는 값은 잠김'}">🔒</span>`:''}
       ${avgHtml}</div>
     ` : `
@@ -1764,8 +1782,8 @@ function renderMonth(){
         <td></td>
         <td colspan="${two?5:8}" class="hint" style="white-space:nowrap">
           <span style="display:inline-block;width:16px;text-align:center">${ui===0?'┌':(ui===c.units.length-1?'└':'├')}</span>
-          ${exc?`<span class="badge exc" title="해외 체류 — 개인사용(전액 본인부담), 공단 청구 없음, 현금영수증만 발행">해외 100%</span>`:`<span class="badge ${u.phase==='pre'?'b50':'b20'}" title="${u.rxSplit?`압력 ${pressureAt(p,u.s)}${u.rxNew?' — 재처방(압력 변경) 처방전':' — 변경 전 처방전'}`:''}">${u.phase==='pre'?'순응중':'순응후'}${u.rxNew?'·재처방':''} ${Math.round(u.rate*100)}%</span>`}
-          ${u.s.slice(5)}~${u.e.slice(5)} (${u.days}일)${(u.abroadDays&&!exc)?` · 해외 ${u.abroadDays}일`:''}${u.mask?' · 마스크':''}
+          ${exc?`<span class="badge exc" title="해외 체류 — 개인사용(전액 본인부담), 공단 청구 없음, 현금영수증만 발행">해외 100%</span>`:`<span class="badge ${u.phase==='pre'?'b50':'b20'}" title="${[u.rxSplit?`압력 ${pressureAt(p,u.s)}${u.rxNew?' — 재처방(압력 변경) 처방전':' — 변경 전 처방전'}`:'',u.devSplit?`기기 S/N ${esc(devOn(p,u.e).sn||'—')}${u.devNew?' — 기기 교체 뒤':' — 교체 전 기기'}`:''].filter(Boolean).join(' · ')}">${u.phase==='pre'?'순응중':'순응후'}${uTag(u)} ${Math.round(u.rate*100)}%</span>`}
+          ${u.s.slice(5)}~${u.e.slice(5)} (${u.days}일)${(u.devSplit&&!exc)?` · <span title="기기 교체로 나뉜 구간 — 이 구간에 쓴 기기">S/N ${esc(devOn(p,u.e).sn||'—')}</span>`:''}${(u.abroadDays&&!exc)?` · 해외 ${u.abroadDays}일`:''}${u.mask?' · 마스크':''}
           ${cardEff?' · <span style="color:var(--amber)">카드 · 현금영수증 제외</span>':''}
           ${ca?` · <span style="color:var(--green)">현금승인 ${esc(ca)}</span>`:''}
           ${ta?` · <span style="color:var(--green)">세금승인 ${esc(ta)}</span>`:''}
@@ -1782,7 +1800,7 @@ function renderMonth(){
       </tr>`;}).join(''):'';
     /* S/N: 기기를 바꾼 환자는 그 달 끝날에 쓰던 기기 — 그 달 안에서 바꿨으면 '앞 번호 → 새 번호' */
     const snCell=(()=>{const sw=devSwapsIn(p,c.s,c.e),now=devOn(p,c.e).sn;
-      return sw.length?`<span title="이 달 ${sw.map(x=>x.date.slice(5)).join(', ')}에 기기 교체${sw.some(x=>x.why==='fault')?'(고장)':''} — 서류에는 새 번호가 나옵니다">${esc(sw[0].from.sn)} → ${esc(now||'—')}</span>`:esc(now||'—');})();
+      return sw.length?`<span title="이 달 ${sw.map(x=>x.date.slice(5)).join(', ')}에 기기 교체${sw.some(x=>x.why==='fault')?'(고장)':''} — ${c.devSplit?'청구가 기기별로 나뉩니다 (구간 줄마다 그 기기의 S/N)':'이 달 청구는 나누지 않았습니다 · 서류에는 새 번호가 나옵니다'}">${esc(sw[0].from.sn)} → ${esc(now||'—')}</span>`:esc(now||'—');})();
     /* 두 줄 표시: 1행=계산·금액, 2행=식별정보/결제/지사/승인번호 (분리 발행 시 승인번호는 구간 행에) */
     const line2=two?`<tr class="sub${multi?' split':''}"><td></td><td colspan="10" class="hint" style="white-space:normal;line-height:1.9">
         ${avgCell} ·
@@ -2032,6 +2050,7 @@ function claimSnapshot(p,ym,ov,c,u){
     s:u.s,e:u.e,days:u.days,rentDays:u.rentDays,abroadDays:u.abroadDays,rate:u.rate,phase:u.phase,kind:u.kind||'rent',base:u.base,rentBonin:u.rentBonin,rentGong:u.rentGong,abAmt:u.abAmt,
     mask:u.mask,maskBonin:u.maskBonin,maskGong:u.maskGong,bonin:u.bonin,gong:u.gong,total:u.total,
     rx:{s:rx.s,e:rx.e,kind:rx.kind},rxPressure:pressureAt(p,u.s),rxNo:u.rxNo||0,avgMin:c.avgMin==null?null:c.avgMin,avgSrc:c.avgSrc||null,
+    ...(devCtStartFor(p,u,rx.s,rx.e)?{ctS:devCtStartFor(p,u,rx.s,rx.e)}:null),   /* 기기 교체로 다시 쓴 표준계약서의 시작일 — 업체계약기간 */
     prices:{B:pr[p.device]||pr['자동형'],maskBase:pr.maskBase,maskBonin:pr.maskBonin},
     pat:{device:p.device,insureType:p.insureType||'IB',model:devOn(p,u.e).model,sn:devOn(p,u.e).sn,pressure:p.pressure,mfgYm:devOn(p,u.e).mfgYm||null,rentStart:p.rentStart,rentEnd:p.rentEnd||null,rxStart:p.rxStart||null,rxEnd:p.rxEnd||null,passDate:p.passDate||null,
       adaptStart:p.adaptStart||null,adaptEnd:p.adaptEnd||null,adaptWinStart:p.adaptWinStart||null,adaptWinEnd:p.adaptWinEnd||null,adaptDays4h:p.adaptDays4h??null,adaptJudge:p.adaptJudge||null,
@@ -2072,7 +2091,8 @@ function docboxClaimKind(p,u){
 /* [제출서류첨부]에 실어 보내는 차트의 판단 — 서류보관함이 '이번 청구에 낼 것'을 가리는 데 쓴다(검증본: 업체 대리청구 단계별 첨부서류 2026-11-12, 시행규칙 제23조⑤).
    rx   이 처방전으로 앞서 청구해 공단부담금 입금까지 확인됐으면 paid(생략) · 전자처방전 등록번호를 적어 둔 처방전이면 e(생략) · 청구 완료만 있으면 claimed(지급 여부 확인) ·
         같은 처방전의 앞 구간은 있는데 청구 완료 표시가 없거나, 차트에 앞 달 자료가 없으면 unknown(낸다 — 이미 냈으면 뺀다) · 그 처방전의 첫 청구면 new(낸다)
-   ct   계약한 달(계약 시작일이 이 구간에 든다)이면 1, 아니면 0  — 계약 내용이 바뀐 달은 차트가 알 수 없어 서류보관함에서 사람이 체크한다
+   ct   계약한 달(계약 시작일이 이 구간에 든다)이면 1 · 기기 교체로 표준계약서를 다시 쓰는(쓴) 날이 이 구간에 들어도 1(2026-11-23 사용자 "첨부합니다"), 아니면 0
+        — 그 밖에 계약 내용이 바뀐 달은 차트가 알 수 없어 서류보관함에서 사람이 체크한다
    pay  그 달의 결제 방식: card 면 카드매출전표를 낸다
    bp   이중형이면: 앞서 이중형으로 청구 완료한 다른 처방전이 있으면 re(재처방), 없으면 new(첫 이중형 처방 · 기기 변경으로 본다) · 이중형이 아니면 0 */
 function docboxClaimHints(p,u,ym){
@@ -2092,7 +2112,7 @@ function docboxClaimHints(p,u,ym){
       }
     }
     out.rx=paid?'paid':rxRegOf(p,rx.s)?'e':claimed?'claimed':same>0?'unknown':(!earlier&&p.rentStart&&p.rentStart<first&&rx.s&&rx.s<first)?'unknown':'new';
-    out.ct=(p.rentStart&&u.s&&u.e&&p.rentStart>=u.s&&p.rentStart<=u.e)?'1':'0';
+    out.ct=((p.rentStart&&u.s&&u.e&&p.rentStart>=u.s&&p.rentStart<=u.e)||devCtIn(p,u).length)?'1':'0';
     out.pay=(ov.payMethod||p.payMethod)==='card'?'card':'cash';
     const device=(u.frozen&&u.snap&&u.snap.pat&&u.snap.pat.device)||p.device;
     out.bp=device==='이중형'?(bipapBefore?'re':'new'):'0';
@@ -2228,13 +2248,18 @@ function openClaimView(pid,k){
   const post=u.phase==='post';
   const rxp=(u.frozen&&u.snap&&u.snap.rx)?{s:u.snap.rx.s,e:u.snap.rx.e,kind:u.snap.rx.kind,stale:false}:rxPeriodFor(p,u);
   const rxS=rxp.s,rxE=rxp.e,rxStale=rxp.stale,rxKind=rxp.kind;
+  /* 업체계약기간: 처방기간과 같다 — 기기 교체로 표준계약서를 다시 썼으면 그 바꾼 날부터(사용자 2026-11-23). 청구 완료 구간은 당시 값 */
+  const ctS=(u.frozen&&u.snap)?(u.snap.ctS||rxS):(devCtStartFor(p,u,rxS,rxE)||rxS);
+  const swReal=x=>x.split!==0&&snKey(x.from.sn)!==snKey(x.to.sn);
+  const swAt=devChangesOf(p).find(x=>swReal(x)&&x.date===u.s)||null;                 /* 이 구간이 기기 교체로 시작 */
+  const swNext=devChangesOf(p).find(x=>swReal(x)&&x.date===addDays(u.e,1))||null;   /* 이 구간 다음 날 기기 교체 = 이 구간의 기기는 그날 회수 */
   const devLabel={'수동형':'수동형(CPAP)','자동형':'자동형(APAP)','이중형':'이중형(BiPAP)'}[PP.device]||PP.device;
   const rrnF=digits(p.rrn).slice(0,6),rrnB=digits(p.rrn).slice(6);
   const rentBase=u.base+u.abAmt,rentBonin=u.rentBonin+u.abAmt;
   const ca=uGet(ov,u.k,'cashApprove'),ta=uGet(ov,u.k,'taxApprove'),cd=uGet(ov,u.k,'claimed'),taD=uGet(ov,u.k,'taxDate'),caD=uGet(ov,u.k,'cashDate'),taI=uGet(ov,u.k,'taxIssue');
   /* 분리 발행인데 두 구간의 현금영수증 승인번호가 같으면 = 월 합산 한 장 발행 → 합계는 월 본인부담 */
   const caSum=multi&&ca&&c.units.every(x=>uGet(ov,x.k,'cashApprove')===ca);
-  const segTitle=multi?` <span class="badge ${u.phase==='pre'?'b50':'b20'}">구간${u.k} · ${u.phase==='pre'?'순응중':'순응후'} ${Math.round(u.rate*100)}%</span>`:'';
+  const segTitle=multi?` <span class="badge ${u.phase==='pre'?'b50':'b20'}">구간${u.k} · ${u.phase==='pre'?'순응중':'순응후'}${uTag(u)} ${Math.round(u.rate*100)}%</span>`:'';
   /* ── 3열 격자 부품: 항목명 + 값(클릭 복사) ── */
   const chip=(val,copy,cls)=>(val===''||val==null)?`<span class="cvv empty">—</span>`
     :`<span class="cvv ${cls||''}" data-copy="${esc(copy!=null?copy:String(val).replace(/,/g,''))}">${esc(String(val))}</span>`;
@@ -2260,7 +2285,7 @@ function openClaimView(pid,k){
   $('#modalHost').innerHTML=`<div class="modalBack" id="cvBack"><div class="modal cvmodal">
     <h3>📋 공단 청구 입력 — ${esc(p.name)} · ${ym.replace('-','년 ')}월${segTitle}
       <small style="font-weight:400;color:var(--muted);font-size:.76rem">공단 화면과 같은 자리 배치 · 값을 클릭하면 복사됩니다</small></h3>
-    ${multi?`<div class="hint" style="margin:-6px 0 10px;padding:8px 10px;background:#f3f8ff;border-radius:8px;color:var(--navy)">이 달은 청구 구간이 ${c.units.length}개로 나뉘어(${[c.cut?'순응 단계':'',c.units.some(x=>x.kind==='exc')?'해외 체류':'',c.rxSplit?'재처방(압력 변경)':''].filter(Boolean).join('·')||'순응중·순응후'}) 청구서·세금계산서·현금영수증을 <b>구간마다 따로</b> 냅니다${c.units.some(x=>x.kind==='exc')?' (해외 구간은 공단 청구 없이 현금영수증만)':''}${c.rxSplit?' — LMTS 월청구자료는 재처방을 나누지 않으므로 LMTS 합계와 10원 단위 절사 차이가 날 수 있습니다':''}. 이 창은 <b>구간${u.k}(${u.phase==='pre'?'순응중':'순응후'}${u.rxNew?'·재처방':''} ${u.s.slice(5)}~${u.e.slice(5)})</b>의 값입니다 — 다른 구간은 월별 표의 해당 구간 행 📋.</div>`:''}
+    ${multi?`<div class="hint" style="margin:-6px 0 10px;padding:8px 10px;background:#f3f8ff;border-radius:8px;color:var(--navy)">이 달은 청구 구간이 ${c.units.length}개로 나뉘어(${[c.cut?'순응 단계':'',c.units.some(x=>x.kind==='exc')?'해외 체류':'',c.rxSplit?'재처방(압력 변경)':'',c.devSplit?'기기 교체':''].filter(Boolean).join('·')||'순응중·순응후'}) 청구서·세금계산서·현금영수증을 <b>구간마다 따로</b> 냅니다${c.units.some(x=>x.kind==='exc')?' (해외 구간은 공단 청구 없이 현금영수증만)':''}${c.rxSplit?' — LMTS 월청구자료는 재처방을 나누지 않으므로 LMTS 합계와 10원 단위 절사 차이가 날 수 있습니다':''}. 이 창은 <b>구간${u.k}(${u.phase==='pre'?'순응중':'순응후'}${uTag(u)} ${u.s.slice(5)}~${u.e.slice(5)})</b>의 값입니다 — 다른 구간은 월별 표의 해당 구간 행 📋.</div>`:''}
     ${u.frozen?`<div class="hint" style="margin:-4px 0 10px;padding:8px 10px;background:${u.diff?'#fff3e0':'#eef7f0'};border-radius:8px;color:${u.diff?'#b45309':'var(--green)'}">🔒 <b>공단 청구 완료(${esc(u.snap.at)}) 당시 값으로 고정</b>된 창입니다 — 이후 단가·처방·일수가 바뀌어도 이 값은 변하지 않습니다.${u.diff?` <b>⚠️ 현재 계산과 다릅니다:</b> 본인 ${won(u.live.bonin)} / 공단 ${won(u.live.gong)} / 총 ${won(u.live.total)} (${u.live.days}일). 정정 청구가 필요하면 청구완료를 해제한 뒤 다시 계산하세요.`:' 현재 계산과 일치합니다.'}</div>`:''}
     <div class="cvsec">수진자 정보</div>
     <div class="cv3">
@@ -2285,16 +2310,18 @@ function openClaimView(pid,k){
     <div class="cvsec">청구정보</div>
     <div class="cv3">
       ${item('사업자등록번호',fmtBiz(st.supplier.regno),digits(st.supplier.regno))}${item('업체명',st.supplier.name)}${raw('사용기간',`${range(u.s,u.e)}<span class="hint">·</span>${chip(u.days+'일',u.days)}${u.abroadDays?`<span class="hint">청구</span>${chip(u.rentDays+'일',u.rentDays)}`:''}`)}
-      ${raw('업체계약기간',range(rxS,rxE))}${item('구입총액',won(u.total),u.total)}${raw('월별 평균 사용시간',`${avgH!=null?`${chip(avgH+' 시간',avgH)}<span class="hint">(${hm(c.avgMin)})</span>`:'<span class="cvv empty">—</span>'}${c.avgSrc==='manual'?` <span class="badge warn" title="수동 입력값${c.avgLmts!=null?` · LMTS ${hm(c.avgLmts)}`:''}">수동</span>`:''}${post?`<input id="cvAvgIn" class="inline" style="width:58px;margin-left:8px" value="${c.avgSrc==='manual'?hmColon(c.avgMin):''}" placeholder="${c.avgLmts!=null?hmColon(c.avgLmts):'h:mm'}" title="직접 입력(h:mm 또는 분) — 비우면 LMTS 값"${u.frozen?' disabled':''}>`:''}`)}
+      ${raw('업체계약기간',range(ctS,rxE)+(ctS!==rxS?`<span class="hint" title="기기 교체로 표준계약서를 다시 쓴 날부터 — 처방기간은 그대로입니다">다시 쓴 계약서</span>`:''))}${item('구입총액',won(u.total),u.total)}${raw('월별 평균 사용시간',`${avgH!=null?`${chip(avgH+' 시간',avgH)}<span class="hint">(${hm(c.avgMin)})</span>`:'<span class="cvv empty">—</span>'}${c.avgSrc==='manual'?` <span class="badge warn" title="수동 입력값${c.avgLmts!=null?` · LMTS ${hm(c.avgLmts)}`:''}">수동</span>`:''}${post?`<input id="cvAvgIn" class="inline" style="width:58px;margin-left:8px" value="${c.avgSrc==='manual'?hmColon(c.avgMin):''}" placeholder="${c.avgLmts!=null?hmColon(c.avgLmts):'h:mm'}" title="직접 입력(h:mm 또는 분) — 비우면 LMTS 값"${u.frozen?' disabled':''}>`:''}`)}
       ${item('본인부담총액',won(u.bonin),u.bonin,'big')}${item('실본인부담총액','')}${item('공단부담총액',won(u.gong),u.gong,'big')}
       ${item('반납기간','')}${blank}${blank}
       ${aux('부담금 상세',[['기기대여 본인부담금',won(rentBonin),rentBonin],['마스크 본인부담금',u.mask?won(u.maskBonin):'',u.mask?u.maskBonin:null],['기기대여 공단부담금',won(u.rentGong),u.rentGong],['마스크 공단부담금',u.mask?won(u.maskGong):'',u.mask?u.maskGong:null]])}
-      ${(u.abroadDays||c.byDate)?aux('예외기간 (LMTS 공단청구리포트 항목과 동일)',[['예외기간',hasTrips(ov)?ov.trips.filter(t=>t&&t.dep&&t.arr).map(t=>`${dot(addDays(t.dep,1))}~${dot(addDays(t.arr,-1))}`).join(', '):'(일수만 입력됨)'],['청구제외일수',(c.byDate?c.abroad:u.abroadDays)+'일',c.byDate?c.abroad:u.abroadDays],['제외사유','해외체류','해외체류'],['제외일 본인부담(전액)',won(c.byDate?c.abAmt:u.abAmt),c.byDate?c.abAmt:u.abAmt]]):''}
+      ${(u.abroadDays||(c.byDate&&(c.abroad>0||hasTrips(ov))))?aux('예외기간 (LMTS 공단청구리포트 항목과 동일)',[['예외기간',hasTrips(ov)?ov.trips.filter(t=>t&&t.dep&&t.arr).map(t=>`${dot(addDays(t.dep,1))}~${dot(addDays(t.arr,-1))}`).join(', '):'(일수만 입력됨)'],['청구제외일수',(c.byDate?c.abroad:u.abroadDays)+'일',c.byDate?c.abroad:u.abroadDays],['제외사유','해외체류','해외체류'],['제외일 본인부담(전액)',won(c.byDate?c.abAmt:u.abAmt),c.byDate?c.abAmt:u.abAmt]]):''}
     </div>
     <div class="cvsec">기기대여정보</div>
     <div class="cv3">
       ${raw('양압기 관리번호',`${chip(mgmtNo,mgmtNo)}<span class="cvl" style="margin-left:14px;background:none;border:0;display:inline;padding:0 4px">모델명</span>${chip(PP.model,PP.model)}`,'span3')}
       ${swapsIn.length?raw('기기 교체',swapsIn.map(x=>`${chip(x.from.sn,x.from.sn)} <span class="hint">~ ${dot(addDays(x.date,-1))}${x.why==='fault'?' 고장 회수':' 회수'}</span> → ${chip(x.to.sn,x.to.sn)} <span class="hint">${dot(x.date)} ~</span>`).join(' · ')+` <span class="hint" style="color:#b45309">이 청구 기간 안에서 기기를 바꿨습니다 — 공단 화면의 관리번호 · 회수일을 확인하세요</span>`,'span3'):''}
+      ${swNext?raw('기기 교체',`이 기기는 <b>${dot(u.e)}</b>까지 쓰고 회수 — ${chip(dot(swNext.date),dot(swNext.date))}부터 ${chip(swNext.to.sn,swNext.to.sn)}${swNext.why==='fault'?' <span class="hint">고장 교체</span>':''} <span class="hint" style="color:#b45309">새 기기는 따로 청구합니다 · 회수일은 공단 화면에서 확인하세요</span>`,'span3'):''}
+      ${swAt?raw('기기 교체',`${chip(dot(swAt.date),dot(swAt.date))}부터 이 기기 — 앞 기기 ${chip(swAt.from.sn,swAt.from.sn)} <span class="hint">${dot(addDays(swAt.date,-1))}까지${swAt.why==='fault'?' · 고장 회수':''} (따로 청구)</span>`,'span3'):''}
       ${item('계약금액',won(rentBase),rentBase)}${item('산정기준',won(rentBase),rentBase)}${item('양압기 종류',devLabel,devLabel)}
       ${item('본인부담',won(rentBonin),rentBonin)}${item('실본인부담','')}${item('공단부담',won(u.rentGong),u.rentGong)}
       ${item('회수일','')}${item('제조년월',dot(PP.mfgYm))}${blank}
@@ -2324,6 +2351,9 @@ function openClaimView(pid,k){
         if(!px.ok)warn.push('청구 위임의 <b>공단 승인을 아직 확인하지 않았습니다</b> — 요양기관정보마당에서 확인 뒤 환자 수정에 확인일을 적으세요');
         if(px.k==='ok')ok.push(`<span style="color:var(--green)">위임 ${dot(px.s)} ~ ${dot(px.e)} · 승인 확인 ✓</span>`);
       }
+      for(const x of devCtIn(p,u)){const ct=devCtOf(x);   /* 기기 교체로 표준계약서를 다시 쓰는 구간 — 그 계약서를 이번 청구에 첨부 */
+        if(ct.st==='todo'){if(!cd)warn.push(`기기 교체(${dot(x.date)})로 <b>표준계약서를 다시 써서 첨부</b>해야 하는데 아직 '다시 써야 함'입니다 — 📋 환자 차트의 그 기록에서 [📄 계약서 만들기]`);}
+        else ok.push(`<span class="hint">기기 교체로 표준계약서 다시 씀(${dot(ct.date)}) — 이번 청구에 첨부합니다</span>`);}
       const taxDate2=taD||taI;
       if(u.gong>0&&!(ta&&taxDate2))warn.push(`전자세금계산서의 <b>${[ta?'':'승인번호',taxDate2?'':'작성일자'].filter(Boolean).join(' · ')}</b>가 없습니다 — 넣거나 세금계산서 파일을 첨부하세요`);
       if(u.bonin>0&&card)ok.push('<span class="hint">카드 결제 — 카드매출전표를 첨부합니다(생략 대상 아님)</span>');
@@ -2459,7 +2489,7 @@ $('#btnMonthXlsx')&&($('#btnMonthXlsx').onclick=()=>{
     const rx=(rxs0?yymmdd(rxs0).replace(/(\d\d)(\d\d)(\d\d)/,'$1.$2.$3'):'')+(p.rxEnd?'~'+yymmdd(p.rxEnd).replace(/(\d\d)(\d\d)(\d\d)/,'$1.$2.$3'):'');
     c.units.forEach(u=>{
       n++;if(u.mask)mk++;
-      aoa.push([n,p.name+(multi?` (${u.kind==='exc'?'해외':(u.phase==='pre'?'순응중':'순응후')}${u.rxNew?'·재처방':''})`:'')+(insOf(p).code!=='IB'?` [${insOf(p).n}]`:''),fmtRRN(p.rrn),fmtPhone(p.phone),devOn(p,u.e).sn||'',rx,`${u.s}~${u.e}`,
+      aoa.push([n,p.name+(multi?` (${u.kind==='exc'?'해외':(u.phase==='pre'?'순응중':'순응후')}${uTag(u)})`:'')+(insOf(p).code!=='IB'?` [${insOf(p).n}]`:''),fmtRRN(p.rrn),fmtPhone(p.phone),devOn(p,u.e).sn||'',rx,`${u.s}~${u.e}`,
         `${Math.round(u.rate*100)}%×${u.days}일`,u.abroadDays||0,u.mask?1:0,
         u.bonin,uGet(ov,u.k,'cashPaid')?'O':'',u.gong,uGet(ov,u.k,'taxPaid')?'O':'',u.total,
         u.kind==='exc'?'해외(개인사용)':(u.phase==='pre'?'순응중':(p.passDate&&p.passDate>c.s?'순응통과('+p.passDate+')':'순응통과')),
@@ -3069,17 +3099,21 @@ function openPatModal(id,src){
       clearManualDays(obj.id);
     }
     /* S/N이 바뀌었으면 (저장 전에 물음 — 기다리는 사이 이력이 먼저 잡히지 않게): 기기 교체인지 번호 고침인지 (🔧 기기 관리에서 두 기기로 나눌지) */
-    let snSwap=false;const snChg=!!(prev&&prev.sn&&obj.sn&&snKey(prev.sn)!==snKey(obj.sn));
+    let snSwap=false,snSwapMsg='';const snChg=!!(prev&&prev.sn&&obj.sn&&snKey(prev.sn)!==snKey(obj.sn));
     if(snChg&&labOn('dev')&&prev.rentStart&&prev.rentStart<fd(new Date())){
-      if(await confirmModal('S/N 바뀜',`S/N ${prev.sn} → ${obj.sn}\n\n기기를 바꿔 드린 건가요, 잘못 넣은 번호를 고친 건가요?\n\n· 기기 교체 — 🔧 기기 관리에서 두 기기로 나눠 이력을 남기고, 청구 서류의 S/N도 교체일 앞뒤로 나뉩니다\n   (위 '📅 바뀐 날짜'가 교체일, 오늘이 아니면 먼저 고르세요)\n   ※ 고장으로 바꾼 것이면 취소하고 📋 환자 차트 › 🛠 고장·교체로 적으세요 — 고장 난 기기의 수리 발송 · 표준계약서까지 함께 남습니다\n· 번호만 고침 — 처음부터 새 번호 기기를 쓴 것으로 봅니다`,'기기 교체',false,'번호만 고침'))snSwap=true;
+      if(await confirmModal('S/N 바뀜',`S/N ${prev.sn} → ${obj.sn}\n\n기기를 바꿔 드린 건가요, 잘못 넣은 번호를 고친 건가요?\n\n· 기기 교체 — 🔧 기기 관리에서 두 기기로 나눠 이력을 남기고, 그 달 청구도 교체일 앞뒤로 나뉩니다(기기마다 공단 청구 · 세금계산서 · 현금영수증 따로)\n   (위 '📅 바뀐 날짜'가 교체일, 오늘이 아니면 먼저 고르세요)\n   ※ 고장으로 바꾼 것이면 취소하고 📋 환자 차트 › 🛠 고장·교체로 적으세요 — 고장 난 기기의 수리 발송 · 표준계약서까지 함께 남습니다\n· 번호만 고침 — 처음부터 새 번호 기기를 쓴 것으로 봅니다`,'기기 교체',false,'번호만 고침'))snSwap=true;
       else histSnFixNext=true;
     }
     if(!state)return;
     if(snSwap){   /* 교체 이력에 남김 — 가장 최근 교체보다 뒤 날짜일 때만 (앞 날짜면 옛 방식대로 변경 이력만) */
       const today0=fd(new Date()),ev0=id&&$('#f_eff')?$('#f_eff').value:'',date=ev0&&ev0<today0?ev0:today0;
       if(date>prev.rentStart&&(!prev.rentEnd||date<=prev.rentEnd)&&!snSegs(prev).some(g=>g.swap&&g.swap>=date)){
-        obj.devChanges=[...devChangesOf(prev),{id:rid('x'),date,from:{sn:String(prev.sn).trim(),model:prev.model||'',mfgYm:prev.mfgYm||''},to:{sn:obj.sn,model:obj.model||'',mfgYm:obj.mfgYm||''},why:'',nid:''}];
-        histSnExplNext=true;}
+        const lk=rxChangeLocked(prev,[date]);   /* 그 달에 이미 승인번호 · 청구완료가 있으면 낸 그대로 두고 나누지 않는다 */
+        obj.devChanges=[...devChangesOf(prev),{id:rid('x'),date,from:{sn:String(prev.sn).trim(),model:prev.model||'',mfgYm:prev.mfgYm||''},to:{sn:obj.sn,model:obj.model||'',mfgYm:obj.mfgYm||''},why:'',nid:'',split:lk?0:1}];
+        histSnExplNext=true;
+        {const M=`${Number(date.slice(5,7))}월`,ci=devClaimInfo(obj,obj.devChanges[obj.devChanges.length-1]);
+          snSwapMsg=lk?`${M}은 이미 승인번호 · 청구완료가 있어 그 달 청구는 나누지 않았습니다 (낸 그대로).\n서류의 S/N만 ${date}부터 ${obj.sn} 입니다.\n\n기기별로 나눠 다시 내려면 그 달의 승인번호 · 청구완료를 해제한 뒤, S/N을 되돌리고 📋 환자 차트 › 🛠 고장·교체로 다시 적어 주세요.`
+            :ci.live?`${M} 청구가 기기별로 ${ci.units.length}건으로 나뉩니다.\n${devUnitsTxt(ci.units)}\n\n공단 청구 · 세금계산서 · 현금영수증을 구간마다 따로 냅니다. LMTS에도 기기 변경을 넣어 주세요.`:'';}}
     }else if(snChg){   /* 번호만 고침: 마지막 교체의 '새 번호'가 고치기 전 번호였으면 그 줄과 그 기록도 같이 고친다 (되돌리기 · 할 일이 어긋나지 않게) */
       devSnFixSync(obj,prev.sn,obj.sn);
     }
@@ -3089,6 +3123,7 @@ function openPatModal(id,src){
     histTag(id?(patModalSrc||'✏️ 환자 수정 창'):'✏️ 환자 추가');patModalSrc='';
     {const ev=id&&$('#f_eff')?$('#f_eff').value:'';if(ev&&ev<fd(new Date()))histEffNext=ev;}   /* 나중에 입력: 변경 기록을 실제로 바뀐 날로 */
     persist();$('#modalHost').innerHTML='';renderAll();
+    if(snSwapMsg)showMsg('🔁 기기 교체로 적음',snSwapMsg);
   };
 }
 
@@ -4387,11 +4422,11 @@ async function importMonthlyClaims(aoa,h,fname){
         const us=c.units.filter(x=>x.kind!=='exc'&&x.phase===ph);if(!us.length)continue;
         const A=rs.reduce((x,a)=>x+a.amt,0),Bn=rs.reduce((x,a)=>x+a.bonin+(a.indv||0),0),Gg=rs.reduce((x,a)=>x+a.gong,0);   /* 개인구매액(100% 행)도 본인 몫 */
         const mB=us.reduce((x,u)=>x+u.base,0),mP=us.reduce((x,u)=>x+u.rentBonin,0),mG=us.reduce((x,u)=>x+u.rentGong,0);
-        /* 재처방(압력 변경)으로 차트만 나뉜 구간: LMTS 한 줄 ↔ 구간 합계, 구간당 10원 절사 차이 허용 */
-        const tol=(c.rxSplit&&us.length>rs.length)?10*(us.length-rs.length):0;   /* 구간마다 절사 → 기준·본인 ±10원, 공단은 그 합 ±20원 */
+        /* 재처방(압력 변경) · 기기 교체로 차트만 나뉜 구간: LMTS 한 줄 ↔ 구간 합계, 구간당 10원 절사 차이 허용 (LMTS 도 같은 날짜로 나눴으면 위의 행별 대조로 간다) */
+        const tol=((c.rxSplit||c.devSplit)&&us.length>rs.length)?10*(us.length-rs.length):0;   /* 구간마다 절사 → 기준·본인 ±10원, 공단은 그 합 ±20원 */
         const okA=Math.abs(mB-A)<=tol&&Math.abs(mP-Bn)<=tol&&Math.abs(mG-Gg)<=2*tol;
         if(!okA)bad.push(`${ph==='pre'?'순응중':'순응후'} 계산 ${won(mB)}/${won(mP)}/${won(mG)} ↔ LMTS ${won(A)}/${won(Bn)}/${won(Gg)}${rs.length>1?' (청구행 '+rs.length+'개 합산 — 기간이 달라 행별 대조 불가)':''}`);
-        else if(tol&&(mB!==A||mP!==Bn||mG!==Gg))notes.push(`${ph==='pre'?'순응중':'순응후'} 재처방 분리 ${us.length}건 ↔ LMTS ${rs.length}행 — 절사 차이 ${[mB-A,mP-Bn,mG-Gg].map(x=>x?(x>0?'+':'')+x:0).join('/')}원 (LMTS 미분리, 정상)`);
+        else if(tol&&(mB!==A||mP!==Bn||mG!==Gg))notes.push(`${ph==='pre'?'순응중':'순응후'} ${[c.rxSplit?'재처방':'',c.devSplit?'기기 교체':''].filter(Boolean).join('·')} 분리 ${us.length}건 ↔ LMTS ${rs.length}행 — 절사 차이 ${[mB-A,mP-Bn,mG-Gg].map(x=>x?(x>0?'+':'')+x:0).join('/')}원 (LMTS 미분리, 정상)`);
       }}
       for(const b of g.B){const u=c.units.find(x=>x.mask)||c.units[0];
         if(u.maskBonin!==b.bonin||u.maskGong!==b.gong)bad.push(`마스크 계산 ${won(u.maskBonin)}/${won(u.maskGong)} ↔ LMTS ${won(b.bonin)}/${won(b.gong)}`);}
@@ -4552,7 +4587,7 @@ function ntsRows(ym,all){
   }
   return {cash,card,tax,skipC,skipT,only};
 }
-const segName=u=>u.kind==='exc'?'(해외)':(u.multi?`(${u.phase==='pre'?'순응중':'순응후'}${u.rxNew?'·재처방':''})`:'');
+const segName=u=>u.kind==='exc'?'(해외)':(u.multi?`(${u.phase==='pre'?'순응중':'순응후'}${uTag(u)})`:'');
 function cashMemo(p,u,ym){
   const[y,m]=ym.split('-');
   return `${p.name} 양압기 대여료${segName(u)}${u.mask?'·마스크':''} ${y}.${m}`;
@@ -4560,7 +4595,7 @@ function cashMemo(p,u,ym){
 function cashIdOf(p,idSrc){
   return p.cashIdNum||(idSrc==='rrn'?digits(p.rrn):digits(p.phone))||'';
 }
-const segBadge=r=>(r.multi||r.u.kind==='exc')?` <span class="badge ${r.u.kind==='exc'?'exc':(r.u.phase==='pre'?'b50':'b20')}">${r.u.kind==='exc'?'해외':(r.u.phase==='pre'?'순응중':'순응후')}${r.u.rxNew?'·재처방':''}</span>`:'';
+const segBadge=r=>(r.multi||r.u.kind==='exc')?` <span class="badge ${r.u.kind==='exc'?'exc':(r.u.phase==='pre'?'b50':'b20')}">${r.u.kind==='exc'?'해외':(r.u.phase==='pre'?'순응중':'순응후')}${uTag(r.u)}</span>`:'';
 function renderNts(){
   const ym=curYM();if(!ym)return;
   $('#ntsMonthLbl').textContent=`대상: ${ym.replace('-','년 ')}월`;
@@ -4962,7 +4997,7 @@ function applyReconToChart(){
     /* 검산: 우리 구간 계산 = LMTS 실제 발행액? (구간마다 문서 1건씩 대조 — 재처방으로 차트만 나뉜 구간은 합계, 구간당 10원 허용) */
     const matchAll=(recs,key)=>{const pool=c.active?c.units.map(u=>({k:u.k,v:u[key]})):[];
       return recs.every(x=>{const cov=coveredBy(x.seq);
-        if(cov.length>1&&c.rxSplit){const sm=cov.reduce((a,u)=>a+u[key],0);if(Math.abs(sm-x.amt)>(key==='gong'?20:10)*(cov.length-1))return false;for(const u of cov){const i=pool.findIndex(q=>q.k===u.k);if(i>=0)pool.splice(i,1);}return true;}
+        if(cov.length>1&&(c.rxSplit||c.devSplit)){const sm=cov.reduce((a,u)=>a+u[key],0);if(Math.abs(sm-x.amt)>(key==='gong'?20:10)*(cov.length-1))return false;for(const u of cov){const i=pool.findIndex(q=>q.k===u.k);if(i>=0)pool.splice(i,1);}return true;}
         const i=pool.findIndex(q=>q.v===x.amt);if(i<0)return false;pool.splice(i,1);return true;})&&pool.every(q=>!(q.v>0));};
     const okP=!g.cash.length||matchAll(g.cash,'bonin'),okG=!g.tax.length||matchAll(g.tax,'gong');
     const eP=g.cash.reduce((a,x)=>a+x.amt,0),eG=g.tax.reduce((a,x)=>a+x.amt,0);
@@ -5040,7 +5075,7 @@ function renderRecon(){
         const free=row.c.units.filter(u=>!used.has(row.p.id+'|'+u.k));
         unit=free.find(u=>u[calcKey]===rec.amt)||null;
         /* 재처방(압력 변경)으로 차트만 나뉜 구간: 같은 단계 구간 합계 ↔ LMTS 1건, 구간당 10원 절사 차이 허용 */
-        if(!unit&&row.c.rxSplit){for(const ph of ['pre','post']){const g=free.filter(u=>u.kind!=='exc'&&u.phase===ph);if(g.length>1){const sm=g.reduce((a,u)=>a+u[calcKey],0);if(Math.abs(sm-rec.amt)<=(calcKey==='gong'?20:10)*(g.length-1)){g.forEach(u=>used.add(row.p.id+'|'+u.k));rxGroup={sum:sm,n:g.length,diff:sm-rec.amt};break;}}}}
+        if(!unit&&(row.c.rxSplit||row.c.devSplit)){for(const ph of ['pre','post']){const g=free.filter(u=>u.kind!=='exc'&&u.phase===ph);if(g.length>1){const sm=g.reduce((a,u)=>a+u[calcKey],0);if(Math.abs(sm-rec.amt)<=(calcKey==='gong'?20:10)*(g.length-1)){g.forEach(u=>used.add(row.p.id+'|'+u.k));rxGroup={sum:sm,n:g.length,diff:sm-rec.amt};break;}}}}
         /* 현금영수증이 월 합산 한 장으로 잘못 발행된 경우(구간 합계 = 금액) → 짝은 맞추되 경고로 표시 */
         if(!unit&&!rxGroup&&type==='cash'&&free.length>1&&free.reduce((a,u)=>a+u.bonin,0)===rec.amt){free.forEach(u=>used.add(row.p.id+'|'+u.k));sum=true;}
         if(!unit&&!sum&&!rxGroup)unit=(rec.seq?free.find(u=>u.k===rec.seq):null)||free[0]||null;
@@ -5059,7 +5094,7 @@ function renderRecon(){
     const body=pairs.map(x=>{
       let st;
       if(x.sum){st='<span class="diff-bad">⚠️ 월 합산 1장으로 발행됨 — 구간별 2장이어야 합니다</span>';bad++;}
-      else if(x.rxGroup){st=`<span class="diff-ok">일치 ✓</span> <span class="hint">LMTS 미분리(압력 변경 재처방) — 차트 ${x.rxGroup.n}건 합계${x.rxGroup.diff?`, 절사 차이 ${x.rxGroup.diff>0?'+':''}${x.rxGroup.diff}원`:''} · 문서는 숨길이 업로드 파일로 ${x.rxGroup.n}건 발급</span>`;ok++;}
+      else if(x.rxGroup){st=`<span class="diff-ok">일치 ✓</span> <span class="hint">LMTS 미분리(${[(x.row&&x.row.c.rxSplit)?'압력 변경 재처방':'',(x.row&&x.row.c.devSplit)?'기기 교체':''].filter(Boolean).join(' · ')||'분리 청구'}) — 차트 ${x.rxGroup.n}건 합계${x.rxGroup.diff?`, 절사 차이 ${x.rxGroup.diff>0?'+':''}${x.rxGroup.diff}원`:''} · 문서는 숨길이 업로드 파일로 ${x.rxGroup.n}건 발급</span>`;ok++;}
       else if(x.mine!=null&&x.lmts!=null&&x.mine===x.lmts){st='<span class="diff-ok">일치 ✓</span>';ok++;}
       else if(x.extra){st='<span class="diff-bad">차트에 해당 청구건(구간) 없음</span>';bad++;}
       else if(x.mine==null){st='<span class="diff-bad">차트에 없음 — 환자 등록 필요</span>';bad++;}
@@ -5069,7 +5104,7 @@ function renderRecon(){
         else{st='<span class="diff-bad">파일에 없음 — 발행 누락?</span>';bad++;}
       }
       else{st=`<span class="diff-bad">차이 ${won(x.mine-x.lmts)}원</span>`;bad++;}
-      return `<tr${x.seg?' class="split"':''}><td>${esc(x.name)}${x.code?` <span class="hint">${esc(x.code)}</span>`:''}${x.seg?` <span class="badge ${x.seg.phase==='pre'?'b50':'b20'}">${x.seg.phase==='pre'?'순응중':'순응후'}${x.seg.rxNew?'·재처방':''}</span>`:''}</td>
+      return `<tr${x.seg?' class="split"':''}><td>${esc(x.name)}${x.code?` <span class="hint">${esc(x.code)}</span>`:''}${x.seg?` <span class="badge ${x.seg.phase==='pre'?'b50':'b20'}">${x.seg.phase==='pre'?'순응중':'순응후'}${uTag(x.seg)}</span>`:''}</td>
         <td class="num">${x.mine!=null?won(x.mine):'—'}</td>
         <td class="num">${x.lmts!=null?won(x.lmts):'—'}</td>
         <td>${st}</td></tr>`;
@@ -5728,7 +5763,7 @@ const NOTICE_HTML=`<p>양압기 건강보험 요양비 청구를 한 화면에�
 <ul><li>기기(S/N)마다 어느 환자가 언제 썼는지가 환자 정보에서 자동으로 이어지고, 회수·소독 · 장비 점검 · A/S · 폐기를 기록합니다. 반납 뒤 소독 기록이 없는 기기는 맨 위에 '회수·소독 대기'로 보입니다.</li>
 <li>[엑셀 대장]으로 장비점검체크 · 회수기기 관리대장 · AS관리대장 · 부적합장비대장 · 사용자변경이력을 서식 그대로 내려받습니다.</li>
 <li>LMTS <b>기기사용이력</b> 엑셀을 넣으면 공단·LMTS에 등록한 기기가 모두 들어오고, <b>임대 전</b>(한 번도 안 나간 기기)·<b>쉬는 중</b>(반납 뒤 대기) 기기를 [📋 목록·엑셀]로 봅니다.</li>
-<li><b>기기가 고장 나 다른 기기로 바꿨을 때</b>는 📋 환자 차트의 기록 종류 <b>🛠 고장·교체</b>에 바꾼 날과 새 S/N을 적습니다. 환자 정보의 S/N이 바뀌고, 고장 난 기기는 여기에 '수리 미발송'으로 올라와 발송일 · 입고일을 넣을 때까지 따라갑니다. 표준계약서를 다시 써야 하면 그 기록에서 새 S/N으로 바로 만들 수 있고, 청구 서류에는 바꾼 날 앞뒤로 맞는 S/N이 나옵니다.</li>
+<li><b>기기가 고장 나 다른 기기로 바꿨을 때</b>는 📋 환자 차트의 기록 종류 <b>🛠 고장·교체</b>에 바꾼 날과 새 S/N을 적습니다. 환자 정보의 S/N이 바뀌고, 고장 난 기기는 여기에 '수리 미발송'으로 올라와 발송일 · 입고일을 넣을 때까지 따라갑니다. 표준계약서를 다시 써야 하면 그 기록에서 새 S/N으로 바로 만들 수 있습니다. <b>그 달 청구는 바꾼 날에서 기기별로 나뉘어</b> 공단 청구 · 세금계산서 · 현금영수증이 구간마다 따로 나가고(이미 승인번호 · 청구완료가 있는 달은 낸 그대로 둡니다), 구간마다 그 기기의 S/N이 나옵니다.</li>
 <li>S/N을 잘못 등록한 기기는 [✏️ 기기 정보] › <b>[🗑 기기 지우기]</b>로 지웁니다 (환자 정보의 S/N이 그 번호면 환자 쪽부터 고침). [＋ 기기 등록]에는 자주 들이는 모델(<b>프리즈마 SMART max</b>) 단추가 있습니다.</li>
 <li>현금영수증·세금계산서 <b>승인번호나 청구완료가 있는 달</b>은 일수·마스크·해외·100%·결제 방식처럼 금액이 바뀌는 값이 잠깁니다 — 발행한 영수증과 금액이 어긋나지 않게.</li></ul>
 <h4>꼭 지켜 주세요 — 데이터 저장</h4>
@@ -6442,19 +6477,22 @@ function renderChart0(){
       +(lh.length?`<div class="cx-hl">바뀐 정보 · ${lh.flatMap(h=>h.lines.map(histLineTxt)).map(esc).join(' · ')}</div>`:'')
       +(lr.length?`<div class="cx-hl rv">↩ 되돌림 ${fd(new Date(lr[0].at)).slice(5)} ${esc(lr[0].by||'')} · ${lr.flatMap(h=>h.lines.map(histLineTxt)).map(esc).join(' · ')}</div>`:''):'';
     const dv=n.kind==='dev'&&n.dev&&n.dev.from?n.dev:null,dvLog=dv?devAsOf(n):null,dvGone=!!(dv&&dvLog&&!dvLog.done&&devDisposed(dv.from.sn)),dvGo=dv&&labOn('dev')?`<button class="cx-hdate show" data-act="devGo" data-sn="${esc(dv.from.sn)}" title="🔧 기기 관리에서 이 기기(${esc(dv.from.sn)}) 보기">🔧 기기 관리</button>`:'';
+    const dvC=(dv&&dv.type==='swap'&&dv.cid&&!n.reverted)?(devChangesOf(p).find(x=>x.id===dv.cid)||null):null,dvCi=dvC?devClaimInfo(p,dvC):null;
     const dvl=!dv?'':`<div class="cx-rxl cx-dvl${n.reverted?' rv':''}">${esc(devNoteLine(dv))}</div>${dv.symptom?`<div class="cx-dvs">증상 · ${esc(dv.symptom)}</div>`:''}`
       +(n.reverted?'':(
         (dvLog?(dvLog.del?`<div class="cx-dvs">🛠 고장 접수(A/S) 기록은 🔧 기기 관리에서 지워졌습니다${dvGo}</div>`
           :`<div class="cx-dvs${!dvLog.done&&!dvLog.send&&dvLog.ship&&!dvGone?' warn':''}">🛠 ${dv.type==='swap'?`고장 난 기기 ${esc(dv.from.sn)}`:'수리'} — ${dvLog.done?`수리 완료 · 입고 ${esc(dvLog.done.slice(2))}${dvLog.send?` (발송 ${esc(dvLog.send.slice(2))})`:''}`:dvGone?'폐기로 기록됨':dvLog.send?`수리 보냄 ${esc(dvLog.send.slice(2))} · ${Math.max(0,diffDays(dvLog.send,today))}일째`:(dvLog.ship?'⚠️ 아직 수리를 보내지 않음':'수리 진행 중')}${!dvLog.done&&!dvLog.send&&!dvGone?`<button class="cx-hdate show" data-act="devSend" data-nid="${n.id}" title="수리 업체로 보낸 날 넣기">📦 발송일 넣기</button>`:''}${!dvLog.done&&!dvGone?`<button class="cx-hdate show" data-act="devDone" data-nid="${n.id}" title="수리가 끝나 기기가 돌아온 날 넣기">✓ ${dv.type==='swap'?'입고일':'완료일'} 넣기</button>`:''}${dvGo}</div>`)
           :(dv.type==='swap'?`<div class="cx-dvs">🧽 이전 기기 ${esc(dv.from.sn)} — 회수·소독은 🔧 기기 관리에서 남깁니다${dvGo}</div>`:''))
         +(dv.type==='swap'?`<div class="cx-dvs${dv.ct&&dv.ct.st==='todo'?' warn':''}">📄 표준계약서 — ${dv.ct&&dv.ct.st==='done'?`다시 씀 ${esc(String(dv.ct.date||'').slice(2))}`:dv.ct&&dv.ct.st==='todo'?'⚠️ 다시 써야 함':'그대로'}<button class="cx-hdate show" data-act="devCtDoc" data-nid="${n.id}" title="서류 앱에서 새 S/N으로 표준계약서 만들기 (환자 정보는 바뀌지 않음)">📄 계약서 만들기</button>${dv.ct&&dv.ct.st==='todo'?`<button class="cx-hdate show" data-act="devCtDone" data-nid="${n.id}" title="서류 앱을 쓰지 않고 다시 썼을 때 — 다시 쓴 날짜를 적습니다">✓ 다시 씀</button>`:''}</div>`:'')
+        +(dvCi?(dvCi.split?(dvCi.live?`<div class="cx-dvs">📋 청구 — ${Number(dvCi.ym.slice(5))}월은 기기별로 ${dvCi.units.length}건 (${esc(devUnitsTxt(dvCi.units))})<button class="cx-hdate show" data-act="devSplit" data-nid="${n.id}" title="이 교체로 그 달 청구를 나누지 않으려면 (공단 · LMTS에서 한 건으로 처리할 때) — 승인번호 · 청구완료가 있으면 못 바꿉니다">나누지 않기</button></div>`:'')
+          :`<div class="cx-dvs warn">📋 청구 — ${Number(dvCi.ym.slice(5))}월은 나누지 않음 (${(n.edits||[]).some(e=>e&&e.act==='split')?"'나누지 않기'로 바꿈":'적을 때 이미 승인번호 · 청구완료가 있던 달'})<button class="cx-hdate show" data-act="devSplit" data-nid="${n.id}" title="그 달 청구를 기기별로 나눕니다 — 먼저 그 달의 승인번호 · 청구완료를 해제해야 합니다">기기별로 나누기</button></div>`):'')
         +(dv.temp?`<div class="cx-dvs">임시 교체 — 수리가 끝나면 원래 기기(${esc(dv.from.sn)})로 돌려 드림</div>`:'')))
       +(lh.length?`<div class="cx-hl">바뀐 정보 · ${lh.flatMap(h=>h.lines.map(histLineTxt)).map(esc).join(' · ')}${fd(new Date(n.at))!==n.date?` <span>(${fd(new Date(n.at)).slice(5)} 입력)</span>`:''}</div>`:'')
       +(lr.length?`<div class="cx-hl rv">↩ 되돌림 ${fd(new Date(lr[0].at)).slice(5)} ${esc(lr[0].by||'')} · ${lr.flatMap(h=>h.lines.map(histLineTxt)).map(esc).join(' · ')}</div>`:'');
     const sp=n.kind==='sup'?`<div class="cx-sup">${esc(supTxt(n.sup))||'—'}${n.sup&&n.sup.maskBill?` <span class="badge cash" title="월별 청구 그 달 '마스크' 칸에 체크됨">${Number(n.sup.maskBill.slice(5))}월 공단 청구 마스크</span>`:''}</div>`:'';
     const nx=n.next&&n.next.date?`<div class="cx-next${n.next.done?' done':''}">▶ 다음 할 일 ${n.next.date.slice(5)} · ${esc(n.next.text)}${n.next.done?` (했음 ${fd(new Date(n.next.done)).slice(5)})`:''}</div>`:'';
     const olds=chartUI.olds===n.id?(n.edits||[]).slice().reverse().map(e=>e.prev?`<div class="cx-old"><b>${fd(new Date(e.at)).slice(5)} ${new Date(e.at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false})} ${esc(e.by||'')} 고치기 전</b> · ${e.prev.date.slice(5)} ${esc(VIA_KO[e.prev.via]||'')} ${esc(KIND_KO[e.prev.kind]||'')} ${esc(e.prev.by||'')}<br>${esc(e.prev.text)}${e.prev.sup?`<br>${esc(supTxt(e.prev.sup))}`:''}${e.prev.next&&e.prev.next.date?`<br>▶ ${e.prev.next.date.slice(5)} ${esc(e.prev.next.text)}`:''}</div>`
-      :`<div class="cx-old"><b>${fd(new Date(e.at)).slice(5)} ${esc(e.by||'')}</b> · ${e.act==='del'?'지움':e.act==='revert'?(n.kind==='trip'?'↩ 해외 되돌림':n.kind==='dev'?'↩ 고장·교체 되돌림':'↩ 처방 되돌림'):e.act==='tripArr'?`✈️ 입국일 넣음 ${esc(e.arr||'')}`:e.act==='ct'?`📄 표준계약서 ${esc(DEV_CT_KO[e.st]||'')}${e.date?' '+esc(e.date):''}`:'되살림'}</div>`).join(''):'';
+      :`<div class="cx-old"><b>${fd(new Date(e.at)).slice(5)} ${esc(e.by||'')}</b> · ${e.act==='del'?'지움':e.act==='revert'?(n.kind==='trip'?'↩ 해외 되돌림':n.kind==='dev'?'↩ 고장·교체 되돌림':'↩ 처방 되돌림'):e.act==='tripArr'?`✈️ 입국일 넣음 ${esc(e.arr||'')}`:e.act==='ct'?`📄 표준계약서 ${esc(DEV_CT_KO[e.st]||'')}${e.date?' '+esc(e.date):''}`:e.act==='split'?`📋 그 달 청구 ${e.on?'기기별로 나눔':'나누지 않음'}`:'되살림'}</div>`).join(''):'';
     return `<div class="cx-it${n.del?' del':''}"><div class="cx-k k-${n.kind}">${KIND_KO[n.kind]||'기록'}</div><div class="cx-body">
       <div class="cx-meta"><span class="cx-via">${esc(VIA_KO[n.via]||'')}</span>${esc(n.by||'')}${tm?` · ${tm}`:''}
         ${ed.length?`<button class="cx-edited" data-act="olds" data-nid="${n.id}" title="고친 때·사람과 고치기 전 글 보기">고침 ${ed.length}</button>`:''}
@@ -6542,7 +6580,7 @@ function renderChart0(){
         <div class="cx-frow"><label>입국심사일</label><input type="date" id="cxTripArr" value="${esc((dft.trip&&dft.trip.arr)||'')}" style="width:9.5rem"><span class="hint">모르면 비워 두기</span></div>
         <div class="hint" id="cxTripHint"></div></div>`}
       ${ed&&ed.kind==='dev'?`<div class="cx-devbox" id="cxDev"><div class="t">고장·교체 내용 — 저장된 뒤에는 여기서 못 고칩니다 (수리 발송 · 입고 · 표준계약서는 기록 줄의 단추로, 잘못 넣었으면 [되돌리기] 뒤 새로 쓰기)</div><div class="cx-rxl cx-dvl">${esc(devNoteLine(ed.dev))}</div></div>`
-      :`<div class="cx-devbox${dft.kind==='dev'?'':' hidden'}" id="cxDev"><div class="t">기기 고장 · 교체 — 저장하면 환자 정보의 S/N이 바뀌고, 고장 난 기기는 🔧 기기 관리에 고장 접수(A/S)로 올라갑니다 (위 날짜 = 바꿔 드린 날 · 고장 접수일)</div>
+      :`<div class="cx-devbox${dft.kind==='dev'?'':' hidden'}" id="cxDev"><div class="t">기기 고장 · 교체 — 저장하면 환자 정보의 S/N이 바뀌고, 고장 난 기기는 🔧 기기 관리에 고장 접수(A/S)로 올라갑니다. 다른 기기로 바꾸면 그 달 청구가 바꾼 날에서 기기별로 나뉩니다 (위 날짜 = 바꿔 드린 날 · 고장 접수일)</div>
         <div class="cx-frow"><label>처리</label>${seg('devt',[['swap','🔁 다른 기기로 교체'],['fix','🛠 교체 없이 수리']],dvd.type==='fix'?'fix':'swap')}</div>
         <div class="cx-frow" id="cxDevWhyRow"><label>사유</label>${seg('devw',[['fault','고장'],['other','고장 아님 (단순 교체 · 원래 기기 복귀)']],dvd.why==='other'?'other':'fault')}</div>
         <div class="cx-frow"><label>지금 기기</label><b id="cxDevFrom">—</b></div>
@@ -6658,6 +6696,16 @@ $('#tab-chart').addEventListener('click',e=>{
       if(v>fd(new Date())){showMsg('날짜 확인','오늘보다 뒤 날짜는 넣을 수 없습니다.');return;}
       devCtSet(n,'done',v);persist();renderChart();});return;}
   if(act==='devCtDoc'&&n&&n.dev&&n.dev.type==='swap'&&!n.reverted){chartKeepDraft();openDocs(n.pid,{swap:{nid:n.id}});return;}
+  if(act==='devSplit'&&n&&n.dev&&n.dev.type==='swap'&&!n.reverted){   /* 그 달 청구를 기기별로 나눔 ↔ 나누지 않음 — 승인번호 · 청구완료가 있는 달은 못 바꿈 */
+    const q0=state.patients.find(x=>x.id===n.pid),c0=q0?devChangesOf(q0).find(x=>x.id===n.dev.cid):null;if(!c0){renderChart();return;}
+    const on=c0.split===0,M=`${Number(c0.date.slice(5,7))}월`,lk=rxChangeLocked(q0,[c0.date]);
+    if(lk){showMsg('📋 청구 나눔 바꾸기',`${lk.replace('-','년 ')}월에 승인번호나 청구완료가 있어 그 달의 청구 구간을 바꿀 수 없습니다.\n먼저 📅 월별 청구에서 그 달의 승인번호·청구완료를 해제한 뒤 다시 해 주세요.\n(이미 발급한 현금영수증 · 세금계산서는 홈택스에서 취소하고 구간마다 다시 발급해야 합니다)`);return;}
+    const after=devClaimInfo({...q0,devChanges:devChangesOf(q0).map(x=>x.id===c0.id?{...x,split:on?1:0}:x)},{...c0,split:on?1:0});
+    confirmModal('📋 청구 나눔 바꾸기',`${q0.name} · ${c0.date} 기기 교체 (S/N ${c0.from.sn} → ${c0.to.sn})\n\n${on?`${M} 청구를 기기별로 나눕니다${after.live?` — ${devUnitsTxt(after.units)}`:''}.\n공단 청구 · 세금계산서 · 현금영수증을 구간마다 따로 냅니다.`:`${M} 청구를 나누지 않고 한 건으로 둡니다.\n서류의 S/N은 그 구간 끝날의 기기(${c0.to.sn})로 나오고, 청구 보조창에 '기기 교체' 줄이 함께 보입니다.`}`,on?'기기별로 나누기':'나누지 않기').then(ok=>{
+      if(!ok||!state)return;const q=state.patients.find(x=>x.id===n.pid);if(!q||rxChangeLocked(q,[c0.date]))return;
+      const at=new Date().toISOString(),by=whoNow();
+      q.devChanges=devChangesOf(q).map(x=>x.id===c0.id?{...x,split:on?1:0}:x);
+      n.upd=at;(n.edits=n.edits||[]).push({at,by,act:'split',on:on?1:0});persist();renderChart();});return;}
   if(act==='tripRevert'&&n){const q0=state.patients.find(x=>x.id===n.pid);const pl=tripRevertPlan(q0,n);if(pl.err){showMsg('↩ 해외 되돌리기',pl.err);return;}
     confirmModal('↩ 해외 되돌리기',`${q0.name} · 해외 ${n.trip.dep} ~ ${n.trip.arr||'(입국일 모름)'} 기록을 되돌립니다.\n\n${pl.lines.join('\n')}\n\n기록은 지워지지 않고 '되돌림'으로 남습니다.${pl.ops.rm.length?'\nLMTS에 넣었다면 LMTS에서도 빼 주세요.':''}`,'되돌리기',true).then(ok=>{
       if(!ok||!state)return;const q=state.patients.find(x=>x.id===n.pid),pl2=tripRevertPlan(q,n);if(pl2.err){showMsg('↩ 해외 되돌리기',pl2.err);return;}
@@ -6839,8 +6887,34 @@ const devSwapsIn=(p,s,e)=>(s&&e)?devChangesOf(p).filter(c=>c.date>s&&c.date<=e):
 /* ── 🛠 고장·교체 (2026-11-23 사용자: "환자 기기가 고장이 나면 시리얼 넘버 변경 되면 넣을 수 있게 … 표준 계약서도 다시 쓰는 경우도 … 고장난 시리얼 넘버는 체크해놓고 수리 보냈는것 확인") ──
    환자 차트 기록(kind 'dev') 하나로: 환자 S/N(· 모델 · 제조년월) 바꿈 + 교체 이력 + 고장 난 기기의 고장 접수(A/S 기록 · ship = 수리 보낼 기기) + 표준계약서 다시 쓰기 표시
    · swap = 다른 기기로 교체(고장 / 고장 아님) · fix = 교체 없이 수리(같은 기기 — A/S 기록만)
-   · 금액은 건드리지 않는다(기기 종류는 그대로) → 승인번호 · 청구완료 달과 무관. 서류에 찍히는 S/N 만 날짜를 따른다(devOn) */
+   · 단가는 그대로(기기 종류는 그대로). 서류에 찍히는 S/N 은 날짜를 따른다(devOn)
+   · 청구는 바꾼 날에서 나뉜다(2026-11-23 사용자 "청구분리되요" — calcPatientMonth 의 dvCuts): 교체 이력의 split 1 = 나눔 · 0 = 그 달은 나누지 않음(적을 때 이미 승인번호 · 청구완료가 있던 달)
+   · 표준계약서를 다시 쓰는 교체(ct todo · done)면 그 구간 청구에 계약서를 첨부(서류보관함 ct=1) · 그 뒤 청구의 업체계약기간 = 바꾼 날 ~ 원래 만료일 (사용자 확인) */
 const DEV_CT_KO={no:'그대로',todo:'다시 써야 함',done:'다시 씀'};
+/* 그 교체(c)가 그 달 청구에 미친 것 — 저장 전 미리 보기 · 환자 차트 기록 줄 · 되돌리기에서 씀.
+   live = 이 교체 때문에 그 달 청구 구간이 실제로 달라져 있음(달 첫날 · 계약 시작일 · 해외 체류 한가운데면 아님) */
+function devClaimInfo(p,c){
+  const ym=String(c.date||'').slice(0,7),ov=getOv(ym,p.id),out={ym,lock:ovDocLocked(ov),split:c.split!==0,live:false,active:false,units:[]};
+  try{
+    const k=calcPatientMonth(p,ym,ov);if(!k.active)return out;
+    out.active=true;
+    const sig=z=>z.active?z.units.map(u=>(u.live||u).s+'~'+(u.live||u).e).join('|'):'';
+    out.live=out.split&&sig(k)!==sig(calcPatientMonth({...p,devChanges:devChangesOf(p).filter(x=>x.id!==c.id)},ym,ov));
+    out.units=k.units.filter(u=>u.kind!=='exc').map(u=>({k:u.k,s:u.s,e:u.e,sn:devOn(p,u.e).sn||''}));
+  }catch(e){}
+  return out;
+}
+const devUnitsTxt=us=>us.map(u=>`${u.s.slice(5)}~${u.e.slice(5)} S/N ${u.sn||'—'}`).join(' · ');
+/* 표준계약서를 다시 쓰는(쓴) 교체인가 — 그 🛠 기록의 표준계약서 칸이 '다시 써야 함 · 다시 씀' (지웠거나 되돌린 기록은 아님) */
+const devCtOf=c=>{const n=c&&c.nid?(state.notes||[]).find(x=>x&&x.id===c.nid&&!x.del&&!x.reverted):null;return (n&&n.dev&&n.dev.ct&&n.dev.ct.st&&n.dev.ct.st!=='no')?n.dev.ct:null;};
+/* 구간(u)에 든 '계약서를 다시 쓰는 교체' — 그 청구에 표준계약서를 첨부한다 (사용자 2026-11-23 "첨부합니다") */
+const devCtIn=(p,u)=>(u&&u.s&&u.e)?devChangesOf(p).filter(c=>c.date>=u.s&&c.date<=u.e&&devCtOf(c)):[];
+/* 업체계약기간의 시작: 처방기간(rxS~rxE) 안에서 기기 교체로 계약서를 다시 썼으면 그 바꾼 날 — 구간 시작일까지의 가장 최근 것. 없으면 null(처방 시작일 그대로) */
+function devCtStartFor(p,u,rxS,rxE){
+  if(!u||!u.s)return null;
+  const cs=devChangesOf(p).filter(c=>c.date<=u.s&&(!rxS||c.date>rxS)&&(!rxE||c.date<=rxE)&&devCtOf(c));
+  return cs.length?cs[cs.length-1].date:null;
+}
 const isYmd=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v||''));
 function devSwapPlan(p,f,today){
   const d=f.dev||{},date=String(f.date||''),type=d.type==='fix'?'fix':'swap',fault=type==='fix'||d.why!=='other';
@@ -6900,7 +6974,18 @@ function devSwapPlan(p,f,today){
   if(fault){asLine();if(dev.temp)lines.push("· 임시 교체 — 수리가 끝나면 할 일에 '원래 기기로 돌려 드리기'를 띄웁니다");}
   else lines.push(`· 이전 기기 ${fromD.sn} 은(는) '회수·소독 대기'가 됩니다 — 🔧 기기 관리에서 🧽 회수·소독을 남기세요`);
   lines.push(ctSt==='done'?`· 표준계약서: ${ctDate} 다시 씀으로 기록`:ctSt==='todo'?'· 표준계약서: 다시 써야 함 → 할 일에 띄웁니다 (기록의 [📄 계약서 만들기])':'· 표준계약서: 그대로 (다시 쓰지 않음)');
-  lines.push(`· 청구 금액은 그대로입니다 — 서류의 S/N만 ${date} 앞은 ${fromD.sn}, 그날부터는 ${to.sn}`);
+  /* 청구: 바꾼 날부터 새 청구 구간(기기마다 따로). 그 달에 이미 승인번호 · 청구완료가 있으면 낸 그대로 두고 나누지 않는다 — 발행한 문서와 구간 번호가 어긋나지 않게 */
+  {const lk=rxChangeLocked(p,[date]),M=`${Number(date.slice(5,7))}월`;
+    ops.chg.split=lk?0:1;
+    if(lk)lines.push(`· ⚠️ 청구: ${M}은 이미 승인번호 · 청구완료가 있어 나누지 않습니다 (낸 그대로 둠 · 서류의 S/N만 ${date}부터 ${to.sn})\n   기기별로 나눠 다시 내려면 취소하고, 먼저 📅 월별 청구에서 ${M}의 승인번호 · 청구완료를 해제하세요`);
+    else{
+      const q={...p,sn:to.sn,model:to.model||p.model,mfgYm:to.mfgYm||null,devChanges:[...devChangesOf(p),{id:'~new',date,from:fromD,to,why:dev.why,nid:'',split:1}]};
+      const ci=devClaimInfo(q,q.devChanges[q.devChanges.length-1]);
+      lines.push(ci.live?`· 청구: ${M}은 기기별로 ${ci.units.length}건으로 나뉩니다 — ${devUnitsTxt(ci.units)}\n   공단 청구 · 세금계산서 · 현금영수증을 구간마다 따로 냅니다 (구간마다 일할 계산이라 합계가 10원쯤 달라질 수 있음)`
+        :ci.active?`· 청구: ${date}이 그 달 청구 구간의 첫날이라 ${M} 청구는 나뉘지 않습니다 — 서류의 S/N은 그날부터 ${to.sn}`
+        :`· 청구: 서류의 S/N은 ${date} 앞은 ${fromD.sn}, 그날부터는 ${to.sn}`);
+    }}
+  if(ctSt!=='no')lines.push(`· 다시 쓴 표준계약서는 ${date}이 든 청구에 첨부합니다 — 그 뒤 청구의 업체계약기간은 ${date} ~ ${p.rxEnd||'처방 만료일'}`);
   lines.push('· LMTS에도 기기 변경을 넣어 주세요');
   return {ops,lines,dev};
 }
@@ -6914,7 +6999,7 @@ function devSwapApply(p,pl,nid,at,by){
     else if(!devTomb(k)&&(o.rec.model||o.rec.mfgYm))state.devices.push({id:rid('d'),sn:o.rec.sn,model:o.rec.model||'',mgmtNo:'',mfgYm:o.rec.mfgYm||'',inDate:'',memo:'',hide:false,at,by:by||'',upd:null,del:null,edits:[],src:'swap'});}
   if(o.as){const l={id:rid('v'),sn:o.as.sn,kind:'as',date:o.as.date,by:by||'',memo:'',items:null,checks:null,refurb:'',done:'',pid:p.id,detail:o.as.detail,send:o.as.send||'',reason:'',at,upd:null,del:null,edits:[],nid:nid||'',ship:!!o.as.ship};
     state.devLogs.push(l);out.asId=l.id;}
-  if(o.chg){const c={id:rid('x'),date:o.chg.date,from:{...o.chg.from},to:{...o.chg.to},why:o.chg.why||'',nid:nid||''};
+  if(o.chg){const c={id:rid('x'),date:o.chg.date,from:{...o.chg.from},to:{...o.chg.to},why:o.chg.why||'',nid:nid||'',split:o.chg.split===0?0:1};
     p.devChanges=[...devChangesOf(p),c].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
     p.sn=o.sn;if(o.model)p.model=o.model;p.mfgYm=o.mfgYm||null;out.cid=c.id;}
   return out;
@@ -6930,8 +7015,11 @@ function devSwapRevertPlan(p,n){
     const later=snSegs(p).filter(g=>g.swap&&g.swap>c.date).map(g=>g.swap);
     if(later.length)return {err:`이 교체 뒤에 다른 기기 교체(${later.join(', ')})가 있어 되돌릴 수 없습니다.\n나중 것부터 되돌려 주세요.`};
     if(snKey(p.sn)!==snKey(c.to.sn))return {err:`환자 정보의 S/N이 그 뒤에 바뀌어(${p.sn||'없음'}) 되돌릴 수 없습니다.\n✏️ 정보 고치기에서 직접 고쳐 주세요.`};
+    const ci=devClaimInfo(p,c);
+    if(ci.live&&ci.lock)return {err:`${ci.ym.replace('-','년 ')}월에 승인번호나 청구완료가 있어 되돌릴 수 없습니다.\n이 교체로 그 달 청구가 기기별로 나뉘어 있어, 되돌리면 구간이 합쳐집니다.\n먼저 📅 월별 청구에서 그 달의 승인번호·청구완료를 해제한 뒤 다시 해 주세요.`};
     ops.cid=c.id;ops.sn=c.from.sn;ops.model=c.from.model||'';ops.mfgYm=c.from.mfgYm||'';
     lines.push(`· S/N: ${p.sn} → ${c.from.sn} (원래대로) — 교체 이력에서 ${c.date} 줄을 뺍니다`);
+    if(ci.live)lines.push(`· ${Number(ci.ym.slice(5))}월 청구 나눔도 풀립니다 (기기별 ${ci.units.length}건 → 합쳐짐)`);
     if(c.from.model&&c.from.model!==(p.model||''))lines.push(`· 모델: ${p.model||'—'} → ${c.from.model}`);
   }
   if(d.asId){const l=(state.devLogs||[]).find(x=>x&&x.id===d.asId);
@@ -7593,8 +7681,10 @@ $('#tab-dev').addEventListener('click',e=>{
     for(const p of state.patients){const z=devChangesOf(p).find(x=>x.id===cid);if(z){q=p;c=z;break;}}
     if(!q||!c)return;
     if(c.nid){showMsg('S/N 번호 고침','환자 차트의 🛠 고장·교체 기록이 남긴 교체입니다.\n잘못 넣었으면 그 기록의 [되돌리기]를 쓰세요.');return;}
-    confirmModal('S/N 번호 고침',`${q.name} · S/N ${c.from.sn} → ${c.to.sn} (${c.date})\n\n기기 교체가 아니라 잘못 넣은 번호를 고친 것으로 표시할까요?\n표시하면 두 기기로 나누지 않고, 처음부터 ${c.to.sn} 기기를 쓴 것으로 봅니다.\n(${c.from.sn} 쪽에 남긴 기기 기록이 있으면 그 기록은 그대로 ${c.from.sn}에 남습니다)`,'번호 고침으로 표시').then(ok=>{
+    {const ci=devClaimInfo(q,c);if(ci.live&&ci.lock){showMsg('S/N 번호 고침',`${ci.ym.replace('-','년 ')}월에 승인번호나 청구완료가 있어 바꿀 수 없습니다.\n이 교체로 그 달 청구가 기기별로 나뉘어 있어, 번호 고침으로 바꾸면 구간이 합쳐집니다.\n먼저 📅 월별 청구에서 그 달의 승인번호·청구완료를 해제한 뒤 다시 해 주세요.`);return;}}
+    confirmModal('S/N 번호 고침',`${q.name} · S/N ${c.from.sn} → ${c.to.sn} (${c.date})\n\n기기 교체가 아니라 잘못 넣은 번호를 고친 것으로 표시할까요?\n표시하면 두 기기로 나누지 않고, 처음부터 ${c.to.sn} 기기를 쓴 것으로 봅니다.${devClaimInfo(q,c).live?'\n그 달 청구를 기기별로 나눈 것도 풀립니다.':''}\n(${c.from.sn} 쪽에 남긴 기기 기록이 있으면 그 기록은 그대로 ${c.from.sn}에 남습니다)`,'번호 고침으로 표시').then(ok=>{
       if(!ok||!state)return;const p2=state.patients.find(x=>x.id===q.id);if(!p2)return;
+      {const z=devChangesOf(p2).find(x=>x.id===cid),ci2=z?devClaimInfo(p2,z):null;if(!z||(ci2.live&&ci2.lock))return;}
       p2.devChanges=devChangesOf(p2).filter(x=>x.id!==cid);if(!p2.devChanges.length)delete p2.devChanges;
       for(const h of (state.hist||[]))if(h&&h.pid===p2.id)for(const l of (h.lines||[]))if(l.k==='sn'&&l.x&&snKey(l.a)===snKey(c.from.sn)&&snKey(l.b)===snKey(c.to.sn)&&(h.eff||fd(new Date(h.at)))===c.date){l.fix=1;delete l.x;}   /* 변경 이력의 그 줄도 번호 고침으로 */
       persist();renderDev();});return;}
@@ -9047,10 +9137,94 @@ window.__selftest=function(){
     }catch(e){console.warn('FAIL16-x',e);}
     finally{state=saved;histBase=savedBase;histHold=savedHold;histSrcNext=savedSrc;histEffNext='';histNidNext='';histSnExplNext=false;histSnFixNext=false;}
   }
+  /* 📋 기기 교체로 나뉘는 청구(2026-11-23 사용자 "청구분리되요"): 바꾼 날에서 구간이 나뉨 · 구간마다 그 기기의 S/N · 잠긴 달은 나누지 않음 · 되돌리기 잠금 ·
+     달 첫날 · 해외 한가운데 · 임시 교체 뒤 복귀 · 순응 통과와 같은 달 · 계약서 첨부(ct) · 업체계약기간 · 앞 판이 남긴 자료 */
+  let ok17=0;
+  {
+    const saved=state,savedBase=histBase,savedHold=histHold,savedSrc=histSrcNext;
+    try{
+      const T='2026-11-23',B=prices['자동형'];
+      const mk=o=>({name:'시험'+o.id,mgmtCode:'T'+o.id,rrn:'6001011000001',phone:'01000000000',docName:'가의사',branch:'창원중부지사',device:'자동형',payMethod:'cash',model:'프리즈마 SMART',mfgYm:'2025-03',sn:'A-1',
+        rentStart:'2026-06-01',passDate:'2026-08-20',rxStart:'2026-08-20',rxEnd:'2027-02-19',...o});
+      state={settings:{prices,labs:{chart:true,dev:true},users:[]},months:{},notes:[],hist:[],devices:[],devLogs:[],
+        patients:[mk({id:'S'}),mk({id:'L'}),mk({id:'D'}),mk({id:'V'}),mk({id:'R'}),mk({id:'P',rentStart:'2026-08-01',passDate:'2026-11-15',rxStart:'2026-11-15',rxEnd:'2027-05-14'}),mk({id:'Q'})]};
+      const [S,L,D,V,R,P,Q]=state.patients,F=(date,dev)=>({date,dev});
+      const swap=(q,nid,date,dev)=>{const pl=devSwapPlan(q,F(date,dev),T);if(pl.err)return pl;const r=devSwapApply(q,pl,nid,T+'T01:00:00.000Z','');
+        const n={id:nid,pid:q.id,kind:'dev',date,at:T+'T01:00:00.000Z',dev:{...pl.dev,asId:r.asId,cid:r.cid},edits:[]};state.notes.push(n);return {...pl,n};};
+      /* 1: 바꾼 날에서 두 건 — 날짜 · 일할 금액 · 구간마다 그 기기(세금계산서 규격 · 청구 스냅샷 · 영수증 메모). 교체 이력이 없으면 구간에 새 칸이 생기지 않음 */
+      const c0=calcPatientMonth(S,'2026-11',{});
+      const s1=swap(S,'s1','2026-11-10',{type:'swap',why:'fault',sn:'B-2',symptom:'소음',ct:'todo'}),n1=s1.n;
+      const c1=calcPatientMonth(S,'2026-11',{}),U=c1.units,rt=insOf(S).post;
+      if(c0.units.length===1&&!('dvNo' in c0.units[0])&&!('devSplit' in c0)&&!s1.err&&s1.ops.chg.split===1&&s1.lines.some(l=>/기기별로 2건/.test(l)&&/11-01~11-09 S\/N A-1 · 11-10~11-30 S\/N B-2/.test(l))
+        &&c1.devSplit===true&&U.length===2&&U[0].s==='2026-11-01'&&U[0].e==='2026-11-09'&&U[1].s==='2026-11-10'&&U[1].e==='2026-11-30'&&!U[0].devNew&&U[1].devNew&&U[0].devSplit&&U[1].dvNo===1
+        &&U[0].base===baseAmt(B,9,30)&&U[1].base===baseAmt(B,21,30)&&U[0].bonin===boninAmt(B,9,30,rt)&&U[1].bonin===boninAmt(B,21,30,rt)&&c1.total===U[0].total+U[1].total&&Math.abs(c1.total-c0.total)<=10&&Math.abs(c1.bonin-c0.bonin)<=10
+        &&devOn(S,U[0].e).sn==='A-1'&&devOn(S,U[1].e).sn==='B-2'&&taxItems({p:S,u:U[0],ov:{}},'2026-11')[0].spec==='A-1'&&taxItems({p:S,u:U[1],ov:{}},'2026-11')[0].spec==='B-2'
+        &&claimSnapshot(S,'2026-11',{},c1,U[0]).pat.sn==='A-1'&&claimSnapshot(S,'2026-11',{},c1,U[1]).pat.sn==='B-2'&&segName(U[0])==='(순응후)'&&segName(U[1])==='(순응후·교체)'&&uTag(c0.units[0])===''
+        &&calcPatientMonth(S,'2026-10',{}).units.length===1&&calcPatientMonth(S,'2026-12',{}).units.length===1&&!calcPatientMonth(S,'2026-12',{}).devSplit)ok17++;else console.warn('FAIL17-1',s1,c0,c1);
+      /* 2: 표준계약서를 다시 쓰는 교체 → 그 구간 청구에 계약서 첨부(ct 1) · 그 뒤 업체계약기간은 바꾼 날부터 · 할 일. '그대로'면 아님 */
+      const RS='2026-08-20',RE='2027-02-19',uD=calcPatientMonth(S,'2026-12',{}).units[0];
+      const a2=docboxClaimHints(S,U[0],'2026-11').ct==='0'&&docboxClaimHints(S,U[1],'2026-11').ct==='1'&&docboxClaimHints(S,uD,'2026-12').ct==='0'
+        &&devCtStartFor(S,U[0],RS,RE)===null&&devCtStartFor(S,U[1],RS,RE)==='2026-11-10'&&devCtStartFor(S,uD,RS,RE)==='2026-11-10'
+        &&claimSnapshot(S,'2026-11',{},c1,U[1]).ctS==='2026-11-10'&&!('ctS' in claimSnapshot(S,'2026-11',{},c1,U[0]))&&todoOf({p:S,ov:{},c:c1}).need.some(x=>/표준계약서/.test(x));
+      n1.dev.ct={st:'no',date:null};
+      const b2=docboxClaimHints(S,U[1],'2026-11').ct==='0'&&devCtStartFor(S,U[1],RS,RE)===null&&!todoOf({p:S,ov:{},c:c1}).need.some(x=>/표준계약서/.test(x));
+      n1.dev.ct={st:'done',date:'2026-11-12'};
+      if(a2&&b2&&docboxClaimHints(S,U[1],'2026-11').ct==='1'&&!todoOf({p:S,ov:{},c:c1}).need.some(x=>/표준계약서/.test(x))&&devCtStartFor(S,uD,RS,'2026-11-09')===null)ok17++;else console.warn('FAIL17-2',a2,b2);
+      /* 3: 나뉜 달에 승인번호가 있으면 되돌리기 막음 · 없으면 되돌리고 나눔이 풀림 */
+      state.months['2026-11']={S:{seg2:{cashApprove:'Z11111111'}}};
+      const rvL=devSwapRevertPlan(S,n1),ciL=devClaimInfo(S,devChangesOf(S)[0]);
+      state.months={};
+      const rvU=devSwapRevertPlan(S,n1);
+      if(/승인번호나 청구완료/.test(rvL.err||'')&&ciL.live&&ciL.lock&&!rvU.err&&rvU.lines.some(l=>/나눔도 풀립니다/.test(l))){
+        devSwapRevertApply(S,rvU.ops,T+'T02:00:00.000Z','');n1.reverted={at:T,by:''};
+        const cb=calcPatientMonth(S,'2026-11',{});
+        if(cb.units.length===1&&!('dvNo' in cb.units[0])&&JSON.stringify(cb)===JSON.stringify(c0)&&S.sn==='A-1')ok17++;else console.warn('FAIL17-3b',cb);
+      }else console.warn('FAIL17-3',rvL,rvU,ciL);
+      /* 4: 이미 승인번호 · 청구완료가 있는 달에 뒤늦게 적은 교체 → 그 달은 나누지 않음(낸 그대로) · 서류의 S/N 은 날짜를 따름 · 되돌리기는 됨 · 잠금이 풀린 뒤 나누면 두 건 */
+      state.months['2026-10']={L:{cashApprove:'Z22222222'}};
+      const cL0=calcPatientMonth(L,'2026-10',getOv('2026-10','L'));
+      const s4=swap(L,'l1','2026-10-15',{type:'swap',why:'other',sn:'C-3'}),cL=calcPatientMonth(L,'2026-10',getOv('2026-10','L')),xL=devChangesOf(L)[0],ciN=devClaimInfo(L,xL);
+      const rv4=devSwapRevertPlan(L,s4.n);
+      state.months={};L.devChanges=devChangesOf(L).map(x=>({...x,split:1}));
+      const cL2=calcPatientMonth(L,'2026-10',{});
+      if(!s4.err&&s4.ops.chg.split===0&&s4.lines.some(l=>/나누지 않습니다/.test(l))&&xL.split===0&&cL.units.length===1&&!cL.devSplit&&JSON.stringify(cL)===JSON.stringify(cL0)
+        &&devOn(L,'2026-10-31').sn==='C-3'&&devOn(L,'2026-10-14').sn==='A-1'&&devSwapsIn(L,'2026-10-01','2026-10-31').length===1&&!ciN.split&&!ciN.live&&ciN.lock&&!rv4.err
+        &&cL2.units.length===2&&cL2.units[1].s==='2026-10-15'&&cL2.devSplit)ok17++;else console.warn('FAIL17-4',s4,cL,ciN,rv4,cL2);
+      /* 5: 달 첫날에 바꾸면 그 달은 나뉘지 않음(앞 달은 앞 기기 · 그 달부터 새 기기) */
+      const s5=swap(D,'d1','2026-11-01',{type:'swap',why:'other',sn:'D-4'}),cD1=calcPatientMonth(D,'2026-11',{}),cD0=calcPatientMonth(D,'2026-10',{});
+      if(!s5.err&&s5.ops.chg.split===1&&s5.lines.some(l=>/첫날이라/.test(l))&&cD1.units.length===1&&!cD1.devSplit&&cD0.units.length===1&&devOn(D,cD0.units[0].e).sn==='A-1'&&devOn(D,cD1.units[0].e).sn==='D-4'
+        &&!devClaimInfo(D,devChangesOf(D)[0]).live)ok17++;else console.warn('FAIL17-5',s5,cD1);
+      /* 6: 해외 체류 한가운데에 바꾸면 따로 자르지 않음 — 해외 구간이 경계를 대신 (앞 임대 구간 = 앞 기기 · 뒤 임대 구간 = 새 기기) */
+      const ovV={trips:[{dep:'2026-11-05',arr:'2026-11-15'}]};
+      const s6=swap(V,'v1','2026-11-10',{type:'swap',why:'other',sn:'E-5'}),cV=calcPatientMonth(V,'2026-11',ovV),UV=cV.units;
+      if(!s6.err&&UV.length===3&&UV[0].e==='2026-11-05'&&UV[1].kind==='exc'&&UV[1].s==='2026-11-06'&&UV[1].e==='2026-11-14'&&UV[2].s==='2026-11-15'&&cV.devSplit&&!UV[0].devNew&&UV[2].devNew
+        &&devOn(V,UV[0].e).sn==='A-1'&&devOn(V,UV[2].e).sn==='E-5')ok17++;else console.warn('FAIL17-6',s6,UV);
+      /* 7: 임시 교체 뒤 원래 기기로 — 같은 달이면 세 건(A · B · A) */
+      const s7=swap(R,'r1','2026-11-05',{type:'swap',why:'fault',sn:'F-6',symptom:'전원',temp:true}),s7b=swap(R,'r2','2026-11-20',{type:'swap',why:'other',sn:'a1'}),UR=calcPatientMonth(R,'2026-11',{}).units;
+      if(!s7.err&&!s7b.err&&UR.length===3&&UR[0].e==='2026-11-04'&&UR[1].s==='2026-11-05'&&UR[1].e==='2026-11-19'&&UR[2].s==='2026-11-20'&&!UR[0].devNew&&UR[1].devNew&&UR[2].devNew
+        &&devOn(R,UR[0].e).sn==='A-1'&&devOn(R,UR[1].e).sn==='F-6'&&devOn(R,UR[2].e).sn==='A-1'&&s7b.lines.some(l=>/기기별로 3건/.test(l))
+        &&/나중 것부터/.test(devSwapRevertPlan(R,s7.n).err||''))ok17++;else console.warn('FAIL17-7',s7,s7b,UR);
+      /* 8: 순응 통과와 같은 달 — 순응중(앞 기기) · 순응중(새 기기) · 순응후(새 기기). 2시간 규정 판정용 단계별 일수는 그대로 */
+      const cP0=calcPatientMonth(P,'2026-11',{}),s8=swap(P,'p1','2026-11-10',{type:'swap',why:'other',sn:'G-7'}),cP=calcPatientMonth(P,'2026-11',{}),UP=cP.units;
+      if(!s8.err&&cP0.units.length===2&&UP.length===3&&UP[0].phase==='pre'&&UP[1].phase==='pre'&&UP[2].phase==='post'&&UP[1].s==='2026-11-10'&&UP[1].e==='2026-11-14'&&UP[2].s==='2026-11-15'
+        &&!UP[0].devNew&&UP[1].devNew&&UP[2].devNew&&cP.cut==='2026-11-15'&&cP.d1===cP0.d1&&cP.d2===cP0.d2&&UP[2].total===cP0.units[1].total&&Math.abs((UP[0].base+UP[1].base)-cP0.units[0].base)<=10
+        &&docboxClaimKind(P,UP[2])==='pass'&&docboxClaimKind(P,UP[1])==='pre'&&segName(UP[1])==='(순응중·교체)')ok17++;else console.warn('FAIL17-8',s8,cP0,cP);
+      /* 9: 앞 판(v2026.11.23.1)이 남긴 교체 이력(split 없음) — 처음 불러올 때 한 번 정함: 승인번호 · 청구완료가 있는 달은 0, 없으면 1. 정한 뒤에는 그대로 */
+      Q.devChanges=[{id:'q1',date:'2026-09-10',from:{sn:'A-1',model:'',mfgYm:''},to:{sn:'H-8',model:'',mfgYm:''},why:'',nid:''},{id:'q2',date:'2026-10-20',from:{sn:'H-8',model:'',mfgYm:''},to:{sn:'J-9',model:'',mfgYm:''},why:'',nid:''}];Q.sn='J-9';
+      state.months={'2026-09':{Q:{claimed:'2026-10-02'}}};
+      ensureDefaults();
+      const q9=devChangesOf(Q).map(x=>x.split).join(',');
+      state.months={'2026-10':{Q:{taxApprove:'20261031-10000000-00000009'}}};
+      ensureDefaults();
+      if(q9==='0,1'&&devChangesOf(Q).map(x=>x.split).join(',')==='0,1'&&calcPatientMonth(Q,'2026-09',{}).units.length===1&&calcPatientMonth(Q,'2026-10',getOv('2026-10','Q')).units.length===2
+        &&devCutsOf(Q).join(',')==='2026-10-20')ok17++;else console.warn('FAIL17-9',q9,devChangesOf(Q));
+    }catch(e){console.warn('FAIL17-x',e);}
+    finally{state=saved;histBase=savedBase;histHold=savedHold;histSrcNext=savedSrc;histEffNext='';histNidNext='';histSnExplNext=false;histSnFixNext=false;}
+  }
   /* 솔라피 서명(HMAC-SHA256(API Secret, date+salt) 16진수) — 값은 파이썬 hmac 으로 미리 구한 것. 비동기라 결과는 콘솔 경고로만 */
   window.__msgtest=()=>solapiAuth('TESTKEY','TESTSECRET-0123456789','2026-11-15T00:00:00.000Z','abcdef0123456789abcdef0123456789').then(h=>{const ok=h==='HMAC-SHA256 apiKey=TESTKEY, date=2026-11-15T00:00:00.000Z, salt=abcdef0123456789abcdef0123456789, signature=5da3228c3605dcb2a98643ce6678e10afb4c70af84784455351b1a8b5335400d';if(!ok)console.warn('FAIL15-sig',h);return ok;});
   try{window.__msgtest().catch(e=>console.warn('FAIL15-sig-x',e));}catch(e){}
-  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/12 · 기기관리 ${ok13}/8 · 승인잠금 ${ok14}/1 · 고장교체 ${ok16}/9 · 문자 ${ok15}/9`;
+  const msg=`self-test: 월청구 ${ok}/${cases.length} · 일할 ${ok2}/${base_cases.length} · VAT현금 ${ok3}/${vc.length} · VAT세금 ${ok4}/${vt.length} · 복합구간 ${ok5}/3 · 구간분리 ${ok6}/6 · 자격별 ${ok7}/6 · 수동평균 ${ok8}/5 · 해외분리 ${ok9}/6 · 재처방분리 ${ok10}/6 · 기기판정·CMS ${ok11}/3 · 환자차트 ${ok12}/12 · 기기관리 ${ok13}/8 · 승인잠금 ${ok14}/1 · 고장교체 ${ok16}/9 · 교체분리 ${ok17}/9 · 문자 ${ok15}/9`;
   console.log(msg);
   return {ok,ok2,ok3,ok4,msg};
 };
