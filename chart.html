@@ -17,6 +17,9 @@
     --s1:#2a78d6; --s2:#eb6834;
   }
   *{box-sizing:border-box}
+  /* 화면 크기 맞춤(QHD · 4K): html 에 zoom 을 걸어 화면 전체를 비율로 키운다(uizApply). 창 높이 · 너비에 기대는 값은 --vh · --vw 로 써야 배율만큼 넘치지 않는다 */
+  :root{--z:1;--vh:calc(1vh / var(--z));--vw:calc(1vw / var(--z))}
+  @media print{html{zoom:1!important}}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
        background:var(--bg);color:var(--ink);line-height:1.5;font-size:14px}
   .hidden{display:none!important}
@@ -25,6 +28,7 @@
   button{font-family:inherit}
   input,select,textarea{font-family:inherit;font-size:14px;padding:7px 9px;border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
   input:focus,select:focus{outline:2px solid rgba(47,111,208,.25);border-color:var(--blue)}
+  input[type=checkbox],input[type=radio]{width:16px;height:16px;padding:0;accent-color:var(--blue);cursor:pointer;vertical-align:middle}
   .btn{padding:9px 14px;border:1.5px solid var(--line);background:#fff;border-radius:9px;font-size:.9rem;font-weight:700;color:var(--muted);cursor:pointer;transition:.12s}
   .btn:hover{border-color:var(--pink);color:var(--pink)}
   .btn.primary{border-color:var(--blue);background:var(--blue);color:#fff}
@@ -35,7 +39,7 @@
 
   /* ===== 잠금 화면 ===== */
   #lockScreen{position:fixed;inset:0;background:linear-gradient(135deg,#1f3a93,#2f6fd0);display:flex;align-items:center;justify-content:center;z-index:100}
-  .lockCard{background:#fff;border-radius:16px;padding:30px 28px;width:360px;max-width:92vw;box-shadow:0 10px 40px rgba(10,20,60,.35)}
+  .lockCard{background:#fff;border-radius:16px;padding:30px 28px;width:360px;max-width:calc(92 * var(--vw));box-shadow:0 10px 40px rgba(10,20,60,.35)}
   .lockCard h1{font-size:1.15rem;margin:0 0 2px;color:var(--navy)}
   .lockCard .sub{color:var(--muted);font-size:.8rem;margin-bottom:18px}
   .lockCard label{display:block;font-size:.8rem;font-weight:700;margin:12px 0 4px}
@@ -79,7 +83,7 @@
   table.grid td.num,table.grid th.num{text-align:right;font-variant-numeric:tabular-nums}
   table.grid tr.totalRow td{font-weight:800;background:#f3f8ff;border-top:2px solid var(--blue)}
   table.grid input[type=number]{width:58px;padding:4px 6px;text-align:right}
-  table.grid input[type=checkbox]{width:16px;height:16px;accent-color:var(--blue)}
+  table.grid input[type=checkbox]{width:18px;height:18px;accent-color:var(--blue)}
   .badge{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:20px}
   /* 아이콘 (이모티콘 대신, 2026-11-08) — 글자색을 따르는 둥근 선 + 옅은 면 */
   svg.ic{display:inline-block;width:1.2em;height:1.2em;vertical-align:-.24em;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;overflow:visible}
@@ -94,7 +98,8 @@
   .badge.cash{background:#eef4fd;color:var(--blue)}
   .badge.end{background:#f0f0f0;color:#888}
   .badge.warn{background:#fdecea;color:var(--red)}
-  button.badge.tgl{border:none;font-family:inherit;cursor:pointer}
+  button.badge{min-height:24px;padding-top:3px;padding-bottom:3px;cursor:pointer}
+  button.badge.tgl{border:none;font-family:inherit;cursor:pointer;padding-left:10px;padding-right:10px}
   button.badge.tgl:hover{outline:2px solid var(--blue);outline-offset:1px}
   /* 정렬 가능 헤더 + 인라인 편집 */
   table.grid th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
@@ -115,7 +120,7 @@
   .patsub label{display:flex;align-items:center;white-space:nowrap}
   .patsub input.pdate{width:120px;padding:1px 4px}
   .dstack{display:flex;flex-direction:column;gap:1px}
-  .dstack .dsub{display:flex;align-items:center;gap:3px;font-size:.68rem;color:var(--muted);font-weight:700;white-space:nowrap}
+  .dstack .dsub{display:flex;align-items:center;gap:3px;font-size:.7rem;color:var(--muted);font-weight:700;white-space:nowrap}
   /* 환자표: 앞 3열(#·차트번호·성명) 고정 — 가로 스크롤해도 누구 행인지 유지 */
   #patTable th:nth-child(1),#patTable td:nth-child(1){position:sticky;left:0;width:32px;min-width:32px;z-index:1}
   #patTable th:nth-child(2),#patTable td:nth-child(2){position:sticky;left:32px;width:72px;min-width:72px;z-index:1}
@@ -236,10 +241,10 @@
 
   /* ===== 모달 ===== */
   .modalBack{position:fixed;inset:0;background:rgba(15,25,60,.45);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
-  .modal{background:#fff;border-radius:14px;padding:22px;width:640px;max-width:96vw;max-height:92vh;overflow-y:auto}
+  .modal{background:#fff;border-radius:14px;padding:22px;width:640px;max-width:calc(96 * var(--vw));max-height:calc(92 * var(--vh));overflow-y:auto}
   .modal h3{margin:0 0 14px;font-size:1.02rem;color:var(--navy)}
   /* 서류 자동작성(docs.html) 창 안 창 */
-  .modal.docsmodal{width:min(1540px,97vw);max-width:97vw;height:95vh;max-height:95vh;padding:10px 12px 8px;display:flex;flex-direction:column;overflow:hidden}
+  .modal.docsmodal{width:min(1540px,calc(97 * var(--vw)));max-width:calc(97 * var(--vw));height:calc(95 * var(--vh));max-height:calc(95 * var(--vh));padding:10px 12px 8px;display:flex;flex-direction:column;overflow:hidden}
   .docsmodal h3{margin:0 0 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .docsmodal iframe{flex:1;width:100%;min-height:0;border:1px solid var(--line);border-radius:8px;background:#fff}
   .docsmodal .dstat{font-weight:400;font-size:.76rem;color:var(--muted)}
@@ -248,7 +253,7 @@
   .avgin{width:54px;text-align:center}
   .avgin.on{border-color:var(--amber);background:#fff8e6;font-weight:700}
   .docsbtn{padding:3px 7px;font-size:.92rem;line-height:1}
-  .docsbtn sup{font-size:.62rem;color:var(--green);font-weight:800;margin-left:1px;vertical-align:top}
+  .docsbtn sup{font-size:.7rem;color:var(--green);font-weight:800;margin-left:1px;vertical-align:top}
   .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
   .fgrid .full{grid-column:1/-1}
   .fgrid label{display:block;font-size:.76rem;font-weight:700;margin-bottom:3px;color:var(--muted)}
@@ -273,7 +278,7 @@
   .viztip .sw{width:9px;height:9px;border-radius:2px}
 
   /* 설정 */
-  .setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start;grid-auto-flow:dense}   /* 카드는 제 높이만큼만(옆 카드에 맞춰 빈 채로 늘어나지 않게) · 빈자리는 작은 카드가 채운다 */
   .setrow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
   .setrow label{flex:0 0 130px;font-size:.8rem;font-weight:700;color:var(--muted)}
   .setrow input,.setrow select{flex:1;min-width:0}
@@ -298,7 +303,7 @@
   /* ===== 📋 환자 차트 (실험실, 2026-11-08 · 시안 docs/시안/차트탭_시안.html) — 기존 이름과 겹치지 않게 cx- 접두 ===== */
   :root{--violet:#5b45c4}
   .badge.lab{background:#f1eefc;color:var(--violet);border:1px solid #d9d1f7}
-  nav.tabs button .badge.lab{font-size:.62rem;padding:0 6px;margin-left:5px;vertical-align:2px}
+  nav.tabs button .badge.lab{font-size:.7rem;padding:0 6px;margin-left:5px;vertical-align:2px}
   nav.tabs button.on .badge.lab{background:#fff;color:var(--violet);border-color:#fff}
   .whoPick{display:flex;align-items:center;gap:4px;font-size:.85rem;font-weight:700;color:var(--navy)}
   .whoPick select{padding:4px 6px;font-size:.82rem;max-width:120px}
@@ -336,14 +341,15 @@
   .dv-tb{grid-column:1/-1;padding:7px 10px;border:1px solid #f0d9a8;background:#fff9ec;border-radius:8px;font-size:.8rem;line-height:1.6}
   @media (max-width:1100px){.dv-grid{grid-template-columns:1fr;overflow:auto}}
   .cx-labbar{flex:none;display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:10px;background:#f6f3ff;border:1px solid #e1d9fb;color:#4a3a9e;font-size:.8rem}
-  .cx-labbar .x{margin-left:auto;color:#8b7fc7;cursor:pointer;border:none;background:none;font-size:.9rem}
+  .cx-labbar .x{margin-left:auto;color:#8b7fc7;cursor:pointer;border:none;background:none;font-size:.9rem;min-width:28px;min-height:28px;border-radius:7px}
+  .cx-labbar .x:hover{background:rgba(91,69,196,.1)}
   .cx-warn{flex:none;padding:7px 12px;border-radius:10px;background:#fff7e6;border:1px solid #ffd591;color:#8a5a00;font-size:.82rem}
   .cx-band{flex:none;display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:9px 14px;background:#fff;border:1px solid var(--line);border-left:5px solid var(--blue);border-radius:12px;box-shadow:0 1px 3px rgba(20,30,60,.05)}
   .cx-band .nm{font-size:1.25rem;font-weight:800;color:var(--navy);margin-right:2px}
   .cx-band .age{color:var(--muted);font-weight:700;margin-right:6px}
   .cx-band .badge{font-size:.8rem}
   .cx-chip{display:inline-flex;align-items:baseline;gap:6px;border:1px solid var(--line);background:#f9fafd;border-radius:8px;padding:3px 9px;font-weight:800;font-size:.9rem;cursor:copy;font-variant-numeric:tabular-nums}
-  .cx-chip small{font-size:.68rem;color:var(--muted);font-weight:700}
+  .cx-chip small{font-size:.7rem;color:var(--muted);font-weight:700}
   .cx-chip:hover{border-color:var(--blue)}
   .cx-chip.copied{background:#e9f9f1;border-color:var(--green)}
   .cx-grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,.92fr) minmax(0,.8fr);gap:12px}
@@ -356,8 +362,8 @@
   /* 12개월 띠 */
   .cx-yband{flex:none;margin:0 14px 8px;border:1px solid var(--line);border-radius:10px;padding:8px 10px 6px;background:#fcfdff}
   .cx-yrow{display:grid;grid-template-columns:3.6rem repeat(12,minmax(0,1fr));align-items:center;gap:2px}
-  .cx-yrow .rl{font-size:.68rem;color:var(--muted);font-weight:700}
-  .cx-ym{font-size:.68rem;color:var(--muted);text-align:center;font-weight:700}
+  .cx-yrow .rl{font-size:.7rem;color:var(--muted);font-weight:700}
+  .cx-ym{font-size:.7rem;color:var(--muted);text-align:center;font-weight:700}
   .cx-ym.now{color:#fff;background:var(--blue);border-radius:5px}
   .cx-seg{height:12px;border-radius:3px;background:#eef1f6}
   .cx-seg.pre{background:#f7b9cf}.cx-seg.post{background:#9fd9bd}.cx-seg.mix{background:linear-gradient(90deg,#f7b9cf 50%,#9fd9bd 50%)}
@@ -369,7 +375,7 @@
   .cx-dots b{width:7px;height:7px;border-radius:50%;display:block}
   .cx-dsup{background:#8b5cf6}.cx-drx{background:#e0559b}
   .cx-dcon{background:var(--blue)}.cx-dchk{background:var(--green)}.cx-dcmp{background:var(--red)}.cx-dtrip{background:#d36b00;border-radius:2px!important}
-  .cx-ylegend{display:flex;gap:12px;flex-wrap:wrap;font-size:.66rem;color:var(--muted);margin-top:5px;padding-left:3.6rem}
+  .cx-ylegend{display:flex;gap:12px;flex-wrap:wrap;font-size:.7rem;color:var(--muted);margin-top:5px;padding-left:3.6rem}
   .cx-ylegend span{display:inline-flex;align-items:center;gap:4px}
   .cx-ylegend i{display:inline-block;width:12px;height:8px;border-radius:2px}
   .cx-ylegend b{width:7px;height:7px;display:inline-block;border-radius:50%}
@@ -400,7 +406,7 @@
   .cx-via{font-weight:800;color:var(--ink);background:#eef1f6;border-radius:5px;padding:0 6px}
   .cx-next{margin-top:3px;font-size:.78rem;color:#9a4f00;font-weight:700}
   .cx-next.done{color:var(--green);text-decoration:line-through;font-weight:600}
-  .cx-edited{font-size:.68rem;color:#8a8fa0;border:1px dashed #c9cfdc;border-radius:5px;padding:0 5px;cursor:pointer;background:none;font-family:inherit}
+  .cx-edited{font-size:.7rem;color:#8a8fa0;border:1px dashed #c9cfdc;border-radius:5px;padding:0 5px;cursor:pointer;background:none;font-family:inherit}
   .cx-acts{margin-left:auto;display:flex;gap:4px}
   .cx-acts button{font-size:.72rem;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:5px;padding:0 6px;cursor:pointer;font-family:inherit}
   .cx-acts button:hover{border-color:var(--blue);color:var(--blue)}
@@ -412,7 +418,7 @@
   .cx-flags{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0 14px 10px;border:1px solid #f0d9b5;border-radius:10px;background:#fffaf2;overflow:hidden}
   .cx-flag{padding:7px 10px;border-left:1px solid #f3e3c8;font-size:.8rem;min-width:0;overflow-wrap:anywhere}
   .cx-flag:first-child{border-left:none}
-  .cx-flag small{display:block;font-size:.68rem;font-weight:800;color:#a3651a}
+  .cx-flag small{display:block;font-size:.7rem;font-weight:800;color:#a3651a}
   .cx-flag b{color:#7a3f00}
   .cx-form{margin:0 14px 10px;border:1.5px solid #cfdcf3;border-radius:12px;padding:11px 12px;background:#fbfcff}
   .cx-form.editing{border-color:var(--amber);background:#fffaf2}
@@ -440,7 +446,7 @@
   .cx-tripw{margin-top:2px;font-size:.76rem;color:#b35900}
   .cx-rxl{margin-top:2px;font-size:.82rem;color:#ad1457;font-weight:800}.cx-rxl.rv{text-decoration:line-through;color:#c99bb0}
   .cx-hl.rv{color:#b45309}
-  .cx-hdate{margin-left:6px;border:1px solid var(--line);background:#fff;border-radius:6px;font-size:.68rem;padding:0 5px;color:var(--muted);cursor:pointer;opacity:0;font-family:inherit}
+  .cx-hdate{margin-left:6px;border:1px solid var(--line);background:#fff;border-radius:6px;font-size:.7rem;padding:0 5px;color:var(--muted);cursor:pointer;opacity:0;font-family:inherit}
   .cx-it:hover .cx-hdate{opacity:1}
   .cx-hl{margin-top:2px;font-size:.74rem;color:var(--muted)}.cx-hl span{color:#b0b6c3}
   .actions .effpick{margin-right:auto;display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}.actions .effpick input{width:9.5rem}
@@ -457,7 +463,7 @@
   .cx-prow .why .pm{font-size:.74rem;color:#8a5a00}
   .cx-prow.h [data-rs]{cursor:pointer;user-select:none}.cx-prow.h [data-rs]:hover{color:var(--blue)}.cx-prow.h [data-rs].on{color:var(--navy)}
   .userchip{display:inline-flex;align-items:center;gap:2px;margin:3px 6px 3px 0;padding:1px 4px 1px 9px;border:1px solid var(--line);border-radius:20px;background:#fff;font-size:.8rem}
-  .userchip button{border:none;background:none;cursor:pointer;color:var(--muted);font-size:.75rem}
+  .userchip button{border:none;background:none;cursor:pointer;color:var(--muted);font-size:.75rem;min-width:24px;min-height:24px;border-radius:6px}
   .cx-chkbox{margin:0 0 8px;padding:7px 10px;border:1px dashed #a9d6bf;border-radius:9px;background:#f4fbf7;font-size:.8rem}
   .cx-chkbox .t{font-size:.7rem;font-weight:800;color:var(--green);margin-bottom:3px}
   .cx-chkbox label{display:inline-flex;align-items:center;gap:4px;margin-right:12px;color:var(--ink);font-weight:600;cursor:pointer}
@@ -492,7 +498,7 @@
   .cx-prow .why.none{color:#b5bccb}
   @media (max-width:1100px){.cx-grid{grid-template-columns:1fr;overflow:auto}.cx-col{min-height:420px}}
   /* 설정 › 실험실 · 저장 공간 */
-  @media (min-width:900px){#labBox,#storeMeter{grid-column:span 2}}
+  @media (min-width:900px){#labBox,#storeMeter,#msgBox{grid-column:span 2}#msgBox{grid-row:span 3}}   /* 문자 발송 칸은 길어서 세 줄을 차지 — 옆자리에 다른 카드가 세로로 쌓인다 */
   .labitem{display:flex;gap:14px;align-items:flex-start;padding:12px 4px;border-top:1px solid var(--line)}
   .labitem .ttl{font-weight:800}
   .labitem .ds{font-size:.8rem;color:var(--muted);margin-top:2px}
@@ -544,7 +550,7 @@
   .mb-opts label{display:flex;align-items:center;gap:5px;font-weight:700;color:var(--muted)}
   .mb-opts select{max-width:210px}
   .mb-body{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:stretch}
-  .mb-tbl{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .mb-tbl{max-height:calc(46 * var(--vh));overflow:auto;border:1px solid var(--line);border-radius:10px}
   .mb-tbl tr.off td{color:#a3abbb}.mb-tbl tr.sel td{background:#f3f6ff}
   .mb-tbl td.nm{font-weight:700;cursor:pointer}
   .mb-prev{display:flex;flex-direction:column;gap:5px;min-width:0}
@@ -801,6 +807,11 @@
     <div class="card" id="labBox"></div>
     <div class="card hidden" id="msgBox"></div>
     <div class="card" id="storeMeter"></div>
+    <div class="card" id="uizBox">
+      <h2>🖥 화면 크기 <small>모니터에 맞춰 글자 · 단추 · 표를 함께 키웁니다 — 이 PC(브라우저)에만 적용</small></h2>
+      <div class="setrow"><label>화면 배율</label><select id="set_uiz"><option value="auto">자동 (권장)</option><option value="1">100% — 키우지 않음</option><option value="1.1">110%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="1.75">175%</option><option value="2">200%</option></select> <span class="hint" id="uizNow"></span></div>
+      <div class="hint">자동은 FHD 모니터에서는 그대로 두고, QHD · 4K 처럼 넓은 화면에서만 키웁니다.</div>
+    </div>
     <div class="card">
       <h2>공급자(사업자) 정보 <small>세금계산서에 인쇄됩니다</small></h2>
       <div class="setrow"><label>사업자등록번호</label><input id="set_regno" placeholder="숫자만"></div>
@@ -925,13 +936,36 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.23.2';
+const APP_VERSION='2026.11.24.2';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 정식 주소(chart.html — 다른 업체도 쓴다)에는 아직 열지 않는 실험실 기능의 목록: 여기 적힌 것(예: {msg:1})은 시험판 주소와 내 PC(localhost)에서만 보이고 켜진다.
    💬 문자 발송(msg)은 2026-11-22 에 정식에도 열었다(사용자 "열어 줘" — 사무실의 실제 키로 문자가 나가는 것을 본 뒤, v2026.11.22.3). 지금은 목록이 비어 있다.
    다음에 정식에서 숨길 기능이 생기면 여기에 이름을 적는다 — 자료(스위치 값 · 기록)는 건드리지 않고 화면에서만 가린다. */
 const LAB_PREVIEW=IS_NEXT||/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 const LAB_PREVIEW_ONLY={};
+/* ===== 화면 크기 맞춤 (FHD · QHD · 4K) =====
+   FHD(가로 1920)까지는 그대로 두고, 그보다 넓은 창에서는 화면 전체(글자 · 단추 · 표)를 비율로 키운다 — QHD 약 120% · 4K(배율 100%) 약 180%.
+   가로는 2133, 세로는 1000 을 '설계 화면'으로 보고 둘 가운데 작은 쪽에 맞춘다(세로가 낮은 와이드 모니터에서 줄 수가 줄지 않게).
+   고른 값은 이 브라우저에만 남긴다(모니터마다 다르므로 환자 자료 · 백업에는 넣지 않는다). 'auto' 또는 배율 숫자. */
+const UIZ_KEY='sumgilChart.uiZoom';
+const UIZ_STEPS=[1,1.1,1.25,1.5,1.75,2];
+let UIZ=1,_uizK=[0,1];
+function uizPref(){try{const v=localStorage.getItem(UIZ_KEY);return (v==='auto'||UIZ_STEPS.includes(Number(v)))?v:'auto';}catch(e){return 'auto';}}
+function uizAuto(){const z=Math.max(1,Math.min(2,window.innerWidth/2133,window.innerHeight/1000));return Math.round(z*20)/20;}
+function uizApply(){
+  const p=uizPref(),z=p==='auto'?uizAuto():Number(p);
+  if(z===UIZ)return false;
+  UIZ=z;const de=document.documentElement;de.style.setProperty('--z',String(z));de.style.zoom=z===1?'':String(z);return true;
+}
+/* 확대된 화면에서 getBoundingClientRect 가 돌려주는 값 ÷ CSS 값 — 브라우저마다 달라(새 크롬 = 배율, 옛 방식 = 1) 한 번 재서 쓴다 */
+function uizK(){
+  if(_uizK[0]===UIZ)return _uizK[1];
+  let k=UIZ;
+  try{const d=document.createElement('div');d.style.cssText='position:absolute;left:0;top:0;width:100px;height:1px;visibility:hidden;pointer-events:none';document.body.appendChild(d);const w=d.getBoundingClientRect().width;d.remove();if(w>0)k=w/100;}catch(e){}
+  _uizK=[UIZ,k];return k;
+}
+uizApply();
+{let t=0;window.addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(()=>{if(uizApply()){try{if(typeof chartFit==='function')chartFit();if(typeof devFit==='function')devFit();if(typeof fixMonthSticky==='function')fixMonthSticky();if(typeof renderUiz==='function')renderUiz();}catch(e){}}},150);});}
 /* 소스 파일 직접 실행 방지: 빌드된 index.html에서만 SheetJS가 존재함 */
 if(typeof XLSX==='undefined'){
   document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:30px;background:#fff;border:2px solid #b3261e;border-radius:14px;font-family:sans-serif;text-align:center;line-height:2">'
@@ -979,12 +1013,12 @@ const parseHM=v=>{
 };
 const hm=m=>m==null?'':`${Math.floor(m/60)}시간${String(m%60).padStart(2,'0')}분`;
 const hmColon=m=>m==null?'':`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;
-function fmtPhone(v){const d=digits(v);return d.length===11?`${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`:(d.length===10?`${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`:v||'');}
+function fmtPhone(v){const d=digits(v);if(d.startsWith('02')&&(d.length===9||d.length===10))return `02-${d.slice(2,d.length-4)}-${d.slice(-4)}`;return d.length===11?`${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`:(d.length===10?`${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`:v||'');}
 
 /* ================== 일할 계산 핵심 (검증 완료 로직) ================== */
 const floor10=x=>Math.floor(x/10)*10;
 const ceil10=x=>Math.ceil(x/10-1e-9)*10;
-const baseAmt=(B,d,N)=>d>=N?B:floor10(B/N*d);
+const baseAmt=(B,d,N)=>d>=N?B:floor10(Math.round(B/N*d*10)/10);
 const boninAmt=(B,d,N,r)=>d>=N?Math.round(B*r):ceil10(baseAmt(B,d,N)*r);
 /* 부가세 분해 (LMTS 동일) */
 const vatCash=t=>{const s=Math.ceil(t/1.1);return{supply:s,vat:t-s};};
@@ -996,7 +1030,9 @@ const insOf=p=>INSURE[(p&&p.insureType)||'IB']||INSURE.IB;
 /* 마스크 본인부담: 건강보험은 설정값(19,000), 그 외 자격은 기준액×율 절상 */
 const maskBoninFor=p=>{const ins=insOf(p),pr=state.settings.prices;return ins.code==='IB'?pr.maskBonin:ceil10(pr.maskBase*ins.mask);};
 /* 처방종료일에서 재처방 시작일 후보 계산 (6개월·1년 처방) — 통과일 미상인 기존 환자 입력 보조 */
-const rxStartFrom=(rxEnd,months)=>{if(!rxEnd)return null;const [y,m,d]=rxEnd.split('-').map(Number);const dt=new Date(Date.UTC(y,m-1-months,d));if(isNaN(dt))return null;return addDays(dt.toISOString().slice(0,10),1);};
+const rxStartFrom=(rxEnd,months)=>{if(!rxEnd)return null;const [y,m,d]=rxEnd.split('-').map(Number);const dt=new Date(Date.UTC(y,m-1-months,1));if(isNaN(dt))return null;
+  dt.setUTCDate(Math.min(d,new Date(Date.UTC(dt.getUTCFullYear(),dt.getUTCMonth()+1,0)).getUTCDate()));   /* 그 달에 없는 날(2월 31일)은 말일로 */
+  return addDays(dt.toISOString().slice(0,10),1);};
 const rxStartHints=p=>p.rxEnd?`처방종료일 ${p.rxEnd} 기준 — 6개월 처방이면 ${rxStartFrom(p.rxEnd,6)}, 1년 처방이면 ${rxStartFrom(p.rxEnd,12)}`:'처방종료일이 있으면 재처방일 후보를 계산해 드립니다';
 const INS_KO={'건강보험':'IB','건강보험(특례)':'IB','의료급여':'MC','차상위':'SC','개인사용':'IN'};
 
@@ -1058,6 +1094,7 @@ function rxChangeLocked(p,dates){
   return null;
 }
 /* 순응통과일을 a → b로 바꾸면 50/20%가 바뀌는 달(두 날짜 사이, 한쪽이 없으면 그 뒤 전부)에 승인번호·청구완료가 있으면 그 달(ym) */
+const passLockMsg=lk=>`${lk.replace('-','년 ')}월에 승인번호나 청구완료가 있어 순응통과일을 바꾸면 그 달 금액이 바뀝니다.\n먼저 📅 월별 청구에서 그 달의 승인번호·청구완료를 해제한 뒤 다시 바꾸세요.`;
 function passChangeLocked(p,a,b){
   a=a||null;b=b||null;
   if(!p||!state||!state.months||a===b)return null;
@@ -1169,7 +1206,7 @@ function calcPatientMonth(p,ym,ov){
     const starts=[...bounds].sort();
     ranges=starts.map((st,i)=>{const en=i<starts.length-1?addDays(starts[i+1],-1):e;const exc=merged.some(m=>m.a<=st&&en<=m.b);const ph=(pass&&st>=pass)?'post':'pre';const dd=diffDays(st,en)+1;
       return {s:st,e:en,days:dd,exc,ph,rent:exc?0:dd,ab:exc?dd:0,rxNo:rxAll.filter(x=>x.date<=st).length,dvNo:dvAll.filter(d=>d<=st).length};});
-    if(legacyAb>0){const last=[...ranges].reverse().find(r=>!r.exc);if(last){last.ab=Math.min(legacyAb,last.days);last.rent=last.days-last.ab;}}
+    if(legacyAb>0){let A=legacyAb;for(const r of [...ranges].reverse()){if(r.exc||A<=0)continue;r.ab=Math.min(A,r.days);r.rent=r.days-r.ab;A-=r.ab;}}
     abroad=ranges.reduce((a,r)=>a+r.ab,0);
     const preRent=ranges.filter(r=>r.ph==='pre').reduce((a,r)=>a+r.rent,0),postRent=ranges.filter(r=>r.ph==='post').reduce((a,r)=>a+r.rent,0);
     /* 날짜 범위 방식에서는 수기 일수(d1/d2)를 쓰지 않는다 — 단계별 임대일수는 2시간 규정 판정용 */
@@ -1610,7 +1647,9 @@ $('#tabs').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b||!b.dataset.tab)return;
   showTab(b.dataset.tab);
 });
-$('#curYM').addEventListener('change',renderAll);
+{let lastYM='';const okYM=v=>/^\d{4}-\d{2}$/.test(v||'');
+ $('#curYM').addEventListener('focus',()=>{if(okYM($('#curYM').value))lastYM=$('#curYM').value;});
+ $('#curYM').addEventListener('change',()=>{const el=$('#curYM');if(!okYM(el.value))el.value=okYM(lastYM)?lastYM:fd(new Date()).slice(0,7);lastYM=el.value;renderAll();});}
 const curYM=()=>$('#curYM').value;
 const getOv=(ym,id)=>state.months?.[ym]?.[id]||{};
 function setOv(ym,id,patch){
@@ -1699,7 +1738,7 @@ function maskHint(u,f){
 function fixMonthSticky(){
   const tbl=$('#monthTable'),wrap=tbl&&tbl.closest('.tblwrap');if(!tbl||!wrap)return;
   const th=tbl.querySelector('th.stk:not(.stk2)');
-  tbl.style.setProperty('--stkR',(th?Math.ceil(th.getBoundingClientRect().width):0)+'px');
+  tbl.style.setProperty('--stkR',(th?Math.ceil(th.getBoundingClientRect().width/uizK()):0)+'px');
   wrap.classList.toggle('scrolled',wrap.scrollLeft+wrap.clientWidth<wrap.scrollWidth-1);
 }
 function renderMonth(){
@@ -2001,11 +2040,17 @@ function openAbroadPicker(pid){
         <div style="display:flex;gap:8px"><button class="btn" id="abCancel">취소</button>
         <button class="btn primary" id="abSave">저장</button></div>
       </div></div></div>`;
+    $('#abList').addEventListener('keydown',ev=>{const el=ev.target;if(el&&el.type==='date'&&/^(\d|Backspace|Delete)$/.test(ev.key))el.dataset.typing='1';});
     $('#abList').addEventListener('change',ev=>{
       const el=ev.target;if(!el.dataset.t)return;
       trips[Number(el.dataset.i)][el.dataset.t]=el.value;
+      if(el.dataset.typing&&document.activeElement===el)return;   /* 치는 중 — 칸을 떠날 때 다시 그린다 */
       draw();
     });
+    $('#abList').addEventListener('focusout',ev=>{const el=ev.target;if(!el||!el.dataset||!el.dataset.typing)return;delete el.dataset.typing;
+      const rt=ev.relatedTarget;if(rt&&rt.tagName==='BUTTON')return;   /* 바로 단추를 누르는 중이면 그리지 않는다(누름이 사라지지 않게) — 값은 이미 trips 에 있다 */
+      const key=rt&&rt.dataset&&rt.dataset.t?[rt.dataset.i,rt.dataset.t]:null;draw();
+      if(key){const n=document.querySelector(`#abList [data-i="${key[0]}"][data-t="${key[1]}"]`);if(n)n.focus();}});
     $('#abList').addEventListener('click',ev=>{
       const d=ev.target.closest('button[data-del]');if(!d)return;
       trips.splice(Number(d.dataset.del),1);
@@ -2019,9 +2064,13 @@ function openAbroadPicker(pid){
     $('#abSave').onclick=()=>{
       const valid=trips.filter(t=>t.dep&&t.arr);
       const bad=trips.find(t=>t.dep&&t.arr&&Date.parse(t.arr)<Date.parse(t.dep));
-      if(bad){showMsg('입력 확인','입국심사일이 출국심사일보다 빠른 여행이 있습니다.');return;}
+      const back=()=>{if(state&&!$('#dlgHost').innerHTML)draw();};   /* 안내창이 이 창 자리를 차지하므로, 닫으면 넣던 날짜 그대로 다시 연다 */
+      if(bad){Promise.resolve(showMsg('입력 확인','입국심사일이 출국심사일보다 빠른 여행이 있습니다.')).then(back);return;}
+      if(trips.some(t=>(t.dep&&!t.arr)||(!t.dep&&t.arr))){Promise.resolve(showMsg('입력 확인','출국심사일과 입국심사일을 둘 다 넣어야 저장됩니다.\n한쪽만 넣은 줄은 채우거나 지워 주세요.')).then(back);return;}
+      const over=valid.filter(t=>addDays(t.arr,-1)>ymLast(ym)||addDays(t.dep,1)<ymFirst(ym));
       histTag('✈️ 해외 입력');setOv(ym,pid,{trips:valid,abroad:''});
       $('#dlgHost').innerHTML='';renderMonth();
+      if(over.length)showMsg('다른 달에도 넣어 주세요',`이 창은 ${Number(ym.slice(5))}월에만 저장합니다.\n${over.map(t=>`· ${t.dep} ~ ${t.arr}`).join('\n')}\n위 여행은 다른 달에도 걸쳐 있습니다. 그 달 화면에서도 같은 날짜를 넣어야 그 달 해외일이 계산됩니다.${labOn('chart')?'\n(📋 환자 차트의 ✈️ 해외 기록으로 적으면 걸친 달에 한꺼번에 들어갑니다)':''}`);
     };
   };
   draw();
@@ -2391,7 +2440,7 @@ function openClaimView(pid,k){
   const b2=$('#cvUnclaim');if(b2)b2.onclick=()=>confirmModal('청구 완료 표시 해제',
     `${p.name} · ${ym.replace('-','년 ')}월${segTxt}\n\n공단 청구 완료 표시를 해제할까요?`,'해제',true)
     .then(ok=>{if(!ok)return;setClaimed(ym,p,u.k,false);renderMonth();openClaimView(pid,k);});
-  {const ai=$('#cvAvgIn');if(ai)ai.onchange=()=>{const v=ai.value.trim();const mm=v===''?null:parseHM(v);if(v!==''&&mm==null){ai.classList.add('bad');return;}
+  {const ai=$('#cvAvgIn');if(ai)ai.onchange=()=>{if(ovDocLocked(getOv(ym,p.id))){monthLockMsg(ym,p.id);openClaimView(pid,k);return;}const v=ai.value.trim();const mm=v===''?null:parseHM(v);if(v!==''&&mm==null){ai.classList.add('bad');return;}
     setOv(ym,p.id,{avgMinManual:mm==null?null:String(mm)});renderMonth();openClaimView(pid,k);};}
   $('#cvClose').onclick=()=>$('#modalHost').innerHTML='';
   if($('#cvDocbox')){const dk=docboxClaimKind(p,u),dh=docboxClaimHints(p,u,ym);$('#cvDocbox').onclick=()=>openDocbox(p,{kind:dk,month:ym,hints:dh});docboxClaimState(p,dk,ym,dh);}
@@ -2558,7 +2607,7 @@ function guessBranch(addr){
   }
   let hub=null;
   for(const k of Object.keys(HUB_HINTS)){if(a.includes(k)){hub=HUB_HINTS[k];break;}}
-  let best=null,bestScore=0;
+  let best=null,bestScore=0,tie=false;
   for(const r of BRANCH_FAX){
     if(hub&&r.h!==hub)continue;
     const nm=r.b.replace(/지사$/,'');
@@ -2570,9 +2619,10 @@ function guessBranch(addr){
       while(s.length){chunks.push(s.slice(0,2));s=s.slice(2);}
       for(const c of chunks)if(c.length>=2&&a.includes(c))score+=3;
     }
-    if(score>bestScore){bestScore=score;best=r.b;}
+    if(score>bestScore){bestScore=score;best=r.b;tie=false;}
+    else if(score&&score===bestScore&&r.b!==best)tie=true;
   }
-  return bestScore>=3?best:null;
+  return bestScore>=10?best:(bestScore>=3&&!tie?best:null);
 }
 /* 처방 만료 임박/만료 배지 (사용중 환자만) — 재처방 시기를 놓치지 않게 */
 function rxBadge(p,today){
@@ -2710,6 +2760,8 @@ function renderPatients(){
 /* 표 안 인라인 수정 (차트번호·주민번호·연락처·S/N) — 1회 등록
    주의: 여기서 표를 다시 그리면 방금 포커스를 준 칸이 파괴되어 커서가 사라진다.
    정렬에 영향을 주는 차트번호만 다시 그리고(pendingFocus로 복원), 나머지는 제자리 갱신. */
+$('#patTable').addEventListener('keydown',e=>{const el=e.target;if(el&&el.type==='date'&&el.dataset&&el.dataset.pf&&/^(\d|Backspace|Delete)$/.test(e.key))el.dataset.typing='1';},true);
+$('#patTable').addEventListener('focusout',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.typing){delete el.dataset.typing;el.dispatchEvent(new Event('change',{bubbles:true}));}});
 $('#patTable').addEventListener('change',e=>{
   if(!state)return;
   const el=e.target;
@@ -2717,6 +2769,7 @@ $('#patTable').addEventListener('change',e=>{
   const p=state.patients.find(x=>x.id===el.dataset.id);if(!p)return;
   const f=el.dataset.pf;let v=el.value.trim();
   if(f==='passDate'||f==='rentStart'||f==='rentEnd'||f==='rxStart'||f==='rxEnd'){
+    if(el.dataset.typing&&document.activeElement===el)return;   /* 아직 치는 중 — focusout 에서 다시 온다 */
     const nv=el.value||null,old=p[f]||null;
     if(f==='rentStart'&&!nv){                     /* 필수값 — 비우면 이전 값 복원 */
       el.value=p.rentStart||'';
@@ -2736,6 +2789,7 @@ $('#patTable').addEventListener('change',e=>{
       if(flip)el.title='종료일이 시작일보다 빠릅니다 — 날짜를 확인하세요';
     };
     if(old===nv){finish();return;}
+    if(f==='passDate'){const lk=passChangeLocked(p,old,nv);if(lk){el.value=old||'';finish();showMsg('순응통과일을 바꿀 수 없습니다',passLockMsg(lk));return;}}
     /* 실수 클릭으로 바뀌는 일이 잦아 저장 전에 한 번 확인 — 취소하면 원래 값으로 되돌림 */
     confirmModal('날짜 변경 확인',`${p.name} · ${LBL[f]}\n${old||'(없음)'}  →  ${nv||'(없음)'}\n\n이대로 저장할까요?`,'저장').then(ok=>{
       if(!ok){el.value=old||'';finish();return;}
@@ -2761,11 +2815,13 @@ $('#patTable').addEventListener('change',e=>{
     const old=p.sn,pid=p.id;
     confirmModal('S/N 바뀜',`${p.name} · S/N ${old} → ${v}\n\n잘못 넣은 번호를 고친 건가요, 기기를 바꿔 드린 건가요?\n\n· 번호만 고침 — 처음부터 ${v} 기기를 쓴 것으로 봅니다\n· 기기를 바꿨음 — 여기서는 바꾸지 않고 📋 환자 차트의 🛠 고장·교체로 갑니다\n   (바꾼 날짜 · 고장 난 기기의 수리 발송 · 표준계약서까지 함께 남습니다)`,'기기를 바꿨음',false,'번호만 고침').then(sw=>{
       if(!state)return;const q=state.patients.find(x=>x.id===pid);if(!q)return;
+      if(sw===null){el.value=old;return;}   /* Esc · 바깥 클릭 = 바꾸지 않음 */
       if(sw){el.value=old;   /* 표의 값은 그대로 두고, 환자 차트의 고장·교체 칸에 새 번호를 채워 연다 */
         const cur=chartDrafts.get(pid)||{};
         chartDrafts.set(pid,{rx:{type:'press',to:'',end:''},trip:{dep:'',arr:''},date:fd(new Date()),by:whoNow(),via:'phone',text:'',checks:{},sup:{},maskBill:true,nd:'',nt:'',...cur,kind:'dev',
           dev:{type:'swap',why:'fault',model:'',mfgYm:'',symptom:'',send:'',temp:false,ct:'no',ctDate:'',...(cur.dev||{}),sn:v}});
         goChart(pid);return;}
+      if(devSnFixBlocked(q,old,v)){el.value=old;showMsg('번호만 고칠 수 없습니다',SN_FIX_BLOCK(v));return;}
       devSnFixSync(q,old,v);q.sn=v;histSnFixNext=true;histTag('👥 환자 관리 표');persist();
     });
     return;
@@ -2841,7 +2897,7 @@ function openBranchPicker(cb,addrHint){
     <div class="chipbtns" id="brChips">
       ${guess?`<button data-b="${esc(guess)}" style="border-color:var(--blue);color:var(--blue);font-weight:700">📍 주소 기반 추천: ${esc(guess)}</button>`:''}
       ${presets.filter(b2=>b2!==guess).map(b2=>`<button data-b="${esc(b2)}">${esc(b2)}</button>`).join('')}</div>
-    <div id="brList" style="max-height:44vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px"></div>
+    <div id="brList" style="max-height:calc(44 * var(--vh));overflow-y:auto;border:1px solid var(--line);border-radius:10px"></div>
     <div class="actions" style="justify-content:space-between;align-items:center">
       <div style="display:flex;gap:6px;flex:1;margin-right:10px">
         <input id="brManual" placeholder="목록에 없으면 직접 입력" style="flex:1">
@@ -3013,6 +3069,7 @@ function openPatModal(id,src){
     persist();
     showMsg('프리셋 저장',`${name} (면허 ${lic||'—'} · 전문의번호 ${spec||'—'})\n프리셋에 추가되었습니다.`);
   };
+  $('#f_branch').addEventListener('input',()=>{delete $('#f_branch').dataset.fax;const fx=$('#f_branchFax');if(fx)fx.textContent='';});
   $('#mCancel').onclick=()=>$('#modalHost').innerHTML='';
   $('#mback').onclick=e=>{if(e.target.id==='mback')$('#modalHost').innerHTML='';};
   setTimeout(()=>$('#f_name')&&$('#f_name').focus(),0);   /* 열자마자 성명부터 입력 */
@@ -3035,6 +3092,11 @@ function openPatModal(id,src){
     const rentStart=$('#f_rentStart').value;
     if(!name){showMsg('입력 확인','성명을 입력하세요.');return;}
     if(!rentStart){showMsg('입력 확인','계약시작일을 입력하세요.');return;}
+    {const re=$('#f_rentEnd').value||null;if(re&&re<rentStart){showMsg('입력 확인',`계약종료일 ${re} 이 계약시작일 ${rentStart} 보다 앞입니다.\n이대로 저장하면 이 환자는 모든 달 청구에서 빠집니다.`);return;}}
+    {const code=$('#f_mgmt').value.trim(),dup=code&&state.patients.find(x=>x.id!==id&&x.mgmtCode===code);
+      if(dup&&!(await confirmModal('차트번호가 겹칩니다',`차트번호 ${code} 는 이미 ${dup.name} 환자가 쓰고 있습니다.\n같은 번호가 둘이면 LMTS 가져오기에서 두 환자 모두 건너뜁니다.\n\n그래도 저장할까요?`,'그래도 저장',true)))return;if(!state)return;}
+    {const cn=digits($('#f_cmsNo').value),dup=cn&&state.patients.find(x=>x.id!==id&&x.cmsNo!=null&&Number(x.cmsNo)===Number(cn));
+      if(dup&&!(await confirmModal('효성CMS+ 회원번호가 겹칩니다',`회원번호 ${Number(cn)} 는 이미 ${dup.name} 환자가 쓰고 있습니다.\n같은 번호가 둘이면 이체 파일에서 한 사람 계좌로 두 번 청구될 수 있습니다.\n\n그래도 저장할까요?`,'그래도 저장',true)))return;if(!state)return;}
     /* 재처방(압력 변경) 이력 수집·검증 */
     const rxcList=[];
     for(const r of $('#f_rxc').querySelectorAll('.rxcrow')){
@@ -3091,20 +3153,23 @@ function openPatModal(id,src){
     /* 순응통과일이 바뀌면 최초 처방에 머문 처방시작일을 함께 옮김 (직접 넣은 재처방일은 유지) */
     {const pd=obj.passDate;obj.passDate=prev?prev.passDate:null;applyPassDate(obj,pd);}
     obj.passDateEst=!!(prev&&prev.passDateEst&&obj.passDate===prev.passDate&&obj.rxStart===prev.rxStart);   /* 날짜를 손대면 추정 해제 */
+    if(prev){const lk=passChangeLocked(prev,prev.passDate,obj.passDate);if(lk){showMsg('순응통과일을 바꿀 수 없습니다',passLockMsg(lk));return;}}
     /* 지사 팩스: 🔍 선택값 우선, 지사명이 바뀌었으면 자동 조회 */
     obj.branchFax=$('#f_branch').dataset.fax
       ??(prev&&prev.branch===obj.branch?prev.branchFax:branchFaxOf(obj.branch));
+    /* S/N이 바뀌었으면 (저장 전에 물음 — 기다리는 사이 이력이 먼저 잡히지 않게): 기기 교체인지 번호 고침인지 (🔧 기기 관리에서 두 기기로 나눌지) */
+    let snSwap=false,snSwapMsg='';const snChg=!!(prev&&prev.sn&&obj.sn&&snKey(prev.sn)!==snKey(obj.sn));
+    if(snChg&&labOn('dev')&&prev.rentStart&&prev.rentStart<fd(new Date())){
+      const sw=await confirmModal('S/N 바뀜',`S/N ${prev.sn} → ${obj.sn}\n\n기기를 바꿔 드린 건가요, 잘못 넣은 번호를 고친 건가요?\n\n· 기기 교체 — 🔧 기기 관리에서 두 기기로 나눠 이력을 남기고, 그 달 청구도 교체일 앞뒤로 나뉩니다(기기마다 공단 청구 · 세금계산서 · 현금영수증 따로)\n   (위 '📅 바뀐 날짜'가 교체일, 오늘이 아니면 먼저 고르세요)\n   ※ 고장으로 바꾼 것이면 Esc 로 이 창을 닫고 📋 환자 차트 › 🛠 고장·교체로 적으세요 — 고장 난 기기의 수리 발송 · 표준계약서까지 함께 남습니다\n· 번호만 고침 — 처음부터 새 번호 기기를 쓴 것으로 봅니다`,'기기 교체',false,'번호만 고침');
+      if(sw===null)return;   /* Esc · 바깥 클릭 = 저장하지 않고 수정 창으로 돌아감 */
+      if(sw)snSwap=true;else histSnFixNext=true;
+    }
+    if(!state)return;
+    if(snChg&&!snSwap&&devSnFixBlocked(prev,prev.sn,obj.sn)){histSnFixNext=false;showMsg('번호만 고칠 수 없습니다',SN_FIX_BLOCK(obj.sn));return;}
     /* 임대·순응 날짜가 바뀌면 월별 일수 수기값을 자동계산으로 되돌림 (구간·요율 불일치 방지) */
     if(prev&&(prev.passDate!==obj.passDate||prev.rentStart!==obj.rentStart||prev.rentEnd!==obj.rentEnd)){
       clearManualDays(obj.id);
     }
-    /* S/N이 바뀌었으면 (저장 전에 물음 — 기다리는 사이 이력이 먼저 잡히지 않게): 기기 교체인지 번호 고침인지 (🔧 기기 관리에서 두 기기로 나눌지) */
-    let snSwap=false,snSwapMsg='';const snChg=!!(prev&&prev.sn&&obj.sn&&snKey(prev.sn)!==snKey(obj.sn));
-    if(snChg&&labOn('dev')&&prev.rentStart&&prev.rentStart<fd(new Date())){
-      if(await confirmModal('S/N 바뀜',`S/N ${prev.sn} → ${obj.sn}\n\n기기를 바꿔 드린 건가요, 잘못 넣은 번호를 고친 건가요?\n\n· 기기 교체 — 🔧 기기 관리에서 두 기기로 나눠 이력을 남기고, 그 달 청구도 교체일 앞뒤로 나뉩니다(기기마다 공단 청구 · 세금계산서 · 현금영수증 따로)\n   (위 '📅 바뀐 날짜'가 교체일, 오늘이 아니면 먼저 고르세요)\n   ※ 고장으로 바꾼 것이면 취소하고 📋 환자 차트 › 🛠 고장·교체로 적으세요 — 고장 난 기기의 수리 발송 · 표준계약서까지 함께 남습니다\n· 번호만 고침 — 처음부터 새 번호 기기를 쓴 것으로 봅니다`,'기기 교체',false,'번호만 고침'))snSwap=true;
-      else histSnFixNext=true;
-    }
-    if(!state)return;
     if(snSwap){   /* 교체 이력에 남김 — 가장 최근 교체보다 뒤 날짜일 때만 (앞 날짜면 옛 방식대로 변경 이력만) */
       const today0=fd(new Date()),ev0=id&&$('#f_eff')?$('#f_eff').value:'',date=ev0&&ev0<today0?ev0:today0;
       if(date>prev.rentStart&&(!prev.rentEnd||date<=prev.rentEnd)&&!snSegs(prev).some(g=>g.swap&&g.swap>=date)){
@@ -3149,7 +3214,7 @@ function showMsg(title,body){
   return dlgQueue((finish,mark)=>{
     $('#dlgHost').innerHTML=`<div class="modalBack" id="msgBack" data-mark="${mark}" style="z-index:70"><div class="modal" style="width:520px">
       <h3>${esc(title)}</h3>
-      <div style="white-space:pre-wrap;font-size:.85rem;max-height:55vh;overflow-y:auto;line-height:1.7">${esc(body)}</div>
+      <div style="white-space:pre-wrap;font-size:.85rem;max-height:calc(55 * var(--vh));overflow-y:auto;line-height:1.7">${esc(body)}</div>
       <div class="actions"><button class="btn primary" id="msgOk">확인</button></div></div></div>`;
     const done=()=>{$('#dlgHost').innerHTML='';finish();};
     $('#msgOk').onclick=done;
@@ -3200,15 +3265,20 @@ function confirmModal(title,body,okLabel,danger,noLabel){
     const done=v=>{$('#dlgHost').innerHTML='';finish(v);};
     $('#cfYes').onclick=()=>done(true);
     $('#cfNo').onclick=()=>done(false);
-    $('#cfBack').onclick=e=>{if(e.target.id==='cfBack')done(false);};
+    $('#cfBack').onclick=e=>{if(e.target.id==='cfBack')done(noLabel?null:false);};
+    $('#cfBack')._escNull=noLabel?()=>done(null):null;   /* 두 갈래 창에서 Esc = 고르지 않음 */
     /* 위험한 동작(삭제 등)은 [취소]에 포커스 — 습관적 Enter로 지워지지 않도록 */
     setTimeout(()=>{const b=danger?$('#cfNo'):$('#cfYes');if(b)b.focus();},0);
   });
 }
+/* 바깥(어두운 곳) 클릭으로 닫기는 '바깥에서 누르고 바깥에서 뗐을 때'만 — 칸의 글자를 끌어 고르다 바깥에서 놓으면 닫히던 것을 막는다 */
+{let downT=null;document.addEventListener('mousedown',e=>{downT=e.target;},true);
+ document.addEventListener('click',e=>{const t=e.target;if(t&&t.classList&&t.classList.contains('modalBack')&&downT&&downT!==t){e.stopPropagation();e.preventDefault();}},true);}
 /* Esc = 열려 있는 창 닫기 (뒤쪽 버튼으로 키가 새지 않도록) */
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape')return;
   if($('#dlgHost').innerHTML){
+    {const cb=$('#cfBack');if(cb&&cb._escNull){e.preventDefault();cb._escNull();return;}}
     const cancel=$('#cfNo')||$('#askCancel')||$('#brCancel')||$('#msgOk')||$('#pwCancel');
     if(cancel){e.preventDefault();cancel.click();return;}
     $('#dlgHost').innerHTML='';e.preventDefault();return;
@@ -3324,7 +3394,7 @@ function docboxNote(text,ms){
   let el=document.getElementById('docboxNote');
   if(!text){if(el)el.remove();return;}
   if(!el){el=document.createElement('div');el.id='docboxNote';
-    el.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:90;background:#1f2937;color:#fff;padding:10px 18px;border-radius:999px;font-size:.88rem;box-shadow:0 6px 24px rgba(0,0,0,.28);max-width:92vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none';
+    el.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:90;background:#1f2937;color:#fff;padding:10px 18px;border-radius:999px;font-size:.88rem;box-shadow:0 6px 24px rgba(0,0,0,.28);max-width:calc(92 * var(--vw));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none';
     document.body.appendChild(el);}
   el.textContent=text;clearTimeout(docboxNoteTimer);
   if(ms)docboxNoteTimer=setTimeout(()=>{const e=document.getElementById('docboxNote');if(e)e.remove();},ms);
@@ -3717,7 +3787,8 @@ async function importAdaptMgmt(aoa,h,fname){
     const prev=getOv(ym,p.id).avgMin;
     const avgNote=(rec.avgMin!=null&&prev!=null&&prev!==''&&Number(prev)!==rec.avgMin)?` (이전 ${hm(Number(prev))} → 교체)`:'';
     {const man=getOv(ym,p.id).avgMinManual;if(rec.avgMin!=null&&man!=null&&man!==''&&Number(man)!==rec.avgMin)avgConf.push({ym,pid:p.id,name:p.name,manual:Number(man),lmts:rec.avgMin});}
-    setOv(ym,p.id,{avgMin:rec.avgMin!=null?String(rec.avgMin):getOv(ym,p.id).avgMin,
+    const avgLk=ovDocLocked(getOv(ym,p.id));   /* 승인번호 · 청구완료가 있는 달은 평균 사용시간을 바꾸지 않는다(전액 본인부담 여부가 뒤집힘) */
+    setOv(ym,p.id,{avgMin:(rec.avgMin!=null&&!avgLk)?String(rec.avgMin):getOv(ym,p.id).avgMin,
       adapt:{start:rec.start,end:rec.end,endRaw:rec.endRaw,calcDays:rec.calcDays,useDays:rec.useDays,cumMin:rec.cumMin,
         baseMin:rec.baseMin,needMin:rec.needMin,last:rec.last,rx:rec.rx,claim:rec.claim,ex:rec.ex}});
     nOk++;
@@ -4160,7 +4231,7 @@ const ymd8=v=>{
   if(v==null||v==='')return null;
   if(v instanceof Date)return fd(v);
   if(typeof v==='number'&&v>366&&v<73416){ /* 엑셀 날짜 일련번호 1901~2100 — 1954년 이전 생년월일도 포함 */
-    const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*864e5);
+    const d=new Date(Date.UTC(1899,11,30)+Math.floor(v+1e-6)*864e5);   /* 시각이 든 날짜 셀(정오 뒤)이 다음 날로 밀리지 않게 */
     const y=d.getUTCFullYear();
     if(y<1900||y>2100)return null;
     return `${y}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
@@ -4281,7 +4352,7 @@ async function importMonthlyClaims(aoa,h,fname){
     const phaseOf=a=>a.rxType?(/^ING/i.test(a.rxType)?'pre':'post'):(Math.abs(a.rate-ins.pre)<0.001?'pre':'post');
     /* 계약시작일 앞당김 / 모델·SN 보강 */
     for(const a of rentRows){
-      if(a.start&&a.start<p.rentStart)p.rentStart=a.start;
+      if(a.start&&(!p.rentStart||a.start<p.rentStart))p.rentStart=a.start;
       if(a.item&&!p.model)p.model=a.item;
       if(a.spec&&!p.sn)p.sn=a.spec;
     }
@@ -4468,7 +4539,7 @@ function importIdMatch(aoa,fname){
       continue;
     }
     const p=fx.p;
-    const rrn=digits(row[iR]);if(rrn)p.rrn=rrn;
+    const rrn=digits(row[iR]);if(rrn&&rrn.length>=digits(p.rrn||'').length)p.rrn=rrn;   /* 13자리를 앞 6자리만 든 파일로 덮지 않는다 */
     if(iF>=0&&row[iF]!=='')p.foreign=/^y|1|외국/i.test(String(row[iF]));
     if(iCash>=0){
       const cn=digits(row[iCash]);
@@ -4553,7 +4624,7 @@ async function importChartWb(wb){
       const pobj={id:uid(),name,rrn,phone,addr:'',mgmtCode:'',cashIdNum:'',cashUse:'0',
         device:'자동형',model:'프리즈마 SMART max',sn,
         payMethod:'cash',rentStart,rentEnd:null,rxStart,rxEnd,
-        passDate:compliance.includes('통과')?rentStart:null,
+        passDate:(/통과/.test(compliance)&&!/미통과|불통과|실패/.test(compliance))?rentStart:null,
         hospital:'',doctor,branch,memo,
         docName:(doctor.match(/^([^(]+)/)||['',''])[1].trim(),
         docLicense:((doctor.match(/\((\d+)\)/)||[])[1]||''),docSpecNo:'',pressure:defaultPressure()};
@@ -4976,7 +5047,7 @@ function applyReconToChart(){
     const d50=segs.filter(x=>x.phase==='pre').reduce((a,x)=>a+x.days,0);
     const d20=segs.filter(x=>x.phase==='post').reduce((a,x)=>a+x.days,0);
     const seg20=segs.find(x=>x.phase==='post');
-    if(seg20&&(!p.passDate||p.passDate>seg20.s))applyPassDate(p,seg20.s);   /* 20% 시작일 = 순응통과일 */
+    if(insR.pre!==insR.post&&seg20&&(!p.passDate||p.passDate>seg20.s))applyPassDate(p,seg20.s);   /* 20% 시작일 = 순응통과일 (의료급여처럼 두 요율이 같으면 알 수 없으므로 그대로) */
     const ov={mask:!!maskLine||g.cash.some(x=>x.mask)};
     if(segs.length&&!unknown){
       if(d50&&d20){ov.d1=d50;ov.d2=d20;}else{ov.d1=d50||d20;ov.d2=0;}
@@ -5045,6 +5116,7 @@ function renderRecon(){
     const cardOK=[],needCash=[];
     onlyTax.forEach(rec=>{
       const row=findRow(rec);
+      if(row&&row.c&&!(row.c.bonin>0))return;   /* 본인부담 0원 — 현금영수증이 없는 것이 정상 */
       const pay=row?((row.ov.payMethod||row.p.payMethod)==='card'):false;
       (pay?cardOK:needCash).push(rec);
     });
@@ -5253,8 +5325,8 @@ function drawStack(sel,lgSel,cfg){
     tip.innerHTML=`<div style="font-weight:700;margin-bottom:2px">${cfg.labels[i]}</div>`+
       cfg.tipRows(i).map((row,k)=>`<div class="tr">${k<cfg.series.length?`<span class="sw" style="background:${cfg.series[k].hex}"></span>`:'<span class="sw" style="background:transparent"></span>'}${row[0]} <b style="margin-left:auto">${row[1]}</b></div>`).join('');
     tip.style.display='block';
-    tip.style.left=Math.min(window.innerWidth-180,e.clientX+14)+'px';
-    tip.style.top=(e.clientY+14)+'px';
+    tip.style.left=Math.min(window.innerWidth/UIZ-180,e.clientX/UIZ+14)+'px';   /* 화면 배율(UIZ)만큼 나눠야 마우스 옆에 뜬다 */
+    tip.style.top=(e.clientY/UIZ+14)+'px';
   });
   host.querySelector('svg').addEventListener('mouseleave',()=>tip.style.display='none');
 }
@@ -5399,7 +5471,14 @@ async function renderStorageStatus(){
     }catch(e){showMsg('지속 저장','이 브라우저에서는 지원하지 않습니다.');}
   };
 }
+function renderUiz(){
+  const sel=$('#set_uiz'),now=$('#uizNow');if(!sel)return;
+  sel.value=uizPref();
+  if(now)now.textContent=`지금 ${Math.round(UIZ*100)}% · 창 ${window.innerWidth}×${window.innerHeight}`;
+  sel.onchange=()=>{try{localStorage.setItem(UIZ_KEY,sel.value);}catch(e){}uizApply();renderUiz();try{chartFit();devFit();fixMonthSticky();}catch(e){}};
+}
 function renderSettings(){
+  renderUiz();
   for(const[id,path]of SETMAP){const el=$('#'+id);if(el)el.value=getPath(state.settings,path)??'';}
   $('#set_r_enabled').value=state.settings.rule2h.enabled?'1':'0';
   renderStorageStatus();renderAutoBackup();try{renderLabBox();}catch(e){console.error('실험실 설정 오류',e);}try{renderMsgBox();}catch(e){console.error('문자 발송 설정 오류',e);}try{renderStoreMeter();}catch(e){console.error('저장 공간 표시 오류',e);}
@@ -5682,9 +5761,10 @@ function applyDocsSave(m,ctx){
   set('mgmtCode',code,'차트번호',true);
   const dev=DOC2DEV[r.devType];if(dev)set('device',dev,'기기');
   let pres='';if(r.devType==='BiPAP')pres=[r.pEPAP,r.pIPAP].map(x=>String(x||'').trim()).filter(Boolean).join('/');else if(r.devType==='CPAP')pres=String(r.pSingle||'').trim();else pres=[r.pMin,r.pMax].map(x=>String(x||'').trim()).filter(Boolean).join('-');
-  if(pres)set('pressure',pres,'처방압력');
+  const pNorm=x=>String(x||'').replace(/\s/g,'').replace(/[~∼～／/]/g,'-');
+  if(pres&&!(p&&p.pressure&&pNorm(pres)===pNorm(p.pressure)))set('pressure',pres,'처방압력');
   /* 기존 환자인데 처방전 압력이 다르면 = 압력 변경 재처방 → 이력 추가 (날짜: 순응후 처방전은 계약(재처방)일, 순응 전 처방전은 처방시작일) */
-  if(p&&pres&&p.pressure&&pres!==p.pressure){
+  if(p&&pres&&p.pressure&&pNorm(pres)!==pNorm(p.pressure)){
     const d=post?cs:(c.rxStart||'');
     if(d&&p.rentStart&&d>p.rentStart&&!rxChangesOf(p).some(x=>x.date===d)){
       const lk=rxChangeLocked(p,[d]);
@@ -5697,7 +5777,8 @@ function applyDocsSave(m,ctx){
   set('docName',String(r.doctor||'').trim(),'의사');set('hospital',String(r.hospital||'').trim(),'병원',true);set('staff',String(r.staffName||'').trim(),'담당자',true);
   set('branch',String(r.branch||'').trim(),'지사');
   if(post){
-    set('passDate',cs,'순응통과일(재처방일)');set('rxStart',cs,'처방시작일');if(c.rxEnd)set('rxEnd',c.rxEnd,'처방종료일');
+    if(!p||!p.passDate||p.passDateEst)set('passDate',cs,'순응통과일(재처방일)');   /* 확정된 통과일은 영구 고정 — 연장 · 재처방 때는 처방 기간만 바꾼다 */
+    set('rxStart',cs,'처방시작일');if(c.rxEnd)set('rxEnd',c.rxEnd,'처방종료일');
     if(c.awStart)set('adaptWinStart',c.awStart,'연속 30일 시작');if(c.awEnd)set('adaptWinEnd',c.awEnd,'연속 30일 종료');
     const d4=String(r.awDays||'').trim();if(d4!==''&&!isNaN(Number(d4)))set('adaptDays4h',Number(d4),'4시간 이상 일수');
     if(isNew)set('rentStart',cs,'계약시작일(임시 = 재처방일)');
@@ -5943,7 +6024,7 @@ function chartTodos(p,ns,today){
   for(const n of ns){if(n.del||n.reverted||n.kind!=='dev'||!n.dev||!n.dev.from)continue;   /* 🛠 고장·교체: 수리 안 보낸 고장 기기 · 임시 교체 뒤 원래 기기 · 표준계약서 다시 쓰기 */
     const dv=n.dev,l=devAsOf(n),live=l&&!l.del;
     if(live&&!l.done&&l.ship&&!l.send&&!devDisposed(dv.from.sn))out.push({date:n.date,text:`고장 난 기기 ${dv.from.sn} — 수리 보내기 (보냈으면 발송일 넣기)`,src:`${n.date.slice(5)} 고장·교체에서`,nid:n.id,kind:'devSend'});
-    if(dv.temp&&live&&l.done&&dv.to&&snKey(p.sn)===snKey(dv.to.sn))out.push({date:l.done,text:`수리 끝남 — 원래 기기 ${dv.from.sn}(으)로 돌려 드리기 (🛠 고장·교체 › 교체 · 고장 아님으로 기록)`,src:`${n.date.slice(5)} 임시 교체에서`,nid:n.id,kind:'devBack'});
+    if(dv.temp&&live&&l.done&&dv.to&&snKey(p.sn)===snKey(dv.to.sn)&&!devDisposed(dv.from.sn)&&!(p.rentEnd&&p.rentEnd<fd(new Date())))out.push({date:l.done,text:`수리 끝남 — 원래 기기 ${dv.from.sn}(으)로 돌려 드리기 (🛠 고장·교체 › 교체 · 고장 아님으로 기록)`,src:`${n.date.slice(5)} 임시 교체에서`,nid:n.id,kind:'devBack'});
     if(dv.type==='swap'&&dv.ct&&dv.ct.st==='todo')out.push({date:n.date,text:`표준계약서 다시 쓰기 (새 기기 ${dv.to?dv.to.sn:''})`,src:`${n.date.slice(5)} 고장·교체에서`,nid:n.id,kind:'devCt'});}
   if(!p.passDate&&(p.adaptJudge||/통과/.test(p.adaptStatus||'')))   /* LMTS로는 통과인데 차트엔 아직 순응중 → 순응 후 처방전 받기 */
     out.push({date:p.adaptJudge||today,text:'순응 통과 — 순응 후 처방전 받으면 💊 처방 › ✅ 순응 통과 처방으로 기록',src:'순응중 관리(LMTS)',kind:'rx'});
@@ -5991,7 +6072,7 @@ async function maskLink(p,date){
   return r.ym;
 }
 /* 💊 처방 기록 — 처방전 날짜로 재처방(압력 변경) 이력·처방압력·처방 기간을 한 번에 */
-const rxEndDefault=d=>{const x=pd(d);x.setMonth(x.getMonth()+6);x.setDate(x.getDate()-1);return fd(x);};
+const rxEndDefault=d=>{const x=pd(d),day=x.getDate();x.setDate(1);x.setMonth(x.getMonth()+6);const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();if(day>last)x.setDate(last);else x.setDate(day-1);return fd(x);};   /* 그 달에 같은 날이 없으면 말일 */
 const normP=v=>String(v||'').replace(/\s/g,'').replace(/[~～]/g,'-');
 function rxApply(p,ops){
   if(ops.rxc){p.rxChanges=[...rxChangesOf(p),ops.rxc].sort((a,b)=>a.date<b.date?-1:1);delete p.rxChangePending;}
@@ -6643,8 +6724,8 @@ function renderChart0(){
 /* 차트 화면 높이 = 창 높이에 맞춤 (세 칸이 각자 스크롤) */
 function chartFit(){
   const sec=$('#tab-chart');if(!sec||sec.classList.contains('hidden'))return;
-  const top=sec.getBoundingClientRect().top;
-  sec.style.height=Math.max(560,Math.floor(window.innerHeight-Math.max(top,0)-14))+'px';
+  const top=sec.getBoundingClientRect().top*(UIZ/uizK());   /* 실제 화면에서의 위쪽 자리 */
+  sec.style.height=Math.max(560,Math.floor((window.innerHeight-Math.max(top,0))/UIZ-14))+'px';
 }
 window.addEventListener('resize',()=>{if(state&&labOn('chart'))chartFit();});
 /* 차트 화면 동작 (1회 등록) */
@@ -6809,6 +6890,8 @@ function chartDevSync(){
   {const m=$('#cxDevModel');if(m)m.placeholder=(!pl.err&&pl.dev.to&&pl.dev.to.model&&!d.model.trim())?`모델 (비우면 ${pl.dev.to.model})`:'모델 (비우면 그대로)';}
 }
 /* S/N 번호만 고침: 마지막 교체의 '새 번호'가 고치기 전 번호였으면 교체 이력의 그 줄과 그 기록도 같이 고친다 */
+const SN_FIX_BLOCK=v=>`${v} 는 바꾸기 전에 쓰던 기기의 번호입니다.\n번호만 고치면 기기 교체가 없던 일이 되어 그 달 청구 구간이 달라집니다.\n\n· 교체를 없던 일로 하려면 — 📋 환자 차트에서 그 🛠 고장·교체 기록의 [되돌리기]\n· 원래 기기로 다시 바꿔 드린 것이면 — [기기 교체](또는 🛠 고장·교체 › 교체 · 고장 아님)`;
+function devSnFixBlocked(p,oldSn,newSn){const cs=devChangesOf(p),last=cs[cs.length-1];return !!(last&&snKey(last.to.sn)===snKey(oldSn)&&snKey(last.from.sn)===snKey(newSn));}
 function devSnFixSync(p,oldSn,newSn){
   const cs=devChangesOf(p),last=cs[cs.length-1];
   if(!last||snKey(last.to.sn)!==snKey(oldSn))return;
@@ -7282,9 +7365,9 @@ function openDevFree(){
     <h3>📋 임대 안 나간 기기 — 임대 전 ${R1.length}대 · 쉬는 기기 ${R2.length}대</h3>
     <div class="hint" style="margin-bottom:8px">${F.lb?`LMTS 기기 목록 ${esc(F.lb.date)} 기준 (공단·LMTS 등록 기기) + 환자 정보의 S/N·계약 기간.`:'아직 LMTS 기기 목록을 넣지 않았습니다 — 환자 정보 S/N과 [＋ 기기 등록]한 기기만 보입니다. LMTS <b>기기사용이력</b> 엑셀을 넣으면 등록 기기가 모두 들어옵니다.'} 줄을 누르면 그 기기를 엽니다.${F.soon?` · 설치 예정 ${F.soon}대는 빠짐`:''}</div>
     <div class="helpsec">🏷 임대 전 — 등록만 하고 아직 한 번도 안 나간 기기 (${R1.length}대)</div>
-    <div class="tblwrap" style="max-height:30vh">${t1}</div>
+    <div class="tblwrap" style="max-height:calc(30 * var(--vh))">${t1}</div>
     <div class="helpsec">🌙 지금 쉬는 기기 — 반납 뒤 사용자 없음 (${R2.length}대 · 오래 쉰 순)</div>
-    <div class="tblwrap" style="max-height:30vh">${t2}</div>
+    <div class="tblwrap" style="max-height:calc(30 * var(--vh))">${t2}</div>
     <div class="actions"><button class="btn" id="dfX">📥 엑셀로 내려받기</button><button class="btn primary" id="dfOk">닫기</button></div></div></div>`;
   const close=()=>$('#dlgHost').innerHTML='';
   $('#dfOk').onclick=close;$('#dfBack').onclick=ev=>{if(ev.target.id==='dfBack')close();};
@@ -7381,8 +7464,8 @@ function devExport(year){
 /* 기기 칸 (등록·고치기) */
 function devNextMgmt(date){
   const pre=dYmd(date||fd(new Date()));
-  const n=(state.devices||[]).filter(d=>d&&!d.del&&String(d.mgmtNo||'').startsWith(pre)).length;
-  return pre+String(n+1).padStart(3,'0');
+  const nums=(state.devices||[]).filter(d=>d&&!d.del&&String(d.mgmtNo||'').startsWith(pre)).map(d=>Number(String(d.mgmtNo).slice(pre.length))||0);
+  return pre+String(Math.max(0,...nums)+1).padStart(3,'0');
 }
 function openDevModal(k){
   const today=fd(new Date());
@@ -7459,6 +7542,9 @@ async function devSaveLog(){
   if(f.kind==='disp'&&!f.reason){showMsg('입력 확인','폐기 사유를 적어 주세요 (예: 파손).');return;}
   if(f.kind==='ret'&&f.done&&f.done<f.date){showMsg('입력 확인','완료일이 회수일보다 빠릅니다.');return;}
   if(f.kind==='as'&&f.done&&f.done<f.date){showMsg('입력 확인','완료·입고일이 접수일보다 빠릅니다.');return;}
+  if(f.kind==='as'&&f.send&&f.send<f.date){showMsg('입력 확인','수리 발송일이 접수일보다 빠릅니다.');return;}
+  if(f.kind==='as'&&f.send&&f.done&&f.done<f.send){showMsg('입력 확인','완료·입고일이 수리 발송일보다 빠릅니다.');return;}
+  if(f.kind==='as'&&((f.send&&f.send>fd(new Date()))||(f.done&&f.done>fd(new Date())))){showMsg('입력 확인','발송일 · 완료일이 오늘보다 뒤입니다.');return;}
   const ed=devUI.edit?(state.devLogs||[]).find(x=>x.id===devUI.edit):null;
   if(devUI.edit&&!ed)return;
   const v={kind:f.kind,date:f.date,by:f.by,memo:f.memo.replace(/\s+$/,''),
@@ -7640,8 +7726,8 @@ function renderDev0(){
 }
 function devFit(){
   const sec=$('#tab-dev');if(!sec||sec.classList.contains('hidden'))return;
-  const top=sec.getBoundingClientRect().top;
-  sec.style.height=Math.max(560,Math.floor(window.innerHeight-Math.max(top,0)-14))+'px';
+  const top=sec.getBoundingClientRect().top*(UIZ/uizK());   /* 실제 화면에서의 위쪽 자리 */
+  sec.style.height=Math.max(560,Math.floor((window.innerHeight-Math.max(top,0))/UIZ-14))+'px';
 }
 window.addEventListener('resize',()=>{if(state&&labOn('dev'))devFit();});
 function goDev(sn){
@@ -7707,6 +7793,8 @@ $('#tab-dev').addEventListener('click',e=>{
   if(act==='doneLog'&&l){askModal(l.kind==='ret'?'✓ 회수·소독 완료일':'✓ A/S 완료·입고일',`${l.date} ${DEV_KIND_KO[l.kind]} — ${l.kind==='ret'?'위생처리가 끝난 날':'기기가 돌아온 날'}을 고르세요.`,fd(new Date()),'date').then(v=>{
       if(v==null||!state)return;v=String(v).trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(v)){showMsg('날짜 확인','날짜를 골라 주세요.');return;}
       if(v<l.date){showMsg('날짜 확인','시작한 날보다 빠릅니다.');return;}
+      if(l.send&&v<l.send){showMsg('날짜 확인','수리 보낸 날보다 빠릅니다.');return;}
+      if(v>fd(new Date())){showMsg('날짜 확인','오늘보다 뒤의 날짜입니다.');return;}
       const at=new Date().toISOString(),by=whoNow();l.done=v;l.upd=at;(l.edits=l.edits||[]).push({at,by,act:'done'});persist();renderDev();});return;}
 });
 $('#tab-dev').addEventListener('input',e=>{
@@ -7951,7 +8039,7 @@ function msgBillOf(p,ym,incMask){
   const rent=c.units.reduce((a,u)=>a+u.rentBonin+u.abAmt,0),mask=c.units.reduce((a,u)=>a+u.maskBonin,0);
   return {rent,mask,amt:rent+(incMask?mask:0),card:(ov.payMethod||p.payMethod)==='card'};
 }
-function msgPayDay(ym){const cs=state.settings.cms||{},b=ymAdd(ym,Number(cs.offset??1));return `${Number(b.slice(5))}월 ${Number(cs.day)||10}일`;}
+function msgPayDay(ym){const cs=state.settings.cms||{},b=ymAdd(ym,Number(cs.offset??1)),last=new Date(Number(b.slice(0,4)),Number(b.slice(5)),0).getDate();return `${Number(b.slice(5))}월 ${Math.min(Number(cs.day)||10,last)}일`;}   /* 약정일 31 이어도 2월 31일이 나가지 않게 */
 function msgVarsFor(p,ym,o){
   o=o||{};const s=state.settings,m=msgCfg();
   const v={이름:isNoName(p)?'':(p.name||''),업체명:m.bizName||(s.supplier&&s.supplier.name)||'',업체전화:m.bizTel||'',처방종료일:p.rxEnd?koDate(p.rxEnd):'',결제방식:p.payMethod==='card'?'카드 결제':'자동이체'};
@@ -8060,7 +8148,7 @@ async function solapiSend(list){
     for(const f of (Array.isArray(r.failedMessageList)?r.failedMessageList:[])){const i=f&&f.customFields&&f.customFields.i;bad.set(i!=null?'i'+i:'t'+digits(f&&f.to),f);}
     for(const g of (Array.isArray(r.messageList)?r.messageList:[])){const i=g&&g.customFields&&g.customFields.i;if(i!=null)good.set('i'+i,g);}
     part.forEach((x,i)=>{
-      const f=bad.get('i'+(s+i))||bad.get('t'+x.to),g=good.get('i'+(s+i));
+      const g=good.get('i'+(s+i)),f=bad.get('i'+(s+i))||(g?null:bad.get('t'+x.to));   /* 번호로 맞추는 예비 길은 접수된 줄을 덮지 않는다(같은 번호를 쓰는 두 사람) */
       if(f)res[s+i]={ok:false,code:String(f.statusCode||''),why:String(f.statusMessage||''),mid:String(f.messageId||'')};
       else if(g&&g.statusCode&&String(g.statusCode)!=='2000')res[s+i]={ok:false,code:String(g.statusCode),why:String(g.statusMessage||''),mid:String(g.messageId||'')};
       else res[s+i]={ok:true,code:'2000',why:'',mid:String((g&&g.messageId)||'')};
@@ -8254,7 +8342,7 @@ function openMsgModal(pid,draft){
       if([...f.text].length>ATA_MAX){showMsg('문구 확인',`알림톡은 빈칸을 채운 뒤 ${ATA_MAX.toLocaleString()}자까지입니다.`);return null;}
       return {to,text:f.text,type:'ATA',preset:at.name||'알림톡',ata:at,kv:f.kv};}
     if(!text){showMsg('문구 확인','보낼 문구를 써 주세요.');return null;}
-    if(/#\{[^{}]+\}/.test(text)){showMsg('문구 확인','채우지 못한 칸(#{…})이 남아 있습니다. 고쳐 쓰거나 지운 뒤 보내세요.');return null;}
+    if(/#\{/.test(text)){showMsg('문구 확인','채우지 못한 칸(#{…)이 남아 있습니다. 고쳐 쓰거나 지운 뒤 보내세요.');return null;}
     if(!msgTypeOf(text)){showMsg('문구 확인','문구가 너무 깁니다(2,000바이트까지).');return null;}
     return {to,text,type:msgTypeOf(text),preset:(msgPreset(d.tid)||{}).name||''};
   };
@@ -8379,6 +8467,7 @@ function msgBillRows(B){
     else if(!to)why=digits(p.phone)?'휴대폰 번호가 아님':'연락처 없음';
     else if(!T[k].text)why=`${k==='card'?'카드':'자동이체'}용 문구를 고르세요`;
     else if(f.miss.length)why='못 채운 칸 '+f.miss.map(x=>`#{${x}}`).join(' ');
+    else if(/#\{/.test(f.text))why='문구에 닫히지 않은 #{ 가 있음';
     else if(A?[...f.text].length>ATA_MAX:!ty)why='문구가 너무 깁니다';
     out.push({p,k,to,amt:b.amt,mask:B.incMask?b.mask:0,text:f.text,ty,why,sent:sent.get(p.id)||null,vars,...(A?{ata:A,kv:f.kv}:{})});
     if(to)dup.set(to,(dup.get(to)||0)+1);
@@ -8399,7 +8488,8 @@ function openMsgBill(){
 function msgBillDraw(){
   const B=msgUI.bill;if(!B||!state)return;
   const m=msgCfg(),rows=msgBillRows(B),okRows=rows.filter(x=>!x.why),ready=msgReady(),M=Number(B.ym.slice(5));
-  B.sel=new Set(okRows.filter(x=>B.sel?B.sel.has(x.p.id):!x.sent).map(x=>x.p.id));
+  {const was=B.okIds;B.okIds=new Set(okRows.map(x=>x.p.id));   /* 방금 '보낼 수 있게' 된 사람(문구 · 전화 칸을 고친 뒤)은 처음처럼 골라 둔다 */
+   B.sel=new Set(okRows.filter(x=>(B.sel&&(!was||was.has(x.p.id)))?B.sel.has(x.p.id):!x.sent).map(x=>x.p.id));}
   if(!B.focus||!rows.some(x=>x.p.id===B.focus))B.focus=((okRows[0]||rows[0]||{}).p||{}).id||null;
   const opt=sel=>`<option value="">— 고르기 —</option>${m.presets.map(t=>`<option value="${esc(t.id)}"${t.id===sel?' selected':''}>${esc(t.name)}</option>`).join('')}`;
   const aon=ataOn(),T=msgBillTpl(B),fb=m.ata.sms!==false;
@@ -8532,7 +8622,7 @@ async function msgBillXls0(){
     <li>받는 번호 칸은 <b>수신번호</b>, 내용에는 <b>#{문구}</b> 한 줄 — 사람마다 완성된 문구가 들어갑니다. <span class="hint">안 되면 위 [문구 복사]를 붙여 넣으세요(#{이름} 같은 칸이 엑셀 칸과 이어집니다). 화면 이름은 조금 다를 수 있습니다.</span></li>
     <li>미리보기로 한두 명 확인 → 발송. 자동이체 · 카드 파일은 따로 보냅니다.</li>
     <li>다 보냈으면 아래 <b>[보냄으로 기록]</b> — 환자 차트에 남고, 다음에 같은 달을 또 보내지 않게 표시됩니다. 내려받은 파일은 지우세요(이름 · 번호 · 금액).</li></ol>`,
-    [['아직 안 보냄 — 닫기',false,''],[`보냄으로 기록 (${pk.length}명)`,true,'primary']],640);
+    [[`보냄으로 기록 (${pk.length}명)`,true,'primary'],['아직 안 보냄 — 닫기',false,'']],640);   /* 처음 포커스는 마지막 단추 — 습관적 Enter 로 '보냄'이 적히지 않게 */
   if(!yes||!state||msgUI.bill!==B)return;
   msgBatchAdd(B,pk,null,'xls');persist();B.sel=new Set();msgBillDraw();
   docboxNote(`📝 ${pk.length}명 — 엑셀로 보낸 것으로 기록했습니다`,5000);
