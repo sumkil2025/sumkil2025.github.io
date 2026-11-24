@@ -953,7 +953,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.24.6';
+const APP_VERSION='2026.11.24.7';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 정식 주소(chart.html — 다른 업체도 쓴다)에는 아직 열지 않는 실험실 기능의 목록: 여기 적힌 것(예: {msg:1})은 시험판 주소와 내 PC(localhost)에서만 보이고 켜진다.
    💬 문자 발송(msg)은 2026-11-22 에 정식에도 열었다(사용자 "열어 줘" — 사무실의 실제 키로 문자가 나가는 것을 본 뒤, v2026.11.22.3). 지금은 목록이 비어 있다.
@@ -3684,10 +3684,10 @@ function beginImport(fname){
   histHold=true;histSrcHeld='📥 '+fname;
   importUndo={at:Date.now(),files:[fname],snap:JSON.stringify({patients:state.patients,months:state.months})};
 }
-const FIELD_KO={proxyStart:'위임 시작일',proxyEnd:'위임 만료일',proxyOk:'위임 승인 확인일',rxRegNo:'전자처방전 등록번호',rxRegFor:'전자처방전의 처방시작일',rrn:'주민번호',phone:'연락처',addr:'주소',birthDate:'생년월일',rentStart:'계약시작일',rentEnd:'계약종료일',rxStart:'처방시작일',rxEnd:'처방종료일',rxEndPrev:'이전 처방종료일',passDate:'순응통과일',pressure:'처방압력',model:'모델',sn:'S/N',device:'기기',mgmtCode:'차트번호',staff:'담당자',branch:'지사',branchFax:'지사팩스',docName:'의사',docLicense:'면허',docSpecNo:'전문의번호',hospital:'병원',doctor:'의사',maskType:'마스크종류',maskDate:'마스크구매일',maskMonth:'마스크구독월',adaptStart:'순응시작일',adaptEnd:'순응종료일',adaptWinStart:'통과기간시작',adaptWinEnd:'통과기간종료',adaptDays4h:'4시간 사용일',adaptJudge:'순응판정일',psgDate:'PSG검사일',nextVisit:'진료예정일',lastVisit:'최근진료일',adaptStatus:'순응상태',adaptRxType:'최종처방전',payMethod:'결제',cashIdNum:'현금영수증번호',cashUse:'용도',memo:'메모',
+const FIELD_KO={passDateEst:'순응통과일 추정 표시',rentStartEst:'계약시작일 추정 표시',proxyStart:'위임 시작일',proxyEnd:'위임 만료일',proxyOk:'위임 승인 확인일',rxRegNo:'전자처방전 등록번호',rxRegFor:'전자처방전의 처방시작일',rrn:'주민번호',phone:'연락처',addr:'주소',birthDate:'생년월일',rentStart:'계약시작일',rentEnd:'계약종료일',rxStart:'처방시작일',rxEnd:'처방종료일',rxEndPrev:'이전 처방종료일',passDate:'순응통과일',pressure:'처방압력',model:'모델',sn:'S/N',device:'기기',mgmtCode:'차트번호',staff:'담당자',branch:'지사',branchFax:'지사팩스',docName:'의사',docLicense:'면허',docSpecNo:'전문의번호',hospital:'병원',doctor:'의사',maskType:'마스크종류',maskDate:'마스크구매일',maskMonth:'마스크구독월',adaptStart:'순응시작일',adaptEnd:'순응종료일',adaptWinStart:'통과기간시작',adaptWinEnd:'통과기간종료',adaptDays4h:'4시간 사용일',adaptJudge:'순응판정일',psgDate:'PSG검사일',nextVisit:'진료예정일',lastVisit:'최근진료일',adaptStatus:'순응상태',adaptRxType:'최종처방전',payMethod:'결제',cashIdNum:'현금영수증번호',cashUse:'용도',memo:'메모',
   ahi:'PSG AHI',docHist:'서류 발행 이력',avgMinManual:'평균사용시간(수동)',rxChanges:'재처방(압력 변경) 이력',devChanges:'기기 교체 이력',cmsNo:'효성CMS+ 회원번호',rxChangePending:'압력 변경 감지',cashApproveSrc:'현금승인 출처',taxApproveSrc:'세금승인 출처',seg3:'구간3',seg4:'구간4',seg5:'구간5',seg6:'구간6',d1:'구간1 일수',d2:'구간2 일수',mask:'마스크',maskSeg:'마스크 구간',maskItem:'마스크 품목',maskSpec:'마스크 규격',abroad:'해외일',trips:'해외 출입국',avgMin:'평균사용시간',selfFull:'전액본인부담',cashApprove:'현금 승인번호',taxApprove:'세금 승인번호',cashDate:'현금 작성일',taxDate:'세금 작성일',taxIssue:'세금 발급일',cashPaid:'현금 입금',taxPaid:'세금 입금',claimed:'청구완료',snap:'청구 스냅샷',seg2:'구간2',lmts:'LMTS 요약',adapt:'LMTS 순응후'};
 const fko=k=>FIELD_KO[k]||k;
-const fmtV=v=>v==null||v===''?'—':(typeof v==='object'?(Array.isArray(v)?`[${v.length}]`:'{…}'):String(v));
+const fmtV=v=>v==null||v===''?'—':typeof v==='boolean'?(v?'예':'아니오'):(typeof v==='object'?(Array.isArray(v)?`[${v.length}]`:'{…}'):String(v));
 function diffState(before,after){
   const lines=[];let nP=0,nM=0;
   const bp=new Map(before.patients.map(x=>[x.id,x])),ap=new Map(after.patients.map(x=>[x.id,x]));
@@ -4547,7 +4547,7 @@ async function importMonthlyClaims(aoa,h,fname){
       }
       else if(!r50.length&&p.passDateEst&&r20.start<=monthFirst&&monthFirst<p.passDate){
         /* 추정해 둔 통과일보다 앞선 달도 전부 순응후 → 추정을 그 달 1일로 당긴다(앞 달 파일을 나중에 넣어도 같은 결과). 여전히 추정 */
-        if(passChangeLocked(p,p.passDate,monthFirst))notes.push(`⚠️ 이 달도 전부 순응후인데 순응통과일 추정(${p.passDate})이 더 늦습니다 — 그 사이에 청구가 끝난 달이 있어 그대로 둠`);
+        if(passChangeLocked(p,addDays(p.passDate,-1),monthFirst))notes.push(`⚠️ 이 달도 전부 순응후인데 순응통과일 추정(${p.passDate})이 더 늦습니다 — 그 사이에 청구가 끝난 달이 있어 그대로 둠`);
         else{const old=p.passDate;applyPassDate(p,monthFirst);p.passDateEst=true;clearManualDays(p.id);notes.push(`순응통과일 추정 ${old} → ${monthFirst} (이 달도 전부 순응후 · 여전히 추정)`);}
       }
       else if(r50.length&&p.passDate!==r20.start&&p.passDateEst){
