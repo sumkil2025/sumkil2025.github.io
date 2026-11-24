@@ -952,7 +952,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.24.3';
+const APP_VERSION='2026.11.24.4';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 정식 주소(chart.html — 다른 업체도 쓴다)에는 아직 열지 않는 실험실 기능의 목록: 여기 적힌 것(예: {msg:1})은 시험판 주소와 내 PC(localhost)에서만 보이고 켜진다.
    💬 문자 발송(msg)은 2026-11-22 에 정식에도 열었다(사용자 "열어 줘" — 사무실의 실제 키로 문자가 나가는 것을 본 뒤, v2026.11.22.3). 지금은 목록이 비어 있다.
@@ -3582,7 +3582,10 @@ function docboxRosterData(){
     let segs=[];try{segs=snSegs(p)||[];}catch(e){}
     return {i:p.id,c:p.mgmtCode||'',name:p.name,birth6,
       state:(p.rentEnd&&p.rentEnd<today)?'returned':'use',contractStart:d(p.rentStart),returnDay:d(p.rentEnd),
-      devices:segs.map(g=>({sn:String(g.sn||''),from:d(g.start),to:d(g.end)})).filter(g=>g.sn),
+      /* ct(2026-11-24, 서류보관함 0.4.2 의 부탁): 그 기기로 바꾸면서 표준계약서를 다시 쓰는(쓴) 구간에만, 그 계약서의 계약 날짜(따로 적지 않았으면 바꾼 날)
+         — 서류보관함이 그 날짜에 시작하는 계약서를 넣을 때 단계를 '기기변경'으로 채운다. 앞 판의 서류보관함은 모르는 칸이라 버린다 */
+      devices:segs.map(g=>{const c0=String(g.inRef||'').startsWith('x:')?devChangesOf(p).find(x=>'x:'+x.id===g.inRef):null,ct0=c0?devCtOf(c0):null;
+        return {sn:String(g.sn||''),from:d(g.start),to:d(g.end),...(ct0?{ct:ct0.start||c0.date}:null)};}).filter(g=>g.sn),
       /* pass: 순응 후 처방을 받은 날(순응통과일). 어림값(월청구자료에 통과일이 없어 그 달 1일로 둔 것)은 싣지 않는다 — 서류함이 순응 통과용 보고서의 청구 달을 이 날짜로 정한다. */
       adapt:{start:d(p.adaptStart),end:d(p.adaptEnd),state:p.passDate?'pass':'',pass:(p.passDate&&!p.passDateEst)?p.passDate:''},
       rx:{start:d(p.rxStart),end:d(p.rxEnd)},
@@ -9722,10 +9725,11 @@ window.__selftest=function(){
         const ch=calcPatientMonth(H,'2026-11',getOv('2026-11','H')),U=ch.units,h1=docboxClaimHints(H,U[0],'2026-11'),h3=docboxClaimHints(H,U[2]||U[0],'2026-11');
         const ca=calcPatientMonth(A,'2026-11',getOv('2026-11','A')),a1=docboxClaimHints(A,ca.units[0],'2026-11'),a2=docboxClaimHints(A,ca.units[1],'2026-11'),hs=docboxClaimHints(state.patients.find(x=>x.id==='S'),calcPatientMonth(state.patients.find(x=>x.id==='S'),'2026-11',getOv('2026-11','S')).units[0],'2026-11');
         const row=docboxClaimList('2026-11').claims.find(x=>x.i==='H'&&x.k===3);
+        const rP=docboxRosterData().roster.patients,rH=(rP.find(x=>x.i==='H')||{}).devices||[],rA=(rP.find(x=>x.i==='A')||{}).devices||[];
         if(!pl.err&&U.length===3&&U[1].kind==='exc'&&devOn(H,U[0].e).sn==='SN-H'&&devOn(H,U[2].e).sn==='SN-H2'&&devCtIn(H,U[0]).length===0&&devCtIn(H,U[2]).length===1&&devFirstClaimDay(H,'2026-11-12')==='2026-11-15'
           &&h1.ct==='0'&&h1.dv==='0'&&h3.ct==='1'&&h3.dv==='2026-11-12'&&h3.cts==='2026-11-15'&&h3.rxs===''&&devCtStartFor(H,U[2],'2026-05-15','2027-05-14')==='2026-11-15'
           &&a1.rxs==='2026-05-15'&&a2.rxs==='2026-11-10'&&a2.rx==='new'&&a2.dv==='0'&&hs.rxs===''&&row&&row.dv==='2026-11-12'&&row.cts==='2026-11-15'&&!('rxs' in row)
-          &&/&dv=2026-11-12&cts=2026-11-15$/.test(docboxHintQuery(h3))&&/&dv=0&rxs=2026-11-10$/.test(docboxHintQuery(a2)))ok18++;else console.warn('FAIL18-11',pl,U,h1,h3,a1,a2,hs,row,docboxHintQuery(h3),docboxHintQuery(a2));}
+          &&rH.length===2&&rH[0].sn==='SN-H'&&!('ct' in rH[0])&&rH[1].sn==='SN-H2'&&rH[1].from==='2026-11-12'&&rH[1].ct==='2026-11-15'&&rA.length===1&&!('ct' in rA[0])&&/&dv=2026-11-12&cts=2026-11-15$/.test(docboxHintQuery(h3))&&/&dv=0&rxs=2026-11-10$/.test(docboxHintQuery(a2)))ok18++;else console.warn('FAIL18-11',pl,U,h1,h3,a1,a2,hs,row,docboxHintQuery(h3),docboxHintQuery(a2));}
     }catch(e){console.warn('FAIL18-x',e);}
     finally{state=saved;}
   }
