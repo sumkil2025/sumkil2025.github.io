@@ -936,7 +936,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
  */
 const APP_NAME='항상웃는얼굴숨길이';
 const APP_COPYRIGHT='© 2026 주식회사 숨길';
-const APP_VERSION='2026.11.24.1';
+const APP_VERSION='2026.11.24.2';
 const IS_NEXT=/chart-next/i.test(location.pathname);   /* 시험판 주소(chart-next.html) — 자료는 chart.html과 같음 */
 /* 정식 주소(chart.html — 다른 업체도 쓴다)에는 아직 열지 않는 실험실 기능의 목록: 여기 적힌 것(예: {msg:1})은 시험판 주소와 내 PC(localhost)에서만 보이고 켜진다.
    💬 문자 발송(msg)은 2026-11-22 에 정식에도 열었다(사용자 "열어 줘" — 사무실의 실제 키로 문자가 나가는 것을 본 뒤, v2026.11.22.3). 지금은 목록이 비어 있다.
@@ -5047,7 +5047,7 @@ function applyReconToChart(){
     const d50=segs.filter(x=>x.phase==='pre').reduce((a,x)=>a+x.days,0);
     const d20=segs.filter(x=>x.phase==='post').reduce((a,x)=>a+x.days,0);
     const seg20=segs.find(x=>x.phase==='post');
-    if(seg20&&(!p.passDate||p.passDate>seg20.s))applyPassDate(p,seg20.s);   /* 20% 시작일 = 순응통과일 */
+    if(insR.pre!==insR.post&&seg20&&(!p.passDate||p.passDate>seg20.s))applyPassDate(p,seg20.s);   /* 20% 시작일 = 순응통과일 (의료급여처럼 두 요율이 같으면 알 수 없으므로 그대로) */
     const ov={mask:!!maskLine||g.cash.some(x=>x.mask)};
     if(segs.length&&!unknown){
       if(d50&&d20){ov.d1=d50;ov.d2=d20;}else{ov.d1=d50||d20;ov.d2=0;}
@@ -5116,6 +5116,7 @@ function renderRecon(){
     const cardOK=[],needCash=[];
     onlyTax.forEach(rec=>{
       const row=findRow(rec);
+      if(row&&row.c&&!(row.c.bonin>0))return;   /* 본인부담 0원 — 현금영수증이 없는 것이 정상 */
       const pay=row?((row.ov.payMethod||row.p.payMethod)==='card'):false;
       (pay?cardOK:needCash).push(rec);
     });
@@ -5760,9 +5761,10 @@ function applyDocsSave(m,ctx){
   set('mgmtCode',code,'차트번호',true);
   const dev=DOC2DEV[r.devType];if(dev)set('device',dev,'기기');
   let pres='';if(r.devType==='BiPAP')pres=[r.pEPAP,r.pIPAP].map(x=>String(x||'').trim()).filter(Boolean).join('/');else if(r.devType==='CPAP')pres=String(r.pSingle||'').trim();else pres=[r.pMin,r.pMax].map(x=>String(x||'').trim()).filter(Boolean).join('-');
-  if(pres)set('pressure',pres,'처방압력');
+  const pNorm=x=>String(x||'').replace(/\s/g,'').replace(/[~∼～／/]/g,'-');
+  if(pres&&!(p&&p.pressure&&pNorm(pres)===pNorm(p.pressure)))set('pressure',pres,'처방압력');
   /* 기존 환자인데 처방전 압력이 다르면 = 압력 변경 재처방 → 이력 추가 (날짜: 순응후 처방전은 계약(재처방)일, 순응 전 처방전은 처방시작일) */
-  if(p&&pres&&p.pressure&&pres!==p.pressure){
+  if(p&&pres&&p.pressure&&pNorm(pres)!==pNorm(p.pressure)){
     const d=post?cs:(c.rxStart||'');
     if(d&&p.rentStart&&d>p.rentStart&&!rxChangesOf(p).some(x=>x.date===d)){
       const lk=rxChangeLocked(p,[d]);
@@ -5775,7 +5777,8 @@ function applyDocsSave(m,ctx){
   set('docName',String(r.doctor||'').trim(),'의사');set('hospital',String(r.hospital||'').trim(),'병원',true);set('staff',String(r.staffName||'').trim(),'담당자',true);
   set('branch',String(r.branch||'').trim(),'지사');
   if(post){
-    set('passDate',cs,'순응통과일(재처방일)');set('rxStart',cs,'처방시작일');if(c.rxEnd)set('rxEnd',c.rxEnd,'처방종료일');
+    if(!p||!p.passDate||p.passDateEst)set('passDate',cs,'순응통과일(재처방일)');   /* 확정된 통과일은 영구 고정 — 연장 · 재처방 때는 처방 기간만 바꾼다 */
+    set('rxStart',cs,'처방시작일');if(c.rxEnd)set('rxEnd',c.rxEnd,'처방종료일');
     if(c.awStart)set('adaptWinStart',c.awStart,'연속 30일 시작');if(c.awEnd)set('adaptWinEnd',c.awEnd,'연속 30일 종료');
     const d4=String(r.awDays||'').trim();if(d4!==''&&!isNaN(Number(d4)))set('adaptDays4h',Number(d4),'4시간 이상 일수');
     if(isNew)set('rentStart',cs,'계약시작일(임시 = 재처방일)');
@@ -6069,7 +6072,7 @@ async function maskLink(p,date){
   return r.ym;
 }
 /* 💊 처방 기록 — 처방전 날짜로 재처방(압력 변경) 이력·처방압력·처방 기간을 한 번에 */
-const rxEndDefault=d=>{const x=pd(d);x.setMonth(x.getMonth()+6);x.setDate(x.getDate()-1);return fd(x);};
+const rxEndDefault=d=>{const x=pd(d),day=x.getDate();x.setDate(1);x.setMonth(x.getMonth()+6);const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();if(day>last)x.setDate(last);else x.setDate(day-1);return fd(x);};   /* 그 달에 같은 날이 없으면 말일 */
 const normP=v=>String(v||'').replace(/\s/g,'').replace(/[~～]/g,'-');
 function rxApply(p,ops){
   if(ops.rxc){p.rxChanges=[...rxChangesOf(p),ops.rxc].sort((a,b)=>a.date<b.date?-1:1);delete p.rxChangePending;}
